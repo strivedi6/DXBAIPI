@@ -58,6 +58,7 @@
     popupList: null,
     openedAt: Date.now(),
     deepLinkAccess: new URLSearchParams(location.search).get('access') === '1',
+    deepLinkReport: new URLSearchParams(location.search).get('report'),
     myBdayInfo: LS.get('bb_my_bday') || null
   };
 
@@ -117,6 +118,7 @@
     cake: sv('<path d="M4 21h16v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2z"/><path d="M4 16c1.5 1 3 1 4 0s2.5-1 4 0 2.5 1 4 0 2.5-1 4 0"/><path d="M12 11V8"/><path d="M12 5.5c.8-.8.8-1.7 0-2.5-.8.8-.8 1.7 0 2.5z"/>', 22),
     award: sv('<circle cx="12" cy="9" r="5"/><path d="M8.5 13.2L7 21l5-2.5 5 2.5-1.5-7.8"/>', 16),
     sparkles: sv('<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8z"/>', 20),
+    qr: sv('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/>', 20),
     star: sv('<path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/>', 22),
     trash: sv('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>', 16),
     clock: sv('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', 16),
@@ -410,7 +412,7 @@
     }
     if (!j.ok) {
       if (j.error === 'SESSION_EXPIRED' || j.error === 'ACCESS_REMOVED') {
-        signOut(j.error === 'ACCESS_REMOVED' ? 'Your access has been removed. Please contact your Admin.' : 'Please sign in again.');
+        signOut(j.error === 'ACCESS_REMOVED' ? 'Your access to the app has ended. Please contact HR or your Admin if this is a mistake.' : 'Please sign in again.');
         const err = new Error('handled');
         err.handled = true;
         throw err;
@@ -433,9 +435,26 @@
     LS.set('bb_pub', state.canPublish);
   }
 
+  /** A short name for this phone or computer, shown when someone is already signed in elsewhere. */
+  function deviceLabel() {
+    const ua = navigator.userAgent;
+    const os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ? 'iPad'
+      : /Android/.test(ua) ? ((/;\s*([^;)]+?)\s+Build\//.exec(ua) || [])[1] || 'Android phone')
+      : /Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows computer' : 'computer';
+    return os;
+  }
+
+  /** Signs out on the server first, so this person can sign in on another device. */
+  async function signOutOnServer() {
+    if (!state.token) return true;
+    try {
+      const res = await fetch(CONFIG.apiUrl, { method: 'POST', body: JSON.stringify({ action: 'logout', token: state.token }), keepalive: true });
+      await res.json();
+      return true;
+    } catch (e) { return false; }
+  }
+
   function signOut(message) {
-    const token = state.token;
-    if (token) fetch(CONFIG.apiUrl, { method: 'POST', body: JSON.stringify({ action: 'logout', token }) }).catch(() => {});
     Push.untag();
     ['bb_token', 'bb_user', 'bb_pub', 'bb_posts'].forEach(LS.del);
     Object.assign(state, { token: null, user: null, canPublish: [], posts: [], myPosts: null, staff: null });
@@ -479,6 +498,8 @@
       Preload.images(state.posts);
       maybeCelebrate();
       schedulePopups();
+      state.farewell = j.farewell || null;
+      maybeFarewell();
     } catch (e) {
       if (!e.handled) {
         state.offline = true;
@@ -676,6 +697,8 @@
   function paint(top) {
     const name = screenName();
     const view = VIEWS[name] || VIEWS.feed;
+    if (name !== 'checkin') Scanner.stop();
+    if (name !== 'checkinHost') Host.stop();
     FX.stop();
     app.innerHTML = view(state.route.params);
     if (top) window.scrollTo(0, 0);
@@ -755,7 +778,7 @@
   };
 
   function nav(active) {
-    const map = { me: 'profile', popups: 'profile', myposts: 'profile', admin: 'profile', adminTeam: 'profile', adminSetup: 'profile', setupSection: 'profile', appearance: 'profile', attendees: 'hr', birthdays: 'hr', collections: 'offers' };
+    const map = { leavers: 'profile', me: 'profile', popups: 'profile', myposts: 'profile', admin: 'profile', adminTeam: 'profile', adminSetup: 'profile', setupSection: 'profile', appearance: 'profile', attendees: 'hr', birthdays: 'hr', collections: 'offers' };
     active = map[active] || active;
     const items = [['feed', 'Home', I.home], ['hr', 'HR', I.users], ['today', 'Today', I.star], ['offers', 'Offers', I.tag], ['profile', 'Profile', I.user]];
     const pending = canApprove() && state.staff ? state.staff.filter((s) => s.status === 'Pending').length : 0;
@@ -999,12 +1022,13 @@
     const copy = {
       Pending: ['Request received', 'Thank you. Your Admin will review your request. Once approved, sign in with your Employee ID and PIN.'],
       Declined: ['Access not approved', 'Your request was not approved. Please speak to your manager or HR if you think this is a mistake.'],
-      Blocked: ['Access paused', 'Your access to the team app has been paused. Please contact your Admin.']
+      Blocked: ['Access paused', 'Your access to the team app has been paused. Please contact your Admin.'],
+      Left: ['Thank you', 'Your access to the team app ended on your last working day. Thank you for everything you did here, and all the very best for the future.']
     }[s] || ['Request received', 'Your Admin will review your request.'];
     return `
     <div class="screen"><div class="page" style="justify-content:center;text-align:center;gap:18px">
-      <div class="monogram" style="margin:0 auto;color:var(--gold-text);border-color:var(--gold)" aria-hidden="true">${s === 'Pending' ? I.check : '!'}</div>
-      <span class="eyebrow">${s === 'Pending' ? 'Awaiting approval' : 'Access'}</span>
+      <div class="monogram" style="margin:0 auto;color:var(--gold-text);border-color:var(--gold)" aria-hidden="true">${s === 'Pending' ? I.check : s === 'Left' ? I.sparkles : '!'}</div>
+      <span class="eyebrow">${s === 'Pending' ? 'Awaiting approval' : s === 'Left' ? 'Farewell' : 'Access'}</span>
       <h1 class="title-lg">${esc(copy[0])}</h1>
       <p class="muted">${esc(copy[1])}</p>
       <div class="spacer"></div>
@@ -1670,14 +1694,289 @@
       </div>
       ${p.message ? `<div class="prose">${esc(p.message)}</div>` : ''}
       ${attachments(p)}
+      ${checkinBlock(p)}
       ${attendeesBlock(p)}
       <p class="small muted center">${p.postedBy ? `Shared by ${esc(p.postedBy)} · ` : ''}${esc(fmtStamp(p.created))}</p>
       <div class="spacer"></div>
-      ${!p.eventDate || p.eventDate >= todayIso() ? `<div class="sticky-actions">${p.attending
-        ? `<button class="btn btn-attending" type="button" data-act="attend" data-id="${esc(p.id)}" data-v="0">${I.check} You’re attending · tap to cancel</button>`
-        : `<button class="btn" type="button" data-act="attend" data-id="${esc(p.id)}" data-v="1">${sv('<path d="M12 5v14M5 12h14"/>', 20)} Attend</button>`}</div>` : ''}
+      ${trainingActions(p)}
     </div></div>`;
   }
+
+  /* ---------------- Leavers (HR and Admin) ---------------- */
+  async function loadLeavers() {
+    try { state.leavers = (await api('leavers')).staff || []; }
+    catch (e) { showError(e); state.leavers = state.leavers || []; }
+    if (state.route.name === 'leavers') render();
+  }
+  const longDate = (iso) => iso ? dayParts(iso).long : '';
+
+  VIEWS.leavers = () => {
+    if (!state.leavers) { setTimeout(loadLeavers, 0); }
+    const all = state.leavers || [];
+    const q = (state.leaverQuery || '').trim().toLowerCase();
+    const today = todayIso();
+    const leaving = all.filter((x) => x.status === 'Approved' && x.lastDay).sort((a, b) => a.lastDay.localeCompare(b.lastDay));
+    const left = all.filter((x) => x.status === 'Left').sort((a, b) => (b.lastDay || '').localeCompare(a.lastDay || ''));
+    const found = q ? all.filter((x) => x.status === 'Approved' && !x.lastDay && (x.name + ' ' + x.employeeId + ' ' + x.department).toLowerCase().indexOf(q) >= 0).slice(0, 25) : [];
+    const person = (x, mode) => `<details class="person leaver" ${state.leaverOpen === x.employeeId ? 'open' : ''}>
+      <summary class="who" style="cursor:pointer;list-style:none">${avatarHtml(x)}
+        <div class="spacer"><div class="n">${esc(x.name)}</div><div class="d">ID ${esc(x.employeeId)} · ${esc([x.department, x.property].filter(Boolean).join(' · '))}</div></div>
+        ${mode === 'leaving' ? `<span class="tag ${x.lastDay === today ? 'tag-red' : 'tag-fb'}">${x.lastDay === today ? 'Today' : esc(dayParts(x.lastDay).d + ' ' + dayParts(x.lastDay).mon)}</span>` : mode === 'left' ? '<span class="tag tag-muted">Left</span>' : ''}</summary>
+      ${mode === 'left' ? `<p class="small muted">Access ended on ${esc(longDate(x.lastDay))} at 6:00 pm.</p>
+        <button class="btn btn-sm btn-ghost" style="border:1px solid var(--field-line)" type="button" data-act="clearLastDay" data-id="${esc(x.employeeId)}">Give access back</button>` : `
+      <form class="stack" data-form="lastDay" data-id="${esc(x.employeeId)}" novalidate style="gap:10px">
+        <div class="field"><label for="ld-${esc(x.employeeId)}">Last working day</label>
+          <input class="input" id="ld-${esc(x.employeeId)}" name="date" type="date" min="${today}" value="${esc(x.lastDay || '')}"></div>
+        <p class="hint" style="margin-top:-4px">Their access ends at 6:00 pm on this day. On the day, they see a thank-you message when they open the app.</p>
+        <div class="error-box" id="form-error" hidden></div>
+        <div class="grid-2">
+          <button class="btn btn-sm" type="submit">${x.lastDay ? 'Change date' : 'Save'}</button>
+          ${x.lastDay ? `<button class="btn btn-sm btn-danger" type="button" data-act="clearLastDay" data-id="${esc(x.employeeId)}">Remove date</button>` : ''}
+        </div>
+      </form>`}
+    </details>`;
+    return `
+    <div class="screen"><div class="page with-nav">
+      <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
+        <div class="greet spacer"><span class="eyebrow">HR</span><h1>Leavers</h1></div>
+        <button class="icon-btn" type="button" data-act="reloadLeavers" aria-label="Refresh">${I.refresh}</button></div>
+      <p class="muted small">Set the last working day for a colleague who has resigned. Their access to the app ends at 6:00 pm that day, and they see a thank-you message when they open the app on their last day.</p>
+      <div class="search">${I.search}<label class="sr-only" for="lq">Find a colleague</label><input class="input" id="lq" type="search" placeholder="Find by first name, last name or Employee ID" value="${esc(state.leaverQuery || '')}" data-input="leaverSearch"></div>
+      ${!state.leavers ? '<div class="spinner"></div>' : `
+      ${q ? `<div class="list">${found.map((x) => person(x, 'find')).join('') || '<p class="small muted center">No one found with access to the app.</p>'}</div>` : ''}
+      <span class="section-title">Leaving · ${leaving.length}</span>
+      <div class="list">${leaving.map((x) => person(x, 'leaving')).join('') || '<p class="small muted">No one has a last working day set. Search above to add one.</p>'}</div>
+      ${left.length ? `<span class="section-title">Left · ${left.length}</span><div class="list">${left.slice(0, 30).map((x) => person(x, 'left')).join('')}</div>` : ''}`}
+    </div>${nav('leavers')}</div>`;
+  };
+
+  /* ---------------- Training check-in ---------------- */
+  const checkinOpen = (p) => p.checkinOpens && Date.now() >= p.checkinOpens && Date.now() <= p.checkinCloses;
+  const clock = (ts) => new Date(ts).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Dubai' });
+
+  /** Check-in status for me, and the trainer's tools (code screen and report). */
+  function checkinBlock(p) {
+    const now = Date.now();
+    let mine = '';
+    if (p.checkedInAt) mine = `<div class="checkin-done">${I.check}<span><b>You checked in at ${esc(clock(p.checkedInAt))}</b><br><span class="small">Your attendance is recorded.</span></span></div>`;
+    else if (p.checkinOpens && now < p.checkinOpens) mine = `<p class="small muted row" style="gap:6px">${I.clock} Check-in opens at ${esc(clock(p.checkinOpens))}${p.eventDate !== todayIso() ? ' on ' + esc(dayParts(p.eventDate).long) : ''}. Scan the trainer’s QR code or type their code.</p>`;
+    else if (p.checkinCloses && now > p.checkinCloses) mine = `<p class="small muted">Check-in for this session has closed.</p>`;
+    const tools = p.canRunCheckin ? `<div class="card checkin-tools">
+        <span class="section-title" style="margin:0">For the trainer${p.checkedInCount ? ' · ' + p.checkedInCount + ' checked in' : ''}</span>
+        <p class="hint" style="margin-top:-6px">Show the check-in code at the training room. It changes every 30 seconds, so only people in the room can check in.</p>
+        <div class="grid-2">
+          <button class="btn btn-sm" type="button" data-act="nav" data-to="checkinHost" data-id="${esc(p.id)}">${I.qr} Show check-in code</button>
+          <button class="btn btn-sm btn-outline" type="button" data-act="nav" data-to="trainingReport" data-id="${esc(p.id)}">Attendance report</button>
+        </div>
+      </div>` : '';
+    return mine + tools;
+  }
+
+  /** Bottom button: Check in during the session, otherwise Attend. */
+  function trainingActions(p) {
+    if (checkinOpen(p) && !p.checkedInAt) {
+      return `<div class="sticky-actions"><button class="btn" type="button" data-act="nav" data-to="checkin" data-id="${esc(p.id)}">${I.qr} Check in now</button></div>`;
+    }
+    if (p.checkedInAt || (p.eventDate && p.eventDate < todayIso()) || (p.checkinCloses && Date.now() > p.checkinCloses)) return '';
+    return `<div class="sticky-actions">${p.attending
+      ? `<button class="btn btn-attending" type="button" data-act="attend" data-id="${esc(p.id)}" data-v="0">${I.check} You’re attending · tap to cancel</button>`
+      : `<button class="btn" type="button" data-act="attend" data-id="${esc(p.id)}" data-v="1">${sv('<path d="M12 5v14M5 12h14"/>', 20)} Attend</button>`}</div>`;
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+      const s = document.createElement('script');
+      s.src = src; s.onload = resolve; s.onerror = () => reject(new Error('Could not load the scanner. Check your connection.'));
+      document.head.appendChild(s);
+    });
+  }
+
+  /** Attendee: scan the trainer's QR code with the camera, or type the 6-digit code. */
+  const Scanner = {
+    stream: null, raf: 0, busy: false,
+    stop() {
+      cancelAnimationFrame(this.raf); this.raf = 0;
+      if (this.stream) { this.stream.getTracks().forEach((t) => t.stop()); this.stream = null; }
+    },
+    async start(postId) {
+      const video = document.getElementById('scan-video');
+      const msg = document.getElementById('scan-msg');
+      if (!video) return;
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('no camera');
+        this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        video.srcObject = this.stream;
+        await video.play();
+      } catch (e) {
+        if (msg) msg.textContent = 'The camera isn’t available. Type the 6-digit code instead.';
+        document.getElementById('scan-box').classList.add('off');
+        return;
+      }
+      let detector = null;
+      if ('BarcodeDetector' in window) { try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { detector = null; } }
+      if (!detector) { try { await loadScript('vendor/jsQR.min.js'); } catch (e) { if (msg) msg.textContent = e.message; return; } }
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const tick = async () => {
+        if (!this.stream || state.route.name !== 'checkin') return;
+        if (video.readyState >= 2 && !this.busy) {
+          let text = '';
+          try {
+            if (detector) {
+              const codes = await detector.detect(video);
+              text = codes && codes[0] ? codes[0].rawValue : '';
+            } else {
+              const w = Math.min(640, video.videoWidth), h = Math.round(video.videoHeight * (w / video.videoWidth));
+              canvas.width = w; canvas.height = h;
+              ctx.drawImage(video, 0, 0, w, h);
+              const r = window.jsQR(ctx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'dontInvert' });
+              text = r ? r.data : '';
+            }
+          } catch (e) { text = ''; }
+          const m = /^DXBAIPI-CHECKIN:([^:]+):(\d{6})$/.exec(text || '');
+          if (m) {
+            if (m[1] !== postId) { if (msg) msg.textContent = 'This QR code is for a different training.'; }
+            else { this.busy = true; await submitCheckin(postId, m[2], 'qr'); this.busy = false; return; }
+          }
+        }
+        this.raf = requestAnimationFrame(tick);
+      };
+      this.raf = requestAnimationFrame(tick);
+    }
+  };
+
+  async function submitCheckin(postId, code, method) {
+    const msg = document.getElementById('scan-msg');
+    if (msg) msg.textContent = 'Checking you in…';
+    try {
+      const j = await api('checkIn', { postId, code, method });
+      Scanner.stop();
+      const p = state.posts.find((x) => x.id === postId);
+      if (p) { p.checkedInAt = j.checkedIn; p.checkedInCount = (p.checkedInCount || 0) + (j.already ? 0 : 1); LS.set('bb_posts', state.posts); }
+      try { Haptics.tap(true); } catch (e) { /* no haptics */ }
+      toast(j.already ? 'You were already checked in.' : 'Checked in. Enjoy the training!');
+      go('post', { id: postId }, true);
+    } catch (e) {
+      if (msg) msg.textContent = e.message || 'Could not check in.';
+      if (method === 'qr') { Scanner.busy = false; setTimeout(() => Scanner.start(postId), 1500); }
+    }
+  }
+
+  VIEWS.checkin = ({ id }) => {
+    const p = state.posts.find((x) => x.id === id) || {};
+    setTimeout(() => Scanner.start(id), 50);
+    return `
+    <div class="screen"><div class="page narrow">
+      <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button><h1 style="flex:1">Check in</h1><span style="width:44px"></span></div>
+      <div class="stack" style="gap:4px"><b>${esc(p.title || 'Training')}</b><span class="small muted">${esc([fmtTiming(p.timing), p.location].filter(Boolean).join(' · '))}</span></div>
+      <div class="scan-box" id="scan-box">
+        <video id="scan-video" playsinline muted autoplay></video>
+        <span class="scan-frame" aria-hidden="true"></span>
+      </div>
+      <p class="small center" id="scan-msg" role="status">Point your camera at the QR code on the trainer’s screen.</p>
+      <form class="card" data-form="checkinCode" data-id="${esc(id)}" novalidate>
+        <div class="field"><label for="ck-code">Or type the 6-digit code</label>
+          <input class="input code-input" id="ck-code" name="code" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="••••••"></div>
+        <div class="error-box" id="form-error" hidden></div>
+        <button class="btn" type="submit">Check in</button>
+      </form>
+    </div></div>`;
+  };
+
+  /** Trainer: full-screen QR and code that refresh every 30 seconds, with a live count. */
+  const Host = {
+    timer: 0, tick: 0, data: null, wake: null,
+    stop() { clearTimeout(this.timer); clearInterval(this.tick); this.timer = 0; this.data = null; if (this.wake) { try { this.wake.release(); } catch (e) { /* ignore */ } this.wake = null; } },
+    async run(postId) {
+      this.stop();
+      try { if ('wakeLock' in navigator) this.wake = await navigator.wakeLock.request('screen'); } catch (e) { /* screen may dim */ }
+      try { await loadScript('vendor/qrcode.min.js'); } catch (e) { /* the code still shows */ }
+      const load = async () => {
+        if (state.route.name !== 'checkinHost') { this.stop(); return; }
+        try {
+          const j = await api('checkinCode', { postId });
+          this.data = Object.assign({ at: Date.now() }, j);
+          this.paint();
+          this.timer = setTimeout(load, j.open ? Math.max(2, Math.min(j.validFor, 10)) * 1000 : 30000);
+        } catch (e) { showError(e); this.timer = setTimeout(load, 10000); }
+      };
+      load();
+      this.tick = setInterval(() => this.paintTime(), 1000);
+    },
+    paint() {
+      const box = document.getElementById('host-box');
+      if (!box || !this.data) return;
+      const d = this.data;
+      if (!d.open) {
+        box.innerHTML = `<div class="host-closed">${I.clock}<b>${Date.now() < d.opens ? 'Check-in opens at ' + esc(clock(d.opens)) : 'Check-in has closed'}</b>
+          <span class="small">${Date.now() < d.opens ? 'Keep this screen open: the code appears by itself.' : d.count + ' checked in. See the attendance report.'}</span></div>`;
+      } else {
+        let qr = '';
+        if (window.qrcode) { const q = window.qrcode(0, 'M'); q.addData(d.qr); q.make(); qr = q.createSvgTag({ cellSize: 8, margin: 2, scalable: true }); }
+        box.innerHTML = `<div class="host-qr">${qr}</div>
+          <div class="host-code" aria-label="Check-in code">${esc(d.code.slice(0, 3))} ${esc(d.code.slice(3))}</div>
+          <div class="host-bar"><span id="host-bar-fill"></span></div>
+          <span class="small muted" id="host-time"></span>`;
+        this.paintTime();
+      }
+      const c = document.getElementById('host-count');
+      if (c) c.textContent = d.count;
+    },
+    paintTime() {
+      const d = this.data;
+      if (!d || !d.open) return;
+      const left = Math.max(0, d.validFor - Math.round((Date.now() - d.at) / 1000));
+      const t = document.getElementById('host-time'); if (t) t.textContent = 'New code in ' + left + ' s · check-in closes at ' + clock(d.closes);
+      const f = document.getElementById('host-bar-fill'); if (f) f.style.width = (left / 30 * 100) + '%';
+    }
+  };
+
+  VIEWS.checkinHost = ({ id }) => {
+    const p = state.posts.find((x) => x.id === id) || {};
+    setTimeout(() => Host.run(id), 30);
+    return `
+    <div class="screen host-screen"><div class="page narrow">
+      <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
+        <div class="greet spacer"><span class="eyebrow">Training check-in</span><h1>${esc(p.title || 'Training')}</h1></div></div>
+      <div class="host-box" id="host-box"><div class="spinner"></div></div>
+      <div class="host-count-card"><span class="hc-n" id="host-count">${p.checkedInCount || 0}</span><span>checked in</span>
+        <button class="btn btn-sm btn-outline" type="button" data-act="nav" data-to="trainingReport" data-id="${esc(id)}">See who</button></div>
+      <p class="hint center">Colleagues open this training in the app and tap “Check in now”, then scan the QR code or type the code. A screenshot stops working within a minute.</p>
+    </div></div>`;
+  };
+
+  /** Trainer, HR, Admin: who signed up and who checked in, with a CSV download. */
+  VIEWS.trainingReport = ({ id }) => {
+    const r = state.report && state.report.postId === id ? state.report : null;
+    if (!r) {
+      setTimeout(async () => {
+        try { state.report = Object.assign({ postId: id }, await api('attendanceReport', { postId: id })); }
+        catch (e) { showError(e); state.report = { postId: id, rows: [], error: true }; }
+        if (state.route.name === 'trainingReport') render();
+      }, 0);
+      return `<div class="screen"><div class="page"><div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button><h1 style="flex:1">Attendance report</h1></div><div class="spinner"></div></div></div>`;
+    }
+    const inn = r.rows.filter((x) => x.checkedIn);
+    const out = r.rows.filter((x) => !x.checkedIn);
+    const row = (x) => `<div class="set-row" style="cursor:default">${avatarHtml(x, 38)}<span class="set-tx"><b>${esc(x.name)}</b><span>${esc([x.employeeId, x.department].filter(Boolean).join(' · '))}</span></span>
+      <span class="set-val">${x.checkedIn ? esc(clock(x.checkedIn)) + (x.method ? `<br><small>${esc(x.method)}</small>` : '') : 'Signed up'}</span></div>`;
+    return `
+    <div class="screen"><div class="page">
+      <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
+        <div class="greet spacer"><span class="eyebrow">Attendance report</span><h1>${esc(r.title || 'Training')}</h1></div>
+        <button class="icon-btn" type="button" data-act="reloadReport" data-id="${esc(id)}" aria-label="Refresh">${I.refresh}</button></div>
+      <p class="small muted">${esc([r.date ? dayParts(r.date).long : '', fmtTiming(r.timing), r.location, r.presenter ? 'with ' + r.presenter : ''].filter(Boolean).join(' · '))}</p>
+      <div class="grid-2">
+        <div class="fact"><span>Checked in</span><b style="font-size:24px">${inn.length}</b></div>
+        <div class="fact"><span>Signed up, not checked in</span><b style="font-size:24px">${out.length}</b></div>
+      </div>
+      <button class="btn" type="button" data-act="downloadReport" data-id="${esc(id)}">${I.file} Download report (CSV for Excel)</button>
+      <span class="section-title">Checked in · ${inn.length}</span>
+      <div class="set-group">${inn.map(row).join('') || '<p class="small muted center" style="padding:16px">No one has checked in yet.</p>'}</div>
+      ${out.length ? `<span class="section-title">Signed up, not checked in · ${out.length}</span><div class="set-group">${out.map(row).join('')}</div>` : ''}
+    </div></div>`;
+  };
 
   /** Profile pictures of who is attending, with "See all" for the full list. */
   function attendeesBlock(p) {
@@ -1807,6 +2106,7 @@
     if (canPopups()) rows.push({ attrs: 'data-act="nav" data-to="popups"', icon: I.sparkles, color: '#1F8A8A', title: 'Pop-ups', sub: 'Messages that pop up when the app opens' });
     if (canBirthdays()) rows.push({ attrs: 'data-act="nav" data-to="birthdays"', icon: I.cake, color: '#D9487A', title: 'Birthdays', sub: 'Upload and manage the birthday list' });
     if (canCollect()) rows.push({ attrs: 'data-act="nav" data-to="collections"', icon: I.star, color: '#7A4BC2', title: 'Special collections', sub: 'Festive and seasonal sections' });
+    if (canApprove()) rows.push({ attrs: 'data-act="nav" data-to="leavers"', icon: sv('<path d="M15 4h4v16h-4"/><path d="M10 8l4 4-4 4"/><path d="M14 12H4"/>', 18), color: '#B65417', title: 'Leavers', sub: 'Last working day for colleagues who resigned' });
     if (canApprove() && !isAdmin()) rows.push({ attrs: 'data-act="nav" data-to="adminTeam"', icon: I.shield, color: '#2E9E5B', title: 'Access requests', sub: 'Approve new colleagues', badge: pending ? pending + ' new' : '' });
     if (isAdmin()) {
       rows.push({ attrs: 'data-act="nav" data-to="adminTeam"', icon: I.shield, color: '#2E9E5B', title: 'Team access', sub: 'Approvals, roles and PIN resets', badge: pending ? pending + ' new' : '' });
@@ -2015,7 +2315,7 @@
           <h2>${esc(x.title)}</h2>
           ${x.message ? `<p>${esc(x.message)}</p>` : ''}
           ${hasBtn ? `<button class="btn pop-cta" type="button" data-go>${esc(x.buttonText)}</button>` : ''}
-          <button class="btn ${hasBtn ? 'pop-close' : 'pop-cta'}" type="button" data-close>${hasBtn ? 'Close' : 'OK'}</button>
+          <button class="btn ${hasBtn ? 'pop-close' : 'pop-cta'}" type="button" data-close>${hasBtn ? 'Close' : esc(x.closeText || 'OK')}</button>
         </div>
       </div>`;
     document.body.appendChild(el);
@@ -2033,6 +2333,24 @@
     el.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
     setTimeout(() => el.querySelector('[data-close]').focus(), 50);
     return true;
+  }
+
+  /** On someone's last working day: a thank-you pop-up with sparkles, once that day. */
+  function maybeFarewell() {
+    const f = state.farewell;
+    if (!f || !state.user || LS.get('bb_farewell_shown') === todayIso()) return;
+    const tryShow = () => {
+      if (!state.token) return;
+      if (document.querySelector('.celebrate')) { setTimeout(tryShow, 1500); return; }
+      const ends = new Date(f.endsAt).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Dubai' });
+      const shown = showPopup({
+        title: 'Thank you, ' + firstName(state.user.name) + '!',
+        message: 'Thank you for your time and dedication at ' + f.where + '. You made a valuable difference here, to our guests and to all of us, and you will always be part of our family.\n\nWe wish you every success in your next chapter.\n\nYour access to the app ends today at ' + ends + '.',
+        color: 'navy', animation: 'sparkle', buttonText: '', buttonLink: '', closeText: 'Thank you'
+      });
+      if (shown) LS.set('bb_farewell_shown', todayIso());
+    };
+    setTimeout(tryShow, 1200);
   }
 
   /** After the feed loads, schedules the first pop-up this person should see. Runs once per app open. */
@@ -3047,13 +3365,17 @@
           const st = s.status === 'Approved' ? 'tag-ok' : 'tag-muted';
           return `<details class="person">
             <summary class="who" style="cursor:pointer;list-style:none">${avatarHtml(s)}
-              <div class="spacer"><div class="n">${esc(s.name)}</div><div class="d">${esc(s.role)} · ${esc(s.department)} · ${esc(s.property)}</div></div>
+              <div class="spacer"><div class="n">${esc(s.name)}</div><div class="d">${esc(s.role)} · ${esc(s.department)} · ${esc(s.property)}${s.lastDay && s.status === 'Approved' ? ' · <b style="color:var(--notice)">leaving ' + esc(dayParts(s.lastDay).d + ' ' + dayParts(s.lastDay).mon) + '</b>' : ''}</div></div>
               <span class="tag ${st}">${esc(s.status)}</span></summary>
             ${self ? '<p class="small muted">This is you.</p>' : `
             <div class="field"><label class="label">Role</label>${roleSelect(s)}</div>
             <div class="grid-2">
               <button class="btn btn-sm btn-ghost" style="border:1px solid var(--field-line)" type="button" data-act="saveRole" data-id="${esc(s.employeeId)}">Save role</button>
               <button class="btn btn-sm btn-ghost" style="border:1px solid var(--field-line)" type="button" data-act="resetPin" data-id="${esc(s.employeeId)}">Reset PIN</button>
+            </div>
+            <div class="device-box">
+              <span class="small"><b>Signed in on:</b> ${s.devices && s.devices.length ? s.devices.map((d) => esc((d.device || 'a device') + (d.at ? ' · since ' + new Date(d.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''))).join(', ') : 'no device'}</span>
+              ${s.devices && s.devices.length ? `<button class="btn btn-sm btn-ghost" style="border:1px solid var(--field-line)" type="button" data-act="signOutEverywhere" data-id="${esc(s.employeeId)}">Sign out of all devices</button>` : ''}
             </div>
             ${s.status === 'Approved'
               ? `<button class="btn btn-sm btn-danger" style="width:100%" type="button" data-act="setStatus" data-id="${esc(s.employeeId)}" data-v="Blocked">Remove access</button>`
@@ -3440,7 +3762,9 @@
   const ACT = {
     nav(el) {
       const to = el.dataset.to;
-      if (['share', 'section', 'collection', 'collectionEdit', 'popupEdit', 'attendees', 'setupSection'].indexOf(to) >= 0) { go(to, { id: el.dataset.id }); return; }
+      if (['share', 'section', 'collection', 'collectionEdit', 'popupEdit', 'attendees', 'setupSection', 'checkin', 'checkinHost'].indexOf(to) >= 0) { go(to, { id: el.dataset.id }); return; }
+      if (to === 'trainingReport') { state.report = null; go(to, { id: el.dataset.id }); return; }
+      if (to === 'leavers') { state.leavers = null; state.leaverQuery = ''; }
       if (to === 'popups') state.popupList = null;
       if (to === 'collections') state.adminColls = null;
       if (to === 'birthdays') state.bdayList = null;
@@ -3634,7 +3958,52 @@
         else { await navigator.clipboard.writeText(text); toast('Offer details copied.'); }
       } catch (e) { /* share cancelled */ }
     },
-    signOut() { signOut('Signed out.'); },
+    async signOut(el) {
+      if (el) el.disabled = true;
+      const ok = await signOutOnServer();
+      if (!ok && !confirm('You seem to be offline, so the app can’t sign you out properly.\n\nIf you sign out now, you may not be able to sign in on another phone until your Admin signs you out of all devices.\n\nSign out anyway?')) { if (el) el.disabled = false; return; }
+      signOut('Signed out.');
+    },
+    reloadReport() { state.report = null; render(); },
+    reloadLeavers() { state.leavers = null; render(); },
+    async clearLastDay(el) {
+      const x = (state.leavers || []).find((p) => p.employeeId === el.dataset.id) || {};
+      const back = x.status === 'Left';
+      if (!confirm(back ? `Give ${x.name} access to the app again?` : `Remove the last working day for ${x.name}? They will keep their access.`)) return;
+      el.disabled = true;
+      try {
+        await api('setLastDay', { employeeId: el.dataset.id, date: '' });
+        x.lastDay = ''; x.status = 'Approved';
+        state.leaverOpen = '';
+        toast(back ? 'Access given back.' : 'Last working day removed.');
+        render();
+      } catch (e) { showError(e); el.disabled = false; }
+    },
+    downloadReport(el) {
+      const r = state.report;
+      if (!r) return;
+      const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+      const dt = (ts) => ts ? new Date(ts).toLocaleString('en-GB', { timeZone: 'Asia/Dubai', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+      const lines = [['Training', r.title], ['Date', r.date], ['Time', fmtTiming(r.timing)], ['Venue', r.location], ['Presenter', r.presenter], [],
+        ['Employee ID', 'Name', 'Department', 'Hotel', 'Signed up', 'Checked in', 'Check-in method', 'Status']]
+        .concat(r.rows.map((x) => [x.employeeId, x.name, x.department, x.property, dt(x.signedUp), dt(x.checkedIn), x.method, x.checkedIn ? 'Attended' : 'Did not check in']));
+      const csv = '\ufeff' + lines.map((l) => l.map(q).join(',')).join('\r\n');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      a.download = ('Attendance - ' + (r.title || 'training') + ' - ' + (r.date || '')).replace(/[\\/:*?"<>|]+/g, '') + '.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+    },
+    async signOutEverywhere(el) {
+      const s = (state.staff || []).find((x) => x.employeeId === el.dataset.id) || {};
+      if (!confirm(`Sign ${s.name || 'this colleague'} out of every phone and computer?\n\nUse this if they lost or changed their phone. They can then sign in again on their new device.`)) return;
+      el.disabled = true;
+      try {
+        await api('signOutEverywhere', { employeeId: el.dataset.id });
+        s.devices = [];
+        toast('Signed out of all devices.');
+        render();
+      } catch (e) { showError(e); el.disabled = false; }
+    },
     reloadMine() { state.myPosts = null; render(); },
     editPost(el) { go('compose', { id: el.dataset.id }); },
     async setPostStatus(el) {
@@ -3882,8 +4251,15 @@
       if (!/^\d{4}$/.test(f.pin || '')) return formError(form, 'Your PIN is 4 digits.');
       busy(form, true);
       try {
-        const j = await api('login', { employeeId: id, pin: f.pin });
+        const j = await api('login', { employeeId: id, pin: f.pin, device: deviceLabel() });
         LS.set('bb_last_id', id);
+        if (j.status === 'SignedInElsewhere') {
+          busy(form, false);
+          const where = j.device ? 'on ' + (/^(iPhone|iPad|Mac)$/.test(j.device) ? 'an ' : 'a ') + j.device : 'on another device';
+          const since = j.since ? ' since ' + new Date(j.since).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+          formError(form, `You’re already signed in ${where}${since}. Please sign out on that device first (Profile › Sign out), then try again. Lost or changed your phone? Ask your Admin to sign you out of all devices.`);
+          return;
+        }
         if (j.status !== 'Approved') {
           state.pendingStatus = j.status;
           go('pending', {}, true);
@@ -4084,6 +4460,31 @@
       go('collections', {}, true);
       loadFeed(true);
     } catch (e) { busy(form, false); formError(form, e.message); }
+  };
+
+  FORMS.lastDay = async (form) => {
+    const date = String(new FormData(form).get('date') || '');
+    if (!date) return formError(form, 'Please choose the last working day.');
+    if (date < todayIso()) return formError(form, 'The last working day can’t be in the past.');
+    const x = (state.leavers || []).find((p) => p.employeeId === form.dataset.id) || {};
+    if (!confirm(`${x.name}’s access will end on ${longDate(date)} at 6:00 pm.\n\nSave?`)) return;
+    busy(form, true);
+    try {
+      await api('setLastDay', { employeeId: form.dataset.id, date });
+      x.lastDay = date;
+      state.leaverQuery = ''; state.leaverOpen = '';
+      toast('Last working day saved.');
+      render();
+    } catch (e) { busy(form, false); formError(form, e.message); }
+  };
+
+  FORMS.checkinCode = async (form) => {
+    const code = String(new FormData(form).get('code') || '').replace(/\D/g, '');
+    if (code.length !== 6) return formError(form, 'Please type the 6-digit code on the trainer’s screen.');
+    busy(form, true);
+    const msg = document.getElementById('scan-msg');
+    await submitCheckin(form.dataset.id, code, 'code');
+    if (state.route.name === 'checkin') { busy(form, false); if (msg) formError(form, msg.textContent); }
   };
 
   FORMS.popup = async (form) => {
@@ -4304,6 +4705,13 @@
   };
 
   const INPUT = {
+    leaverSearch(el) {
+      state.leaverQuery = el.value;
+      const pos = el.selectionStart;
+      render();
+      const n = document.getElementById('lq');
+      if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) { /* ignore */ } }
+    },
     bdaySearch(el) {
       state.bdayQuery = el.value;
       const pos = el.selectionStart;
@@ -4461,6 +4869,9 @@
     if (e.target.classList && e.target.classList.contains('pin-input')) {
       e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
     }
+    if (e.target.classList && e.target.classList.contains('code-input')) {
+      e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6);
+    }
   }, true);
 
   window.addEventListener('beforeinstallprompt', (e) => {
@@ -4488,6 +4899,10 @@
   if (state.token) setTimeout(() => Preload.images(state.posts), 300);
   Push.init();
   state.route = { name: state.token ? (state.deepLinkPost ? 'post' : 'today') : 'login', params: state.deepLinkPost ? { id: state.deepLinkPost } : {} };
+  if (state.token && state.deepLinkReport) {
+    state.route = { name: 'trainingReport', params: { id: state.deepLinkReport } };
+    history.replaceState(null, '', location.pathname);
+  }
   if (state.token && state.deepLinkAccess && state.user && (state.user.role === 'Admin' || state.user.role === 'HR')) {
     state.route = { name: 'adminTeam', params: {} }; state.adminTab = 'pending'; state.staff = null;
     history.replaceState(null, '', location.pathname);

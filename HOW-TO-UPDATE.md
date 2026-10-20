@@ -1,8 +1,3 @@
-# Hosting on GitHub Pages
-The app lives in the repository named `yourusername.github.io`, so it opens at https://yourusername.github.io/
-To update: open the repository > Add file > Upload files > drag in the changed files > Commit changes. Live in about a minute.
-(The steps below that mention Netlify now mean this upload instead.)
-
 # Updating the Business Bay Team app
 
 ## Change the app (screens, options, text)
@@ -90,3 +85,12 @@ Then upload the folder as above. Phones that already installed the app may keep 
   - **Fonts:** upload WOFF2/WOFF/TTF/OTF files to replace Hilton Serif and Hilton Sans for everyone. Remove to go back.
   - **Departments:** edit the list colleagues choose from when they create an account.
   - **Reset content:** permanently delete the posts of chosen categories, pop-ups, collections, the birthday list or team accounts (Admins are kept). Type RESET to confirm.
+
+## Version 1.10
+**Install:** paste the new Code.gs, then in Apps Script choose **setup** in the function list and press **Run** once (it adds the 10-minute check that sends attendance reports), then Deploy › Manage deployments › Edit › New version. Upload the changed files to GitHub, including the new `vendor` folder.
+- **One device per person:** everyone except Admins can be signed in on one phone or computer at a time. Signing in elsewhere shows "You're already signed in on an iPhone…". Sign out first (Profile › Sign out). Lost or changed phone: Admin › Team access › open the person › **Sign out of all devices**. People who were signed in before this update are not blocked; their old sign-in simply expires.
+- **Training check-in:** during the session (from 15 minutes before the start to 15 minutes after the end) colleagues tap **Check in now** and scan the QR code on the trainer's screen, or type the 6-digit code. The code changes every 30 seconds. The trainer (presenter), whoever posted the training, HR and Admin see **Show check-in code** and **Attendance report** on the training. When the session ends, the trainer and the poster get a notification to open the report and download it as a CSV file for Excel. Check-ins are saved in the Attendance tab.
+
+## Version 1.11
+**Install:** paste the new Code.gs and deploy a new version (Deploy › Manage deployments › Edit › New version). If you have not yet run **setup** for version 1.10, run it once: the same 10-minute check also ends leavers' access on time.
+- **Leavers** (Profile › Leavers, for HR and Admin): find a colleague by name or Employee ID and set their **last working day**. Their access ends at **6:00 pm** that day (status becomes "Left" in the Staff tab and they are signed out). On their last day they see a thank-you message with sparkles, naming their hotel (both hotels for Cluster colleagues). HR can't set a date for themselves or for an Admin. "Give access back" (or Remove date) undoes it. Colleagues who have left no longer appear in birthdays.

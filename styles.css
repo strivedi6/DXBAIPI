@@ -772,3 +772,30 @@ html[data-theme="dark"] .cel-card:not(.pop-card) p { color: #4A5263; }
 html[data-theme="dark"] .cel-card:not(.pop-card) .btn { background: #13294B; color: #fff; }
 /* Hidden switch used to play the iPhone's tap haptic */
 .haptic-proxy { position: fixed; left: -100px; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
+
+/* ===== Version 1.10: one device, training check-in ===== */
+.device-box { display: flex; flex-direction: column; gap: 8px; background: var(--field); border-radius: 12px; padding: 10px 12px; }
+.checkin-done { display: flex; gap: 12px; align-items: center; background: var(--ok-bg); color: var(--ok); border-radius: 16px; padding: 14px 16px; }
+.checkin-done svg { flex-shrink: 0; }
+.checkin-tools { gap: 12px; }
+.code-input { letter-spacing: .5em; font-size: 26px; text-align: center; font-weight: 700; }
+.scan-box { position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 420px; margin: 0 auto; border-radius: 24px; overflow: hidden; background: #0F131A; }
+.scan-box video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scan-box.off { aspect-ratio: auto; height: 0; }
+.scan-frame { position: absolute; inset: 18%; border: 3px solid rgba(255, 255, 255, .9); border-radius: 22px; box-shadow: 0 0 0 999px rgba(0, 0, 0, .35); }
+.host-box { background: #fff; border-radius: 24px; padding: 22px; display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 280px; justify-content: center; }
+.host-qr { width: min(78vw, 340px); aspect-ratio: 1; }
+.host-qr svg { width: 100%; height: 100%; display: block; }
+.host-code { font-size: 46px; font-weight: 700; letter-spacing: .12em; color: #13294B; font-variant-numeric: tabular-nums; }
+.host-bar { width: 100%; max-width: 340px; height: 6px; border-radius: 3px; background: #EEE7DA; overflow: hidden; }
+.host-bar span { display: block; height: 100%; background: var(--gold); transition: width 1s linear; }
+.host-closed { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; color: var(--muted-2); }
+.host-closed b { font-size: 18px; color: var(--ink); }
+.host-count-card { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 18px; padding: 12px 16px; }
+.host-count-card .hc-n { font-family: var(--serif); font-size: 34px; color: var(--ink); }
+.host-count-card .btn { margin-left: auto; }
+.set-val small { font-size: 11px; color: var(--muted); }
+[data-theme="dark"] .host-box { background: #fff; }
+html[data-theme="dark"] .host-count-card { background: var(--card); }
+html[data-theme="dark"] .host-count-card .hc-n { color: var(--text-strong); }
+html[data-theme="dark"] .host-bar { background: #EEE7DA; }
