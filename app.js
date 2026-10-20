@@ -3,6 +3,8 @@
   'use strict';
 
   const CONFIG = window.APP_CONFIG || {};
+  // The folder the app is served from, e.g. "/" or "/DXBAIPI/" on GitHub Pages.
+  const BASE = location.pathname.replace(/[^/]*$/, '') || '/';
   const app = document.getElementById('app');
   const toastEl = document.getElementById('toast');
 
@@ -556,8 +558,8 @@
         try {
           await OS.init({
             appId: CONFIG.oneSignalAppId,
-            serviceWorkerPath: 'sw.js',
-            serviceWorkerParam: { scope: '/' },
+            serviceWorkerPath: BASE.replace(/^\//, '') + 'sw.js',
+            serviceWorkerParam: { scope: BASE },
             notifyButton: { enable: false },
             promptOptions: { slidedown: { prompts: [] } }
           });
@@ -4480,7 +4482,7 @@
   document.title = CONFIG.appName || document.title;
   // The service worker keeps the app and every image on the phone (same file OneSignal uses for push).
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    navigator.serviceWorker.register('sw.js', { scope: '/' }).catch(() => {});
+    navigator.serviceWorker.register('sw.js', { scope: BASE }).catch(() => {});
   }
   if (state.token) setTimeout(() => Preload.images(state.posts), 300);
   Push.init();
