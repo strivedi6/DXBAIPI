@@ -1,0 +1,92 @@
+# Hosting on GitHub Pages
+The app lives in the repository named `yourusername.github.io`, so it opens at https://yourusername.github.io/
+To update: open the repository > Add file > Upload files > drag in the changed files > Commit changes. Live in about a minute.
+(The steps below that mention Netlify now mean this upload instead.)
+
+# Updating the Business Bay Team app
+
+## Change the app (screens, options, text)
+1. Edit the files in this folder (or ask Claude to make the change and send a new zip).
+2. In `config.js`, raise `appVersion` (for example 1.0.0 → 1.1.0).
+3. Netlify: open the site → **Deploys** → drag the whole folder onto the upload box.
+   Use the same site every time, so the address and everyone's installed app stay the same.
+4. Staff get the new version the next time they open the app. No reinstall needed.
+
+## Change the backend (Code.gs in Apps Script)
+1. Paste the new code into Apps Script and save.
+2. **Deploy → Manage deployments → pencil (Edit) → Version: New version → Deploy.**
+   Never use "New deployment" for an update: that creates a new link and the app stops working until `config.js` is changed.
+
+## Change the app icon
+Replace the four files in `icons/` with your design at the same sizes and names:
+- `icon-192.png` (192×192)
+- `icon-512.png` (512×512)
+- `icon-maskable-512.png` (512×512, keep the logo inside the middle 80%: Android crops the edges)
+- `apple-touch-icon.png` (180×180, no transparency)
+
+Then upload the folder as above. Phones that already installed the app may keep the old icon until it is removed and added again (iPhone always needs this; Android usually updates by itself within a few days).
+
+## Files
+- `index.html`, `styles.css`, `app.js`: the app
+- `config.js`: name, version, backend link, push settings
+- `sw.js`: offline support and push notifications
+- `manifest.webmanifest`: how the app installs on Android and iPhone
+- `_headers`: tells Netlify not to cache the app files, so updates show up quickly
+
+## Version 1.3 features (where things live)
+- **Bottom bar:** Home · HR · Offers · Profile. My posts, Birthdays, Special collections and Admin are inside Profile (only for people allowed to use them).
+- **Sections:** every category is a section with its own colour and a swipeable row. Admin › App setup › Post categories sets the name, colour, type (Update, Offer, Newsletter, People) and which tab it shows in (HR tab, Offers tab, Home only).
+- **People posts** (Employee of the Month, New Joiners, Promotions): HR enters the Employee ID and taps Find to fill in name and photo.
+- **Birthdays:** Profile › Birthdays (HR and Admin). Upload a CSV with Employee ID, Name, Date of birth. Only day and month are stored. Notifications go out every day at 9:00 am once `setup` has been run in Apps Script.
+- **Special collections** (e.g. Festive Season): Profile › Special collections (Marketing and Admin). Pick a colour and animation, then choose the collection when posting offers, notices or newsletters.
+- **Newsletter style:** Regular, Special (pick a colour) or Festive (red with an animation by default). Special and festive newsletters open as a full page in that colour.
+
+## Version 1.4 features
+- **Bottom bar:** Home · HR · **Today's Special** (centre) · Offers · Profile. Today's Special shows today's birthdays, today's training, anything posted today, and offers that have "Show in Today's Special" turned on (only on the days in their Days field, e.g. "Every Friday", "Mon–Thu", "Weekends", "Daily").
+- **Awards:** Admin › App setup › Post categories › open a People category (e.g. Employee of the Month) › Award titles. Each title (Front of the House, Heart of the House…) becomes a choice for HR and shows as the ribbon. People categories without titles (New Joiners, Promotions) show no ribbon. Add a new People category for any other award.
+- **Learning & Development:** HR tab › calendar of trainings. HR adds each session with + (image, description, date, start/end time, venue, presenter by Employee ID or name). Everyone it's for gets a notification at 9:00 am on the day.
+- **Admin:** Team access and App setup are now separate items in Profile.
+- **Remove image / file:** every post form has a Remove button under the image and the attachment.
+- **Special collections:** Admins can delete a collection (its posts stay in the app).
+- **Desktop:** on a computer, the menu moves to the left and sections show as grids.
+
+## Version 1.5 changes
+- **Your birthday (Profile):** everyone can add their day and month. HR's date always wins; if they differ, HR sees "Needs checking" on the Birthdays page with a "Use their date" button. Dates added by colleagues stay when HR uploads with "Replace all".
+- **Today's Special** shows only today: today's training, today's birthdays, and posts whose "Show in Today's Special on" date is today. Offers can also be set to repeat on the days they run.
+- **Birthdays** show only on the HR tab and in Today's Special (no longer on Home).
+- **Access requests:** HR and Admins get a notification when someone signs up. HR can approve (as Viewer) or decline from Profile › Access requests; roles stay with Admins.
+
+## Version 1.6 changes
+- **Opening the app** always starts on Today's Special. The centre button no longer shows a count.
+- **Offer page:** Date and Time boxes (Date uses the offer's Date field, e.g. "24 December" or "Every Wednesday", or its Show from/Until dates). No "Valid until" line. Optional **Terms & Conditions** (one per line) shown in a fold-out section and in small print on the guest share image.
+- **Edit from the post:** the pencil button on any post you're allowed to change (your own posts, or every post for Admins).
+- **App theme:** Admin › App setup › App theme. Pick a season (Ramadan, Eid, UAE National Day, Festive, Diwali, Summer or Custom), adjust colours, greeting and animation, and optionally set From/Until dates. After Until, the app returns to the classic look by itself.
+
+## Version 1.7 changes
+- **Profile** looks like phone Settings: your card at the top opens **My profile** (photo, details, birthday, change PIN). Below: Notifications, Birthday, Add to Home Screen, then tools (My posts, Pop-ups, Birthdays, Special collections, Team access, App setup) and Sign out.
+- **Bottom bar:** the active tab shows a solid icon.
+- **Pop-ups** (Profile › Pop-ups, for Admin, HR and Marketing): title, message, optional image, colour, animation, optional button (opens a post or a web link), when it appears (0–60 seconds after opening), how often (once per person, once a day, every time), who sees it, and From/Until dates. Use **Preview** to see it before saving.
+- **Dates typed as text** (e.g. "07 December") stay as typed; dates the sheet had already converted show as "7 December".
+
+## Version 1.8 changes
+- **Newsletter contents:** when creating or editing a newsletter, "Include in this newsletter" lists every live post by category. Tick the ones to show; they appear inside the newsletter grouped by category (e.g. Employee of the Month, Learning & Development, F&B Offers). Nothing is added unless ticked.
+- **Full-width images:** a post's image now fills the top of the screen (newsletters, HR updates, notices, training), with Back and Edit on top of it.
+
+## Version 1.9 (new design and features, same data)
+**Install:** upload this folder to Netlify, then paste the new `Code.gs` into Apps Script and deploy a new version (Deploy › Manage deployments › Edit › New version). The first time the app talks to it, the backend adds the new **Attendance** tab by itself. Existing staff, posts, read records, PINs, categories, outlets and departments stay as they are. DXBAI, DXBPI and Cluster work exactly as before.
+
+- **Look:** iOS-style floating glass bottom bar, smooth screen-to-screen transitions, soft press feedback, portrait only, no zoom.
+- **Dark mode:** Profile › Appearance: Light, Dark or Automatic (follows the phone).
+- **Haptics:** a light tick on button taps (iPhone and Android). Profile › Haptic feedback turns it off. Posts and cards scroll and swipe freely.
+- **Images** are kept on the phone after the first view and preloaded after the feed loads, so posts open instantly.
+- **Confetti** on Employee of the Month and Promotions (tile and full page).
+- **Training:** Attend button, "Who's attending" photos and the full list. Attendees are saved in the Attendance tab.
+- **Monthly Update tiles** show the day and date (e.g. Thu, Dec 14).
+- **Search** people by first name, last name or Employee ID (Team access, Birthdays, and Find when posting a person or presenter).
+- **Employee IDs:** a leading 0 is ignored (0104582 = 104582). Colleagues whose ID starts with 0 keep their PIN.
+- **Pop-ups** blur and darken the screen behind.
+- **App setup** (Admin) is now a Settings-style menu: Logo, Fonts, App theme, Sign-in image, Outlets, Departments, Post categories, Reset content.
+  - **Logo:** shown on the sign-in screen (over the sign-in image or on navy) and in the desktop header.
+  - **Fonts:** upload WOFF2/WOFF/TTF/OTF files to replace Hilton Serif and Hilton Sans for everyone. Remove to go back.
+  - **Departments:** edit the list colleagues choose from when they create an account.
+  - **Reset content:** permanently delete the posts of chosen categories, pop-ups, collections, the birthday list or team accounts (Admins are kept). Type RESET to confirm.
