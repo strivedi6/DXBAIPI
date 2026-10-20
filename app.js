@@ -4241,6 +4241,7 @@
         const payload = await logoPayload(file);
         const up = await api('uploadFile', payload);
         const j = await api('saveSettings', { logo: up.url });
+        if (!j.brand) throw new Error('The backend needs updating to version 1.9: paste the new Code.gs into Apps Script, then Deploy › Manage deployments › Edit › New version › Deploy.');
         setSettings({ heroImage: j.heroImage || '' }, j.brand);
         Share.current = null;
         toast('Logo updated. Check how it looks on both backgrounds.');
