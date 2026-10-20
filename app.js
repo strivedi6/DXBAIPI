@@ -4888,6 +4888,73 @@
     if (document.visibilityState === 'visible' && state.token && Date.now() - state.lastLoad >= REFRESH_MS - 5000) loadFeed(true);
   }, 30 * 1000);
 
+  /* ---------------- Pull down to refresh (phones) ---------------- */
+  const PTR = {
+    y0: null, x0: 0, dist: 0, pulling: false, busy: false, el: null,
+    PAGES: ['today', 'feed', 'hr', 'offers', 'profile', 'post', 'section', 'collection', 'search', 'myposts', 'leavers', 'adminTeam', 'trainingReport', 'birthdays', 'attendees', 'popups', 'collections'],
+    ok() { return !!state.token && !this.busy && this.PAGES.indexOf(state.route.name) >= 0 && !document.querySelector('.celebrate'); },
+    init() {
+      if (!('ontouchstart' in window)) return;
+      this.el = document.createElement('div');
+      this.el.className = 'ptr';
+      this.el.setAttribute('aria-hidden', 'true');
+      this.el.innerHTML = I.refresh;
+      document.body.appendChild(this.el);
+      window.addEventListener('touchstart', (e) => {
+        this.y0 = null;
+        if (!this.ok() || e.touches.length !== 1 || window.scrollY > 0) return;
+        if (e.target.closest && e.target.closest('input, textarea, select, .scan-box')) return;
+        this.y0 = e.touches[0].clientY; this.x0 = e.touches[0].clientX; this.dist = 0; this.pulling = false;
+      }, { passive: true });
+      window.addEventListener('touchmove', (e) => {
+        if (this.y0 === null) return;
+        const dy = e.touches[0].clientY - this.y0, dx = Math.abs(e.touches[0].clientX - this.x0);
+        if (!this.pulling) {
+          if (dy > 12 && dy > dx * 1.5 && window.scrollY <= 0) this.pulling = true;
+          else if (dx > 12 || dy < -4) { this.y0 = null; return; }
+        }
+        if (this.pulling) { this.dist = Math.min(130, dy * 0.55); this.show(); }
+      }, { passive: true });
+      const end = () => {
+        if (this.pulling && this.dist >= 64) this.run(); else if (this.pulling) this.hide();
+        this.y0 = null; this.pulling = false;
+      };
+      window.addEventListener('touchend', end, { passive: true });
+      window.addEventListener('touchcancel', end, { passive: true });
+    },
+    show() {
+      const ready = this.dist >= 64;
+      this.el.style.opacity = String(Math.min(1, this.dist / 50));
+      this.el.style.transform = `translate(-50%, ${this.dist}px) rotate(${this.dist * 3}deg)`;
+      if (ready && !this.el.classList.contains('ready')) { try { Haptics.tap(true); } catch (e) { /* none */ } }
+      this.el.classList.toggle('ready', ready);
+    },
+    hide() {
+      this.el.classList.remove('ready', 'spin');
+      this.el.style.opacity = '0';
+      this.el.style.transform = 'translate(-50%, 0)';
+    },
+    async run() {
+      this.busy = true;
+      this.el.classList.add('spin');
+      this.el.style.transform = 'translate(-50%, 64px)';
+      // Clear what each screen loads for itself, then fetch the feed again.
+      const r = state.route.name;
+      state.leavers = null; state.report = null; state.popupList = null;
+      if (r === 'myposts') state.myPosts = null;
+      if (r === 'birthdays') state.bdayList = null;
+      if (r === 'collections') state.adminColls = null;
+      if (r === 'adminTeam') state.staff = null;
+      const started = Date.now();
+      try { await loadFeed(true); } catch (e) { /* the feed shows its own message */ }
+      await new Promise((res) => setTimeout(res, Math.max(0, 600 - (Date.now() - started))));
+      render();
+      this.hide();
+      this.busy = false;
+      toast(state.offline ? 'You’re offline. Showing what you loaded last.' : 'Up to date.');
+    }
+  };
+
   /* ---------------- Start ---------------- */
   applyAppearance();
   Fonts.apply(state.settings.fonts);
@@ -4898,6 +4965,7 @@
   }
   if (state.token) setTimeout(() => Preload.images(state.posts), 300);
   Push.init();
+  PTR.init();
   state.route = { name: state.token ? (state.deepLinkPost ? 'post' : 'today') : 'login', params: state.deepLinkPost ? { id: state.deepLinkPost } : {} };
   if (state.token && state.deepLinkReport) {
     state.route = { name: 'trainingReport', params: { id: state.deepLinkReport } };

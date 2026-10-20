@@ -799,3 +799,10 @@ html[data-theme="dark"] .cel-card:not(.pop-card) .btn { background: #13294B; col
 html[data-theme="dark"] .host-count-card { background: var(--card); }
 html[data-theme="dark"] .host-count-card .hc-n { color: var(--text-strong); }
 html[data-theme="dark"] .host-bar { background: #EEE7DA; }
+
+/* Pull down to refresh */
+.ptr { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 4px); left: 50%; z-index: 60; width: 40px; height: 40px; border-radius: 50%; background: #fff; color: var(--navy); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(19, 41, 75, .18); opacity: 0; transform: translate(-50%, 0); transition: opacity .15s; pointer-events: none; }
+.ptr.ready { color: var(--gold-text); }
+.ptr.spin { transition: transform .2s, opacity .2s; }
+.ptr.spin svg { animation: spin .8s linear infinite; }
+html[data-theme="dark"] .ptr { background: var(--card); color: var(--text-strong); }
