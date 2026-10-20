@@ -801,11 +801,6 @@ html[data-theme="dark"] .host-count-card .hc-n { color: var(--text-strong); }
 html[data-theme="dark"] .host-bar { background: #EEE7DA; }
 
 /* Pull down to refresh */
-.ptr { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 4px); left: 50%; z-index: 60; width: 40px; height: 40px; border-radius: 50%; background: #fff; color: var(--navy); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(19, 41, 75, .18); opacity: 0; transform: translate(-50%, 0); transition: opacity .15s; pointer-events: none; }
-.ptr.ready { color: var(--gold-text); }
-.ptr.spin { transition: transform .2s, opacity .2s; }
-.ptr.spin svg { animation: spin .8s linear infinite; }
-html[data-theme="dark"] .ptr { background: var(--card); color: var(--text-strong); }
 
 /* ===== Version 1.12: iOS-style glass bars ===== */
 /* Page padding as variables, so the sticky top bar can reach the edges of every page. */
@@ -845,11 +840,6 @@ html[data-theme="dark"] .topbar.tb .icon-btn, html[data-theme="dark"] .topbar.tb
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 0 0 .5px rgba(255, 255, 255, .1), 0 4px 14px rgba(0, 0, 0, .3); }
 html[data-theme="dark"] .tb-title b { color: var(--text-strong); }
 
-/* Refresh button: turns as you pull, spins while loading. */
-[data-refresh] svg { transition: transform .3s cubic-bezier(.2, .9, .3, 1); transform-origin: 50% 50%; }
-[data-refresh].pulling svg { transition: none; }
-[data-refresh].ready { color: var(--gold-text) !important; }
-[data-refresh].spinning svg { animation: spin .8s linear infinite; }
 #app { will-change: auto; }
 
 /* ===== Bottom bar: Liquid Glass look ===== */
@@ -896,3 +886,50 @@ html[data-theme="dark"] .tb-title b { color: var(--text-strong); }
   }
 }
 @media (prefers-reduced-motion: reduce) { .nav-lens { transition: none; } }
+
+/* ===== Version 1.13 ===== */
+/* Pull to refresh: the iPhone activity indicator. */
+.ptr { position: fixed; top: var(--safe-top); left: 50%; z-index: 60; width: 30px; height: 30px; opacity: 0; transform: translate(-50%, 0); pointer-events: none; }
+.ptr svg { display: block; }
+.ptr rect { fill: #8A8A8F; opacity: 0; transition: opacity .12s; }
+.ptr rect.on { opacity: .8; }
+.ptr.spin rect { opacity: var(--o); transition: none; }
+.ptr.spin svg { animation: ptrSpin 1s steps(12) infinite; }
+@keyframes ptrSpin { to { transform: rotate(360deg); } }
+html[data-theme="dark"] .ptr rect { fill: #B5B9C2; }
+
+/* Content scrolling under the bottom bar is softly blurred (phones). */
+.nav-blur { display: none; }
+@media (max-width: 959px) {
+  .nav-blur { display: block; position: fixed; left: 0; right: 0; bottom: 0; height: calc(118px + var(--safe-bottom)); z-index: 9; pointer-events: none;
+    background: linear-gradient(to top, color-mix(in srgb, var(--cream) 70%, transparent) 0%, color-mix(in srgb, var(--cream) 0%, transparent) 100%);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    -webkit-mask-image: linear-gradient(to top, #000 50%, transparent); mask-image: linear-gradient(to top, #000 50%, transparent); }
+  .coll-page .nav-blur { background: linear-gradient(to top, color-mix(in srgb, var(--bg) 70%, transparent), transparent); }
+  .tr-snap .nav-blur { display: none; }
+}
+
+/* Back buttons on top of a picture: glass circles too. */
+.full-hero .fh-bar .icon-btn, .detail-hero .icon-btn {
+  background: rgba(255, 255, 255, .6); color: var(--navy);
+  -webkit-backdrop-filter: blur(14px) saturate(180%); backdrop-filter: blur(14px) saturate(180%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 0 0 .5px rgba(255, 255, 255, .7), 0 4px 14px rgba(0, 0, 0, .12); }
+html[data-theme="dark"] .full-hero .fh-bar .icon-btn, html[data-theme="dark"] .detail-hero .icon-btn { background: rgba(40, 46, 60, .55); color: #fff; }
+
+/* Hero pictures are square on every page: posts, newsletters, collections and trainings. */
+.full-hero img { aspect-ratio: 1 / 1; max-height: none; height: auto; object-fit: cover; }
+.coll-banner { aspect-ratio: 1 / 1; }
+@media (min-width: 960px) { .full-hero { max-width: 560px; } .coll-banner { max-width: 560px; align-self: center; } }
+
+/* Quote of the day: a small bar at the top of Today's Special. */
+.quote-bar { display: flex; align-items: flex-start; gap: 10px; width: 100%; text-align: left; border: 0; font: inherit; color: var(--navy);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--gold) 14%, #fff), #fff 70%); border-radius: 16px; padding: 10px 14px 10px 12px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 22%, transparent); }
+button.quote-bar { cursor: pointer; }
+.qb-mark { font-family: var(--serif); font-size: 34px; line-height: .9; color: var(--gold); margin-top: 2px; }
+.qb-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.qb-q { font-family: var(--serif); font-size: 15px; line-height: 1.35; font-style: italic; }
+.qb-a { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--gold-text); }
+.qb-ed { color: var(--muted); opacity: .7; display: flex; margin-top: 2px; }
+.qb-ed svg { width: 16px; height: 16px; }
+html[data-theme="dark"] .quote-bar { background: linear-gradient(135deg, color-mix(in srgb, var(--gold) 18%, var(--card)), var(--card) 70%); color: var(--text-strong); }

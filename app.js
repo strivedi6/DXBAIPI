@@ -93,7 +93,7 @@
   /* ---------------- Icons ---------------- */
   const sv = (d, w) => `<svg width="${w || 22}" height="${w || 22}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
   const I = {
-    back: sv('<path d="M15 18l-6-6 6-6"/>', 20),
+    back: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5 7.5 12l7 7"/></svg>',
     home: sv('<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>'),
     tag: sv('<path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.5"/>'),
     edit: sv('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>'),
@@ -237,6 +237,7 @@
     if (brand) {
       s.logo = safeUrl(brand.logo);
       s.logoTone = brand.logoTone === 'light' ? 'light' : 'dark';
+      s.reportLogo = safeUrl(brand.reportLogo);
       s.fonts = brand.fonts || {};
     }
     state.settings = s;
@@ -499,6 +500,7 @@
       maybeCelebrate();
       schedulePopups();
       state.farewell = j.farewell || null;
+      state.quote = j.quote || null;
       maybeFarewell();
     } catch (e) {
       if (!e.handled) {
@@ -766,7 +768,7 @@
       const scr = app.querySelector('.screen');
       if (scr) {
         // The bottom bar and + button stay perfectly still while the screen moves (moved out of the moving layer).
-        const fixed = [...scr.children].filter((n) => n.matches('.nav, .fab'));
+        const fixed = [...scr.children].filter((n) => n.matches('.nav, .fab, .nav-blur'));
         if (fixed.length) {
           const holder = document.createElement('div');
           holder.className = 'tr-fixed';
@@ -782,11 +784,11 @@
   };
 
   function nav(active) {
-    const map = { leavers: 'profile', me: 'profile', popups: 'profile', myposts: 'profile', admin: 'profile', adminTeam: 'profile', adminSetup: 'profile', setupSection: 'profile', appearance: 'profile', attendees: 'hr', birthdays: 'hr', collections: 'offers' };
+    const map = { quotes: 'today', leavers: 'profile', me: 'profile', popups: 'profile', myposts: 'profile', admin: 'profile', adminTeam: 'profile', adminSetup: 'profile', setupSection: 'profile', appearance: 'profile', attendees: 'hr', birthdays: 'hr', collections: 'offers' };
     active = map[active] || active;
     const items = [['feed', 'Home', I.home], ['hr', 'HR', I.users], ['today', 'Today', I.star], ['offers', 'Offers', I.tag], ['profile', 'Profile', I.user]];
     const pending = canApprove() && state.staff ? state.staff.filter((s) => s.status === 'Pending').length : 0;
-    return `<nav class="nav" aria-label="Main"><span class="nav-lens" aria-hidden="true"></span>
+    return `<div class="nav-blur" aria-hidden="true"></div><nav class="nav" aria-label="Main"><span class="nav-lens" aria-hidden="true"></span>
       <div class="nav-brand" aria-hidden="true">${safeUrl(state.settings.logo) ? logoImg('nav-logo', false) : `<span class="monogram">${esc(CONFIG.monogram || 'BB')}</span><b>${esc(CONFIG.appShortName || CONFIG.appName)}</b>`}</div>
       ${items.map(([k, label, ic]) => `
       <button type="button" class="${k === 'today' ? 'nav-today' : ''}" data-act="nav" data-to="${k}" ${active === k ? 'aria-current="page"' : ''}><span class="ic">${active === k && IF[k] ? IF[k] : ic}</span><span class="lb">${k === 'today' ? '<span class="lb-m">Today</span><span class="lb-d">Today’s Special</span>' : label}</span>${k === 'profile' && pending ? `<span class="badge">${pending}</span>` : ''}</button>`).join('')}</nav>`;
@@ -998,6 +1000,10 @@
           </select>
         </div>
         <div class="field">
+          <label for="s-pos">Job title</label>
+          <input class="input" id="s-pos" name="position" maxlength="80" autocomplete="organization-title" placeholder="e.g. Guest Service Agent">
+        </div>
+        <div class="field">
           <span class="label" id="s-prop-l">Property</span>
           <div class="grid-2" role="group" aria-labelledby="s-prop-l">
             <button type="button" class="choice" data-act="signupProp" data-v="DXBAI" aria-pressed="${p === 'DXBAI'}">DXBAI<br><span style="font-weight:500;font-size:12px">Embassy Suites</span></button>
@@ -1204,7 +1210,7 @@
     const bg = special ? colorHex(p.themeColor || (p.style === 'Festive' ? FESTIVE_RED : 'navy')) : COLORS.navy;
     const fx = special && p.animation && p.animation !== 'none' ? p.animation : '';
     return `<button type="button" class="${compact ? 'hc hc-news' : 'mcard'}" data-act="open" data-id="${esc(p.id)}" style="background:${esc(bg)}" ${fx ? `data-fx="${esc(fx)}"` : ''}>
-      <span class="tag tag-monthly">${esc((p.style === 'Festive' ? 'Festive edition · ' : p.style === 'Special' ? 'Special edition · ' : '') + tileDate(p))}</span>
+      <span class="tag tag-monthly">${esc(tileDate(p))}</span>
       <span class="t">${esc(p.title)}</span>
       ${p.message ? `<span class="m">${esc(p.message)}</span>` : ''}
       <span class="more">Open →</span>
@@ -1460,7 +1466,6 @@
         <div class="greet"><span class="small muted">${eyebrow || greeting()}</span><h1>${esc(title || firstName(u.name))}</h1></div>
         <div class="row" style="gap:8px">
           <button class="icon-btn" type="button" data-act="nav" data-to="search" aria-label="Search">${I.search}</button>
-          <button class="icon-btn" type="button" data-act="refresh" aria-label="Refresh" data-refresh>${I.refresh}</button>
           <button class="icon-btn avatar-btn" type="button" data-act="nav" data-to="profile" aria-label="Your profile">${avatarHtml(u, 40)}${showBellDot ? '<span class="dot" style="top:0;right:0"></span>' : ''}</button>
         </div>
       </div>
@@ -1509,6 +1514,121 @@
     </div>${nav('hr')}${fab(['hr'])}</div>`;
   };
 
+  /* ---------- Quote of the day (Today page) ---------- */
+  // Used on days without a quote set in the app: one a day, in turn.
+  const DAILY_QUOTES = [
+    'Every guest remembers how we made them feel. Make today memorable.',
+    'Small details, done with care, are what people talk about.',
+    'A warm welcome costs nothing and is worth everything.',
+    'Great service is a team sport. Pass the ball well today.',
+    'Smile first. It sets the tone for everything that follows.',
+    'Do the right thing, even when no one is watching.',
+    'Today is a fresh start. Make the most of it.',
+    'Listen twice as much as you speak; that is where great service begins.',
+    'Be the reason someone’s day gets better.',
+    'Progress, not perfection. One good step at a time.',
+    'Our guests feel how we treat each other. Lead with kindness.',
+    'Ask, listen, act. Simple steps, big difference.',
+    'Pride in the small tasks builds a great hotel.',
+    'Every problem is a chance to turn a guest into a fan.',
+    'Teamwork turns a busy shift into a good shift.',
+    'Learn something new today, then share it with a colleague.',
+    'Hospitality is making people feel at home, away from home.',
+    'Energy is contagious. Bring your best to every shift.',
+    'Own the moment. If you see it, solve it.',
+    'Thank a colleague today. It matters more than you think.',
+    'Consistency builds trust, one stay at a time.',
+    'A calm voice and a kind word solve more than you’d expect.',
+    'Make it personal. Use the guest’s name, remember their preference.',
+    'Your attitude is the first thing a guest checks in to.',
+    'Ordinary moments become special when someone cares.',
+    'Be curious, be helpful, be you.',
+    'Growth begins at the edge of your comfort zone.',
+    'Celebrate the small wins today; they add up.',
+    'Clear communication makes every handover easier.',
+    'Treat every request as if it were the only one today.',
+    'Good service is seen. Great service is felt.',
+    'Help a colleague without being asked.',
+    'Every shift is a chance to create a story worth telling.',
+    'Stay positive, work hard, make it happen.',
+    'Respect is the foundation of every great team.',
+    'Anticipate the need before the guest has to ask.',
+    'Excellence is not an act, it is a habit we practise daily.',
+    'Your work matters, even when it goes unseen.',
+    'When in doubt, choose kindness.',
+    'Take care of yourself, so you can take care of others.',
+    'Be proud of where you work and show it.',
+    'Mistakes are lessons. Learn, fix, move on.',
+    'Ideas grow when they’re shared. Speak up today.',
+    'The best teams lift each other up.',
+    'Give every guest a reason to come back.',
+    'Today, aim to exceed one expectation.',
+    'Patience turns a difficult moment into a good memory.',
+    'Your welcome is the first chapter of their stay.',
+    'Small improvements every day lead to big results.',
+    'Be present. The person in front of you deserves your attention.',
+    'Positive words create positive days.',
+    'Together we’re stronger than any challenge.',
+    'Hospitality starts with the heart.',
+    'Leave every space a little better than you found it.',
+    'Be generous with praise and specific with thanks.',
+    'Do what you do so well that people want to see it again.',
+    'Every role in the hotel is part of the guest’s story.',
+    'Start strong, stay focused, finish proud.',
+    'Make someone feel seen today.',
+    'Great things happen when we care a little more.'
+  ];
+  function quoteToday() {
+    if (state.quote && state.quote.text) return state.quote;
+    const d = new Date(todayIso() + 'T00:00:00Z');
+    const n = Math.floor(d.getTime() / 864e5);
+    return { text: DAILY_QUOTES[n % DAILY_QUOTES.length], author: '' };
+  }
+  function quoteBar() {
+    const q = quoteToday();
+    const edit = canPopups();
+    return `<${edit ? 'button type="button" data-act="nav" data-to="quotes"' : 'div'} class="quote-bar">
+      <span class="qb-mark" aria-hidden="true">“</span>
+      <span class="qb-tx"><span class="qb-q">${esc(q.text)}</span>${q.author ? `<span class="qb-a">${esc(q.author)}</span>` : ''}</span>
+      ${edit ? `<span class="qb-ed" aria-label="Set quotes">${I.edit}</span>` : ''}
+    </${edit ? 'button' : 'div'}>`;
+  }
+  async function loadQuotes() {
+    try { state.quoteList = (await api('quotes')).quotes || []; }
+    catch (e) { showError(e); state.quoteList = state.quoteList || []; }
+    if (state.route.name === 'quotes') render();
+  }
+  VIEWS.quotes = () => {
+    if (!state.quoteList) setTimeout(loadQuotes, 0);
+    const list = state.quoteList || [];
+    const today = todayIso();
+    // Suggest the first day from today that has no quote yet.
+    let next = today;
+    for (let i = 0; i < 400; i++) {
+      const d = new Date(today + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + i);
+      const k = d.toISOString().slice(0, 10);
+      if (!list.some((q) => q.date === k)) { next = k; break; }
+    }
+    return `
+    <div class="screen"><div class="page with-nav">
+      <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
+        <div class="greet spacer"><span class="eyebrow">Today’s Special</span><h1>Quote of the day</h1></div><span style="width:44px"></span></div>
+      <p class="small muted">One short quote a day, shown at the top of Today’s Special. On days without one, the app shows one of its own.</p>
+      <form class="card" data-form="quote" novalidate>
+        <div class="field"><label for="q-d">Date</label><input class="input" id="q-d" name="date" type="date" min="${today}" value="${next}" required></div>
+        <div class="field"><label for="q-t">Quote</label><textarea class="textarea" id="q-t" name="text" maxlength="240" required placeholder="e.g. Every guest remembers how we made them feel."></textarea></div>
+        <div class="field"><label for="q-a">Said by (optional)</label><input class="input" id="q-a" name="author" maxlength="60" placeholder="Leave empty if not known"></div>
+        <div class="error-box" id="form-error" hidden></div>
+        <button class="btn" type="submit">Save quote</button>
+      </form>
+      ${state.quoteList === null || state.quoteList === undefined ? '<div class="spinner"></div>' : `
+      <span class="section-title">Coming up · ${list.filter((q) => q.date >= today).length}</span>
+      <div class="set-group">${list.filter((q) => q.date >= today).map((q) => `
+        <div class="set-row" style="cursor:default"><span class="set-tx"><b>${esc(q.date === today ? 'Today' : dayParts(q.date).long)}</b><span>“${esc(q.text)}”${q.author ? ' · ' + esc(q.author) : ''}</span></span>
+          <button class="icon-btn" type="button" data-act="deleteQuote" data-v="${esc(q.date)}" aria-label="Delete quote">${I.trash}</button></div>`).join('') || '<p class="small muted center" style="padding:16px">No quotes set yet. The app shows its own until you add one.</p>'}</div>`}
+    </div>${nav('quotes')}</div>`;
+  };
+
   VIEWS.today = () => {
     if (!state.lastLoad && !state.loadingFeed) setTimeout(() => loadFeed(), 0);
     const t = todayItems();
@@ -1517,6 +1637,7 @@
     return `
     <div class="screen"><div class="page with-nav">
       ${feedHeader('Today’s Special', esc(date))}
+      ${quoteBar()}
       ${propFilter()}
       ${t.count ? `
         ${birthdayTiles()}
@@ -1743,8 +1864,7 @@
     return `
     <div class="screen"><div class="page with-nav">
       <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
-        <div class="greet spacer"><span class="eyebrow">HR</span><h1>Leavers</h1></div>
-        <button class="icon-btn" type="button" data-act="reloadLeavers" aria-label="Refresh" data-refresh>${I.refresh}</button></div>
+        <div class="greet spacer"><span class="eyebrow">HR</span><h1>Leavers</h1></div></div>
       <p class="muted small">Set the last working day for a colleague who has resigned. Their access to the app ends at 6:00 pm that day, and they see a thank-you message when they open the app on their last day.</p>
       <div class="search">${I.search}<label class="sr-only" for="lq">Find a colleague</label><input class="input" id="lq" type="search" placeholder="Find by first name, last name or Employee ID" value="${esc(state.leaverQuery || '')}" data-input="leaverSearch"></div>
       ${!state.leavers ? '<div class="spinner"></div>' : `
@@ -1956,6 +2076,166 @@
     catch (e) { showError(e); if (!state.report || state.report.postId !== id) state.report = { postId: id, rows: [], error: true }; }
     if (state.route.name === 'trainingReport') render();
   }
+  /*
+   * Attendance sheet as a PDF (A4), made on the phone with jsPDF (vendor/jspdf.umd.min.js, MIT licence).
+   * Top: logo, training name, date, time, venue, presenter. Then one row per attendee with photo.
+   * Bottom: a line for the trainer to sign, with their name.
+   */
+  const ReportPdf = {
+    /** A picture as a small JPEG (round for people), or '' if it cannot be loaded. */
+    async image(url, round, maxPx) {
+      url = safeUrl(url);
+      if (!url) return null;
+      let src = '';
+      try {
+        if (/\/d\/[\w-]{10,}/.test(url)) {
+          const j = await api('getImage', { url });
+          if (j && j.data) src = 'data:' + (j.mimeType || 'image/jpeg') + ';base64,' + j.data;
+        }
+      } catch (e) { /* try the picture directly */ }
+      if (!src) src = url;
+      return new Promise((res) => {
+        const img = new Image();
+        if (!/^data:/.test(src)) img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          try {
+            const n = maxPx || 160;
+            const sc = round ? 1 : Math.min(1, n / Math.max(img.naturalWidth, img.naturalHeight));
+            const w = round ? n : Math.max(1, Math.round(img.naturalWidth * sc)), h = round ? n : Math.max(1, Math.round(img.naturalHeight * sc));
+            const c = document.createElement('canvas'); c.width = w; c.height = h;
+            const x = c.getContext('2d');
+            if (round) {
+              x.fillStyle = '#ffffff'; x.fillRect(0, 0, n, n);
+              x.save(); x.beginPath(); x.arc(n / 2, n / 2, n / 2, 0, Math.PI * 2); x.clip();
+              const s = Math.max(n / img.naturalWidth, n / img.naturalHeight);
+              x.drawImage(img, (n - img.naturalWidth * s) / 2, (n - img.naturalHeight * s) / 2, img.naturalWidth * s, img.naturalHeight * s);
+              x.restore();
+              res({ data: c.toDataURL('image/jpeg', 0.85), w: n, h: n, fmt: 'JPEG' });
+            } else {
+              x.drawImage(img, 0, 0, w, h);
+              res({ data: c.toDataURL('image/png'), w, h, fmt: 'PNG' });
+            }
+          } catch (e) { res(null); }
+        };
+        img.onerror = () => res(null);
+        img.src = src;
+      });
+    },
+    async build(r, progress) {
+      await loadScript('vendor/jspdf.umd.min.js');
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const W = 210, H = 297, M = 14, CW = W - M * 2;
+      const NAVY = [19, 41, 75], GOLD = [126, 95, 46], MUTED = [90, 98, 115], LINE = [227, 219, 205], ZEBRA = [248, 245, 240];
+      const inn = r.rows.filter((x) => x.checkedIn);
+      const longDay = r.date ? new Date(r.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '—';
+
+      // Pictures: the logo and each attendee's photo (4 at a time).
+      const own = safeUrl(state.settings.reportLogo);
+      const darkLogo = !own && state.settings.logoTone === 'light';
+      const logo = await this.image(own || state.settings.logo, false, 800);
+      const photos = {};
+      let done = 0;
+      const queue = inn.slice();
+      const worker = async () => {
+        while (queue.length) {
+          const x = queue.shift();
+          photos[x.employeeId] = await this.image(x.photo, true, 120);
+          done++; if (progress) progress(done, inn.length);
+        }
+      };
+      await Promise.all([worker(), worker(), worker(), worker()]);
+
+      const txt = (t, x, y, o) => { o = o || {}; doc.setFont('helvetica', o.bold ? 'bold' : 'normal'); doc.setFontSize(o.size || 10); doc.setTextColor.apply(doc, o.color || NAVY); doc.text(String(t == null ? '' : t), x, y, o.align ? { align: o.align } : undefined); };
+      const fit = (t, w, size) => { doc.setFontSize(size); return doc.splitTextToSize(String(t || '—'), w).slice(0, 2); };
+
+      // Header
+      let y = M;
+      if (darkLogo) { doc.setFillColor.apply(doc, NAVY); doc.rect(0, 0, W, 34, 'F'); }
+      if (logo) {
+        const maxH = 20, maxW = 110, s = Math.min(maxW / logo.w, maxH / logo.h);
+        doc.addImage(logo.data, logo.fmt, M, 8, logo.w * s, logo.h * s);
+      } else {
+        txt('Embassy Suites by Hilton Dubai Business Bay', M, 16, { size: 11, bold: true });
+        txt('Hilton Garden Inn Dubai Business Bay', M, 22, { size: 11, bold: true });
+      }
+      txt('ATTENDANCE SHEET', W - M, 16, { size: 9, bold: true, align: 'right', color: darkLogo ? [232, 211, 174] : GOLD });
+      txt(r.date ? longDay : '', W - M, 22, { size: 9, align: 'right', color: darkLogo ? [255, 255, 255] : MUTED });
+      y = 46;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor.apply(doc, NAVY);
+      const tl = doc.splitTextToSize(r.title || 'Training', CW);
+      doc.text(tl, M, y); y += tl.length * 7.5 + 3;
+
+      // Details
+      const facts = [['Date', longDay], ['Time', fmtTiming(r.timing) || '—'], ['Venue', r.location || '—'], ['Presenter', r.presenter || '—']];
+      doc.setDrawColor.apply(doc, LINE); doc.setFillColor(251, 248, 243);
+      doc.roundedRect(M, y, CW, 24, 3, 3, 'FD');
+      facts.forEach((f, i) => {
+        const cx = M + 5 + (i % 2) * (CW / 2), cy = y + 8 + Math.floor(i / 2) * 10;
+        txt(f[0].toUpperCase(), cx, cy - 2.5, { size: 7, bold: true, color: GOLD });
+        txt(doc.splitTextToSize(f[1], CW / 2 - 10)[0], cx, cy + 2, { size: 10 });
+      });
+      y += 31;
+      txt(`Attendees: ${inn.length}`, M, y, { size: 9, bold: true, color: MUTED });
+      y += 5;
+
+      // Attendee table
+      const cols = [['#', 8], ['Photo', 15], ['Name', 38], ['Department', 33], ['Position', 37], ['Hotel', 19], ['Check-in time', 32]];
+      const head = () => {
+        doc.setFillColor.apply(doc, NAVY); doc.rect(M, y, CW, 8, 'F');
+        let x = M;
+        cols.forEach(([h, w]) => { txt(h, x + 2, y + 5.4, { size: 8, bold: true, color: [255, 255, 255] }); x += w; });
+        y += 8;
+      };
+      const ROW = 14;
+      head();
+      inn.forEach((a, i) => {
+        if (y + ROW > H - 22) { doc.addPage(); y = M; head(); }
+        if (i % 2) { doc.setFillColor.apply(doc, ZEBRA); doc.rect(M, y, CW, ROW, 'F'); }
+        doc.setDrawColor.apply(doc, LINE); doc.line(M, y + ROW, M + CW, y + ROW);
+        let x = M;
+        const mid = y + ROW / 2;
+        txt(String(i + 1), x + 2, mid + 1.2, { size: 9, color: MUTED }); x += cols[0][1];
+        const ph = photos[a.employeeId];
+        if (ph) doc.addImage(ph.data, 'JPEG', x + 1.5, y + 2, 10, 10);
+        else {
+          doc.setFillColor(31, 58, 99); doc.circle(x + 6.5, mid, 5, 'F');
+          txt(initials(a.name), x + 6.5, mid + 1.3, { size: 8, bold: true, color: [232, 211, 174], align: 'center' });
+        }
+        x += cols[1][1];
+        [[a.name, cols[2][1], true], [a.department, cols[3][1]], [a.position, cols[4][1]], [a.property, cols[5][1], true], [a.checkedIn ? clock(a.checkedIn) : '—', cols[6][1]]]
+          .forEach(([v, w, b]) => {
+            const lines = fit(v, w - 3, 9);
+            doc.setFont('helvetica', b ? 'bold' : 'normal'); doc.setTextColor.apply(doc, NAVY);
+            doc.text(lines, x + 2, mid + 1.2 - (lines.length - 1) * 1.9);
+            x += w;
+          });
+        y += ROW;
+      });
+      if (!inn.length) { txt('No one checked in.', M + 2, y + 7, { size: 9, color: MUTED }); y += 12; }
+
+      // Trainer signature
+      if (y + 40 > H - 16) { doc.addPage(); y = M; }
+      y = Math.max(y + 16, H - 58);
+      doc.setDrawColor.apply(doc, NAVY); doc.setLineWidth(0.3);
+      doc.line(M, y + 16, M + 80, y + 16);
+      doc.line(W - M - 60, y + 16, W - M, y + 16);
+      txt('Trainer’s signature', M, y + 21, { size: 8, bold: true, color: GOLD });
+      txt('Date', W - M - 60, y + 21, { size: 8, bold: true, color: GOLD });
+      txt('Name: ' + (r.presenter || '______________________'), M, y + 27, { size: 10 });
+
+      // Footer on every page
+      const pages = doc.getNumberOfPages();
+      const stamp = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dubai', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i);
+        txt('Generated on ' + stamp, M, H - 8, { size: 7, color: MUTED });
+        txt('Page ' + i + ' of ' + pages, W - M, H - 8, { size: 7, color: MUTED, align: 'right' });
+      }
+      return doc;
+    }
+  };
+
   /** Trainer, HR, Admin: who signed up and who checked in, with a CSV download. */
   VIEWS.trainingReport = ({ id }) => {
     const r = state.report && state.report.postId === id ? state.report : null;
@@ -1970,14 +2250,14 @@
     return `
     <div class="screen"><div class="page">
       <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
-        <div class="greet spacer"><span class="eyebrow">Attendance report</span><h1>${esc(r.title || 'Training')}</h1></div>
-        <button class="icon-btn" type="button" data-act="reloadReport" data-id="${esc(id)}" aria-label="Refresh" data-refresh>${I.refresh}</button></div>
+        <div class="greet spacer"><span class="eyebrow">Attendance report</span><h1>${esc(r.title || 'Training')}</h1></div></div>
       <p class="small muted">${esc([r.date ? dayParts(r.date).long : '', fmtTiming(r.timing), r.location, r.presenter ? 'with ' + r.presenter : ''].filter(Boolean).join(' · '))}</p>
       <div class="grid-2">
         <div class="fact"><span>Checked in</span><b style="font-size:24px">${inn.length}</b></div>
         <div class="fact"><span>Signed up, not checked in</span><b style="font-size:24px">${out.length}</b></div>
       </div>
-      <button class="btn" type="button" data-act="downloadReport" data-id="${esc(id)}">${I.file} Download report (CSV for Excel)</button>
+      <button class="btn" type="button" data-act="downloadReportPdf" data-id="${esc(id)}">${I.file} Attendance sheet (PDF)</button>
+      <button class="btn btn-outline" type="button" data-act="downloadReport" data-id="${esc(id)}" style="margin-top:-6px">Spreadsheet (CSV for Excel)</button>
       <span class="section-title">Checked in · ${inn.length}</span>
       <div class="set-group">${inn.map(row).join('') || '<p class="small muted center" style="padding:16px">No one has checked in yet.</p>'}</div>
       ${out.length ? `<span class="section-title">Signed up, not checked in · ${out.length}</span><div class="set-group">${out.map(row).join('')}</div>` : ''}
@@ -2028,7 +2308,7 @@
   /** Special and festive newsletters open as a full page in their own colour. */
   function specialNewsletter(p) {
     const bg = colorHex(p.themeColor || (p.style === 'Festive' ? FESTIVE_RED : 'navy'));
-    const h = heroTop(p, `<span class="tag tag-monthly">${esc(p.style === 'Festive' ? 'Festive edition' : 'Special edition')}</span>${editBtn(p)}`, 'fade');
+    const h = heroTop(p, editBtn(p), 'fade');
     return `
     <div class="screen coll-page" style="--bg:${esc(bg)}" ${p.animation && p.animation !== 'none' ? `data-fx="${esc(p.animation)}" data-fx-full` : ''}>
       ${h.top}
@@ -2047,7 +2327,7 @@
     const cat = catOf(p.category);
     const monthly = cat.type === 'monthly';
     const needsAck = cat.ack;
-    const h = heroTop(p, `${tagFor(p)}${editBtn(p)}`);
+    const h = heroTop(p, `${monthly ? '' : tagFor(p)}${editBtn(p)}`);
     return `
     <div class="screen">${h.top}<div class="page">
       ${h.bar}
@@ -2110,6 +2390,7 @@
     const pending = canApprove() && state.staff ? state.staff.filter((x) => x.status === 'Pending').length : 0;
     if (isPublisher()) rows.push({ attrs: 'data-act="nav" data-to="myposts"', icon: I.edit, color: '#E8833A', title: 'My posts', sub: 'Edit, hide and read reports' });
     if (canPopups()) rows.push({ attrs: 'data-act="nav" data-to="popups"', icon: I.sparkles, color: '#1F8A8A', title: 'Pop-ups', sub: 'Messages that pop up when the app opens' });
+    if (canPopups()) rows.push({ attrs: 'data-act="nav" data-to="quotes"', icon: sv('<path d="M7 7h4v4c0 3-2 5-4 6M15 7h4v4c0 3-2 5-4 6"/>', 18), color: '#B48A4E', title: 'Quote of the day', sub: 'A short quote on Today’s Special' });
     if (canBirthdays()) rows.push({ attrs: 'data-act="nav" data-to="birthdays"', icon: I.cake, color: '#D9487A', title: 'Birthdays', sub: 'Upload and manage the birthday list' });
     if (canCollect()) rows.push({ attrs: 'data-act="nav" data-to="collections"', icon: I.star, color: '#7A4BC2', title: 'Special collections', sub: 'Festive and seasonal sections' });
     if (canApprove()) rows.push({ attrs: 'data-act="nav" data-to="leavers"', icon: sv('<path d="M15 4h4v16h-4"/><path d="M10 8l4 4-4 4"/><path d="M14 12H4"/>', 18), color: '#B65417', title: 'Leavers', sub: 'Last working day for colleagues who resigned' });
@@ -2205,6 +2486,13 @@
         <div class="kv"><span>Property</span><b>${esc(PROP_LABEL[u.property] || u.property || '—')}</b></div>
         <div class="kv"><span>Role</span><b>${esc(u.role)}</b></div>
       </div>
+      <form class="card" data-form="myPosition" novalidate>
+        <div class="field"><label for="m-pos">Job title</label>
+          <div class="row" style="gap:8px"><input class="input" id="m-pos" name="position" maxlength="80" value="${esc(u.position || '')}" placeholder="e.g. Guest Service Agent" style="flex:1">
+          <button class="btn btn-sm" type="submit" style="width:auto;padding:0 18px">Save</button></div>
+          <span class="hint" style="margin:0">Shown on training attendance sheets.</span></div>
+        <div class="error-box" id="form-error" hidden></div>
+      </form>
       <p class="hint" style="margin-top:-8px">To change your name, department or hotel, please ask HR or your Admin.</p>
       ${myBirthdayCard()}
       <form class="card" data-form="changePin" novalidate>
@@ -2256,7 +2544,7 @@
     return `
     <div class="screen"><form class="page narrow" data-form="popup" data-id="${esc(id || '')}" novalidate>
       <div class="topbar">
-        <button class="link-btn" type="button" data-act="back" style="color:var(--muted-2)">Cancel</button>
+        <button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
         <h1>${id ? 'Edit pop-up' : 'New pop-up'}</h1>
         <button class="link-btn" type="button" data-act="previewPopup">Preview</button>
       </div>
@@ -2415,7 +2703,7 @@
     return `
     <div class="screen"><form class="page" data-form="post" data-id="${esc(id || '')}" data-cat="${esc(category)}" novalidate>
       <div class="topbar">
-        <button class="link-btn" type="button" data-act="back" style="color:var(--muted-2)">Cancel</button>
+        <button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
         <h1>${editing ? 'Edit post' : esc(titleLabel)}</h1>
         <span style="width:52px"></span>
       </div>
@@ -2607,7 +2895,7 @@
     return `
     <div class="screen"><form class="page" data-form="post" data-id="${esc(id || '')}" data-cat="${esc(category)}" novalidate>
       <div class="topbar">
-        <button class="link-btn" type="button" data-act="back" style="color:var(--muted-2)">Cancel</button>
+        <button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
         <h1>${editing ? 'Edit' : esc(c.label)}</h1><span style="width:52px"></span>
       </div>
       <div class="card">
@@ -2655,7 +2943,7 @@
     return `
     <div class="screen"><form class="page narrow" data-form="post" data-kind="training" data-id="${esc(id || '')}" data-cat="${esc(category)}" novalidate>
       <div class="topbar">
-        <button class="link-btn" type="button" data-act="back" style="color:var(--muted-2)">Cancel</button>
+        <button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
         <h1>${editing ? 'Edit training' : 'New training'}</h1><span style="width:52px"></span>
       </div>
       ${imageField('image', safeUrl(d.image), { label: 'Image (optional)' })}
@@ -2735,7 +3023,7 @@
     return `
     <div class="screen"><form class="page" data-form="collection" data-id="${esc(id || '')}" novalidate>
       <div class="topbar">
-        <button class="link-btn" type="button" data-act="back" style="color:var(--muted-2)">Cancel</button>
+        <button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
         <h1>${id ? 'Edit collection' : 'New collection'}</h1><span style="width:52px"></span>
       </div>
       <div class="coll-preview" id="coll-prev" style="--bg:${esc(colorHex(c.color))}" data-fx="${esc(c.animation)}">
@@ -2885,7 +3173,7 @@
   VIEWS.myposts = () => {
     if (state.myPosts === null) {
       setTimeout(loadMyPosts, 0);
-      return `<div class="screen"><div class="page with-nav"><div class="topbar"><h1 class="title-lg">My posts</h1></div><div class="spinner"></div></div>${nav('myposts')}</div>`;
+      return `<div class="screen"><div class="page with-nav"><div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button><h1 style="flex:1">My posts</h1></div><div class="spinner"></div></div>${nav('myposts')}</div>`;
     }
     const all = state.myPosts;
     const counts = {};
@@ -2893,8 +3181,7 @@
     const statuses = ['All', 'Live', 'Scheduled', 'Expired', 'Removed', 'Draft'].filter((x) => x === 'All' || counts[x]);
     return `
     <div class="screen"><div class="page with-nav">
-      <div class="topbar"><div class="greet"><span class="eyebrow">${isAdmin() ? 'All posts' : 'Published by you'}</span><h1>My posts</h1></div>
-        <button class="icon-btn" type="button" data-act="reloadMine" aria-label="Refresh" data-refresh>${I.refresh}</button></div>
+      <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button><div class="greet"><span class="eyebrow">${isAdmin() ? 'All posts' : 'Published by you'}</span><h1>My posts</h1></div><span style="width:44px"></span></div>
       ${!all.length ? `<div class="empty">${I.inbox}<b>No posts yet</b><span class="small">Tap + to share your first update.</span></div>` : `
       <div class="search">${I.search}<label class="sr-only" for="mq">Search posts</label><input class="input" id="mq" type="search" placeholder="Search by title${isAdmin() ? ' or who posted' : ''}" value="${esc(state.mineFilter.q)}" data-input="mineSearch"></div>
       <div class="chips" role="group" aria-label="Status">${statuses.map((x) => `
@@ -3017,8 +3304,7 @@
     <div class="screen"><div class="page with-nav">
       <div class="topbar">
         <button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
-        <div class="greet spacer"><span class="eyebrow">${title ? 'App setup' : isAdmin() ? 'Admin' : 'HR'}</span><h1>${sec === 'team' ? (isAdmin() ? 'Team access' : 'Access requests') : esc(title || 'App setup')}</h1></div>
-        <button class="icon-btn" type="button" data-act="${sec === 'team' ? 'reloadStaff' : 'reloadSetup'}" aria-label="Refresh" data-refresh>${I.refresh}</button></div>
+        <div class="greet spacer"><span class="eyebrow">${title ? 'App setup' : isAdmin() ? 'Admin' : 'HR'}</span><h1>${sec === 'team' ? (isAdmin() ? 'Team access' : 'Access requests') : esc(title || 'App setup')}</h1></div></div>
       ${inner}
     </div>${nav('admin')}</div>`;
   }
@@ -3037,7 +3323,7 @@
       </button>`;
     return `
     <div class="screen"><div class="page with-nav">
-      <div class="topbar"><div class="greet"><span class="eyebrow">Admin</span><h1>Admin</h1></div></div>
+      <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button><div class="greet"><span class="eyebrow">Admin</span><h1>Admin</h1></div><span style="width:44px"></span></div>
       <div class="list">
         ${tile('adminTeam', I.user, 'Team access', state.staff === null ? 'Approvals, roles and access' : `${approved} active · ${pending} waiting for approval`, pending ? pending + ' new' : '')}
         ${tile('adminSetup', sv('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'), 'App setup', 'Sign-in image and post categories', '')}
@@ -3099,7 +3385,7 @@
     const hero = safeUrl(state.settings.heroImage);
     const x = SETUP_SECTIONS[sec];
     const head = x && sec !== 'reset' ? `<div class="set-intro small-intro"><span class="set-intro-ic" style="background:${x.color}">${x.icon()}</span><h2>${esc(x.title)}</h2><p>${esc(x.desc)}.</p></div>` : '';
-    if (sec === 'logo') return head + logoCard();
+    if (sec === 'logo') return head + logoCard() + reportLogoCard();
     if (sec === 'fonts') return head + fontsCard();
     if (sec === 'theme') return head + themeCard();
     if (sec === 'signin') return head + `
@@ -3241,6 +3527,23 @@
     </div>`;
   }
 
+  /** Admin: a separate logo printed at the top of training attendance sheets (PDF). */
+  function reportLogoCard() {
+    const url = safeUrl(state.settings.reportLogo);
+    return `<div class="card">
+      <span class="section-title" style="margin:0">Logo for attendance sheets</span>
+      <div class="logo-preview light">${url ? `<img src="${esc(url)}" alt="Attendance sheet logo">` : 'No logo yet: the sheet shows the main logo'}</div>
+      <p class="hint">Printed at the top of the training attendance sheet (PDF), on white paper. Use the hotel logo in colour or black, for example both hotel logos side by side. A PNG with a transparent background works best.</p>
+      <div class="grid-2">
+        <label class="btn btn-sm" style="position:relative;overflow:hidden">
+          <span id="rlogo-label">${url ? 'Change logo' : 'Upload logo'}</span>
+          <input type="file" accept="image/png,image/webp,image/jpeg" data-change="reportLogo" style="position:absolute;inset:0;opacity:0;cursor:pointer">
+        </label>
+        ${url ? `<button class="btn btn-sm btn-danger" type="button" data-act="removeReportLogo">Remove</button>` : ''}
+      </div>
+    </div>`;
+  }
+
   /** Admin: upload fonts in place of the built-in Hilton Serif and Hilton Sans. */
   function fontsCard() {
     const fonts = state.settings.fonts || {};
@@ -3280,7 +3583,7 @@
     return `
     <div class="screen"><form class="page" data-form="category" data-id="${esc(id || '')}" novalidate>
       <div class="topbar">
-        <button class="link-btn" type="button" data-act="back" style="color:var(--muted-2)">Cancel</button>
+        <button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
         <h1>${id ? 'Edit category' : 'New category'}</h1>
         <span style="width:52px"></span>
       </div>
@@ -3790,7 +4093,7 @@
     },
     setCat(el) { state.filter.cat = el.dataset.v; render(); },
     setProp(el) { state.filter.prop = el.dataset.v; render(); },
-    refresh(el) { PTR.btn = el; PTR.run(true); },
+    refresh() { PTR.run(); },
     open(el) { go('post', { id: el.dataset.id }); },
     enablePush() { Push.enable(); },
     installApp: async () => {
@@ -3973,8 +4276,8 @@
       if (!ok && !confirm('You seem to be offline, so the app can’t sign you out properly.\n\nIf you sign out now, you may not be able to sign in on another phone until your Admin signs you out of all devices.\n\nSign out anyway?')) { if (el) el.disabled = false; return; }
       signOut('Signed out.');
     },
-    reloadReport(el) { PTR.btn = el; PTR.run(true); },
-    reloadLeavers(el) { PTR.btn = el; PTR.run(true); },
+    reloadReport() { PTR.run(); },
+    reloadLeavers() { PTR.run(); },
     async clearLastDay(el) {
       const x = (state.leavers || []).find((p) => p.employeeId === el.dataset.id) || {};
       const back = x.status === 'Left';
@@ -3988,14 +4291,37 @@
         render();
       } catch (e) { showError(e); el.disabled = false; }
     },
+    async downloadReportPdf(el) {
+      const r = state.report;
+      if (!r || el.disabled) return;
+      el.disabled = true;
+      const label = el.innerHTML;
+      el.innerHTML = '<span class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></span> Preparing the PDF…';
+      try {
+        const doc = await ReportPdf.build(r, (d, n) => { if (n > 3) el.lastChild.textContent = ` Adding photos ${d} of ${n}…`; });
+        const name = ('Attendance - ' + (r.title || 'training') + ' - ' + (r.date || '')).replace(/[\\/:*?"<>|]+/g, '') + '.pdf';
+        const blob = doc.output('blob');
+        const file = typeof File === 'function' ? new File([blob], name, { type: 'application/pdf' }) : null;
+        // Phones: open the share sheet (Save to Files, Mail, WhatsApp, Print). Computers: download.
+        if (file && navigator.canShare && navigator.canShare({ files: [file] }) && 'ontouchstart' in window) {
+          try { await navigator.share({ files: [file], title: name }); } catch (e) { /* closed */ }
+        } else {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob); a.download = name;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+        }
+      } catch (e) { showError(e); }
+      el.disabled = false; el.innerHTML = label;
+    },
     downloadReport(el) {
       const r = state.report;
       if (!r) return;
       const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
       const dt = (ts) => ts ? new Date(ts).toLocaleString('en-GB', { timeZone: 'Asia/Dubai', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
       const lines = [['Training', r.title], ['Date', r.date], ['Time', fmtTiming(r.timing)], ['Venue', r.location], ['Presenter', r.presenter], [],
-        ['Employee ID', 'Name', 'Department', 'Hotel', 'Signed up', 'Checked in', 'Check-in method', 'Status']]
-        .concat(r.rows.map((x) => [x.employeeId, x.name, x.department, x.property, dt(x.signedUp), dt(x.checkedIn), x.method, x.checkedIn ? 'Attended' : 'Did not check in']));
+        ['Employee ID', 'Name', 'Department', 'Position', 'Hotel', 'Signed up', 'Checked in', 'Check-in method', 'Status']]
+        .concat(r.rows.map((x) => [x.employeeId, x.name, x.department, x.position || '', x.property, dt(x.signedUp), dt(x.checkedIn), x.method, x.checkedIn ? 'Attended' : 'Did not check in']));
       const csv = '\ufeff' + lines.map((l) => l.map(q).join(',')).join('\r\n');
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -4013,7 +4339,7 @@
         render();
       } catch (e) { showError(e); el.disabled = false; }
     },
-    reloadMine(el) { PTR.btn = el; PTR.run(true); },
+    reloadMine() { PTR.run(); },
     editPost(el) { go('compose', { id: el.dataset.id }); },
     async setPostStatus(el) {
       const v = el.dataset.v;
@@ -4050,6 +4376,15 @@
         setSettings({ heroImage: j.heroImage || '' }, j.brand);
         toast('Logo updated.');
         const y0 = window.scrollY; render(); window.scrollTo(0, y0);
+      } catch (e) { showError(e); }
+    },
+    async removeReportLogo() {
+      if (!confirm('Remove the attendance sheet logo? The sheet will use the main logo.')) return;
+      try {
+        const j = await api('saveSettings', { reportLogo: '' });
+        setSettings({ heroImage: j.heroImage || '' }, j.brand);
+        toast('Logo removed.');
+        render();
       } catch (e) { showError(e); }
     },
     async removeLogo() {
@@ -4121,6 +4456,15 @@
         render();
       } catch (e) { showError(e); }
     },
+    async deleteQuote(el) {
+      if (!confirm('Delete this quote?')) return;
+      el.disabled = true;
+      try {
+        state.quoteList = (await api('deleteQuote', { date: el.dataset.v })).quotes || [];
+        if (el.dataset.v === todayIso()) state.quote = null;
+        render();
+      } catch (e) { showError(e); el.disabled = false; }
+    },
     previewPopup(el) { showPopup(popupFromForm(el.closest('form')), true); },
     popupLink(el) {
       const form = el.closest('form');
@@ -4161,8 +4505,8 @@
     },
     bdayCheck() { state.bdayCheckOnly = !state.bdayCheckOnly; render(); },
     pushLater() { LS.set('bb_push_later', Date.now()); render(); },
-    reloadStaff(el) { PTR.btn = el; PTR.run(true); },
-    reloadSetup(el) { PTR.btn = el; PTR.run(true); },
+    reloadStaff() { PTR.run(); },
+    reloadSetup() { PTR.run(); },
     adminSection(el) { state.adminSection = el.dataset.v; render(); },
     editCat(el) { go('category', { id: el.dataset.id || '' }); },
     addHome: async () => {
@@ -4289,6 +4633,28 @@
         formError(form, e.message);
       }
     },
+    async quote(form) {
+      const f = Object.fromEntries(new FormData(form));
+      if (!f.date) return formError(form, 'Please choose a date.');
+      if (!String(f.text || '').trim()) return formError(form, 'Please write the quote.');
+      busy(form, true);
+      try {
+        state.quoteList = (await api('saveQuote', { date: f.date, text: f.text.trim(), author: (f.author || '').trim() })).quotes || [];
+        if (f.date === todayIso()) state.quote = { text: f.text.trim(), author: (f.author || '').trim() };
+        toast('Quote saved.');
+        render();
+      } catch (e) { busy(form, false); formError(form, e.message); }
+    },
+    async myPosition(form) {
+      const f = Object.fromEntries(new FormData(form));
+      busy(form, true);
+      try {
+        const j = await api('setMyPosition', { position: (f.position || '').trim() });
+        if (j.user) { state.user = Object.assign({}, state.user, { position: j.user.position }); LS.set('bb_user', state.user); }
+        toast('Job title saved.');
+        render();
+      } catch (e) { busy(form, false); formError(form, e.message); }
+    },
     async signup(form) {
       const f = Object.fromEntries(new FormData(form));
       if (!String(f.employeeId || '').trim()) return formError(form, 'Please enter your Employee ID.');
@@ -4300,7 +4666,7 @@
       if (/^(\d)\1{3}$/.test(f.pin) || f.pin === '1234') return formError(form, 'Please choose a less obvious PIN.');
       busy(form, true);
       try {
-        await api('signup', { employeeId: f.employeeId.trim(), name: f.name.trim(), department: f.department, property: state.signupProperty, pin: f.pin });
+        await api('signup', { employeeId: f.employeeId.trim(), name: f.name.trim(), department: f.department, position: (f.position || '').trim(), property: state.signupProperty, pin: f.pin });
         LS.set('bb_last_id', f.employeeId.trim());
         state.pendingStatus = 'Pending';
         go('pending', {}, true);
@@ -4659,6 +5025,21 @@
       } catch (e) { showError(e); }
       render();
     },
+    async reportLogo(el) {
+      const file = el.files && el.files[0];
+      if (!file) return;
+      const label = document.getElementById('rlogo-label');
+      if (label) label.textContent = 'Uploading…';
+      try {
+        const payload = await logoPayload(file);
+        const up = await api('uploadFile', payload);
+        const j = await api('saveSettings', { reportLogo: up.url });
+        if (!j.brand || !('reportLogo' in j.brand)) throw new Error('The backend needs updating: paste the new Code.gs into Apps Script, then Deploy › Manage deployments › Edit › New version › Deploy.');
+        setSettings({ heroImage: j.heroImage || '' }, j.brand);
+        toast('Attendance sheet logo saved.');
+      } catch (e) { showError(e); }
+      render();
+    },
     async fontUpload(el) {
       const file = el.files && el.files[0];
       if (!file) return;
@@ -5013,80 +5394,74 @@
     if (document.visibilityState === 'visible' && state.token && Date.now() - state.lastLoad >= REFRESH_MS - 5000) loadFeed(true);
   }, 30 * 1000);
 
-  /* ---------------- Refresh: pull down, or tap the refresh button ---------------- */
+  /* ---------------- Pull down to refresh ---------------- */
   /*
-   * Pages with a refresh button in the top bar: pulling down turns that button with your finger, and it keeps
-   * spinning while the app reloads. Pages without one show a small round refresh sign instead.
+   * Like iPhone apps: pull the page down and the grey activity indicator appears at the top, one spoke at a time.
+   * Let go once it is complete and it spins while the app reloads. The bottom bar stays where it is.
    */
+  const SPINNER = '<svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true">' +
+    Array.from({ length: 12 }, (_, i) => `<rect x="18.4" y="3" width="3.2" height="10" rx="1.6" transform="rotate(${i * 30} 20 20)" style="--o:${(0.25 + 0.75 * ((i + 1) / 12)).toFixed(2)}"/>`).join('') + '</svg>';
   const PTR = {
-    y0: null, x0: 0, dist: 0, pulling: false, busy: false, el: null, btn: null,
-    PAGES: ['today', 'feed', 'hr', 'offers', 'profile', 'post', 'section', 'collection', 'search', 'myposts', 'leavers', 'adminTeam', 'adminSetup', 'setupSection', 'trainingReport', 'birthdays', 'attendees', 'popups', 'collections', 'admin'],
+    y0: null, x0: 0, dist: 0, pulling: false, busy: false, el: null, page: null,
+    PAGES: ['today', 'feed', 'hr', 'offers', 'profile', 'post', 'section', 'collection', 'search', 'myposts', 'leavers', 'adminTeam', 'adminSetup', 'setupSection', 'trainingReport', 'birthdays', 'attendees', 'popups', 'collections', 'admin', 'quotes'],
+    MAX: 96, HOLD: 58, NEED: 70,
     ok() { return !!state.token && !this.busy && this.PAGES.indexOf(state.route.name) >= 0 && !document.querySelector('.celebrate'); },
-    button() { return app.querySelector('.topbar [data-refresh]'); },
     init() {
-      if (!('ontouchstart' in window)) return;
       this.el = document.createElement('div');
       this.el.className = 'ptr';
-      this.el.setAttribute('aria-hidden', 'true');
-      this.el.innerHTML = I.refresh;
+      this.el.setAttribute('role', 'status');
+      this.el.setAttribute('aria-label', 'Refreshing');
+      this.el.innerHTML = SPINNER;
       document.body.appendChild(this.el);
+      if (!('ontouchstart' in window)) return;
       window.addEventListener('touchstart', (e) => {
         this.y0 = null;
         if (!this.ok() || e.touches.length !== 1 || window.scrollY > 0) return;
-        if (e.target.closest && e.target.closest('input, textarea, select, .scan-box, .nav')) return;
+        if (e.target.closest && e.target.closest('input, textarea, select, .scan-box, .nav, .fab')) return;
         this.y0 = e.touches[0].clientY; this.x0 = e.touches[0].clientX; this.dist = 0; this.pulling = false;
       }, { passive: true });
       window.addEventListener('touchmove', (e) => {
         if (this.y0 === null) return;
         const dy = e.touches[0].clientY - this.y0, dx = Math.abs(e.touches[0].clientX - this.x0);
         if (!this.pulling) {
-          if (dy > 12 && dy > dx * 1.5 && window.scrollY <= 0) { this.pulling = true; this.btn = this.button(); }
+          if (dy > 10 && dy > dx * 1.5 && window.scrollY <= 0) { this.pulling = true; this.page = app.querySelector('.screen > .page, .screen > form.page'); }
           else if (dx > 12 || dy < -4) { this.y0 = null; return; }
         }
-        if (this.pulling) { this.dist = Math.min(130, dy * 0.55); this.show(); }
+        if (this.pulling) { this.dist = Math.min(this.MAX, (dy - 10) * 0.6); this.show(); }
       }, { passive: true });
       const end = () => {
-        if (this.pulling && this.dist >= 64) this.run(); else if (this.pulling) this.hide();
+        if (this.pulling && this.dist >= this.NEED) this.run(); else if (this.pulling) this.hide();
         this.y0 = null; this.pulling = false;
       };
       window.addEventListener('touchend', end, { passive: true });
       window.addEventListener('touchcancel', end, { passive: true });
     },
+    /** Moves only the page; the bottom bar and + button are outside it and stay fixed. */
+    shift(px, animate) {
+      const pg = this.page;
+      if (pg) {
+        pg.style.transition = animate ? 'transform .35s cubic-bezier(.2, .9, .3, 1)' : 'none';
+        pg.style.transform = px ? `translate3d(0, ${px}px, 0)` : '';
+      }
+      this.el.style.transition = animate ? 'transform .35s cubic-bezier(.2, .9, .3, 1), opacity .2s' : 'opacity .15s';
+      this.el.style.transform = `translate(-50%, ${Math.max(0, px / 2 - 15)}px)`;
+    },
     show() {
-      const ready = this.dist >= 64;
+      const ready = this.dist >= this.NEED;
       if (ready && !this.wasReady) { try { Haptics.tap(true); } catch (e) { /* none */ } }
       this.wasReady = ready;
-      if (this.btn && this.btn.isConnected) {
-        // The page's own refresh button turns with the finger.
-        this.btn.classList.add('pulling');
-        this.btn.classList.toggle('ready', ready);
-        const svg = this.btn.querySelector('svg');
-        if (svg) svg.style.transform = `rotate(${Math.round(this.dist * 4.2)}deg)`;
-        const shift = Math.min(28, this.dist * 0.35);
-        app.style.transform = `translateY(${shift}px)`;
-        return;
-      }
-      this.el.style.opacity = String(Math.min(1, this.dist / 50));
-      this.el.style.transform = `translate(-50%, ${this.dist}px) rotate(${this.dist * 3}deg)`;
-      this.el.classList.toggle('ready', ready);
+      const spokes = Math.max(0, Math.min(12, Math.round(this.dist / this.NEED * 12)));
+      this.el.querySelectorAll('rect').forEach((r, i) => r.classList.toggle('on', i < spokes));
+      this.el.style.opacity = this.dist > 6 ? '1' : '0';
+      this.shift(this.dist, false);
     },
     hide() {
       this.wasReady = false;
-      app.style.transition = 'transform .3s cubic-bezier(.2, .9, .3, 1)';
-      app.style.transform = '';
-      setTimeout(() => { app.style.transition = ''; }, 320);
-      if (this.btn) {
-        this.btn.classList.remove('pulling', 'ready');
-        const svg = this.btn.querySelector('svg'); if (svg) svg.style.transform = '';
-      }
-      this.el.classList.remove('ready', 'spin');
+      this.el.classList.remove('spin');
       this.el.style.opacity = '0';
-      this.el.style.transform = 'translate(-50%, 0)';
-    },
-    /** Keeps the refresh button spinning, also after the screen is drawn again. Called after every paint. */
-    mark() {
-      const b = this.button();
-      if (b) b.classList.toggle('spinning', this.busy);
+      this.shift(0, true);
+      const pg = this.page;
+      setTimeout(() => { if (pg) { pg.style.transition = ''; pg.style.transform = ''; } }, 380);
     },
     /** Loads again what this screen shows, keeping the old content on screen until the new arrives. */
     reloadScreen() {
@@ -5097,32 +5472,30 @@
       if (r === 'collections') jobs.push(loadCollections());
       if (r === 'birthdays') jobs.push(loadBirthdays());
       if (r === 'myposts') jobs.push(loadMyPosts());
+      if (r === 'quotes') jobs.push(loadQuotes());
       if (r === 'trainingReport') jobs.push(loadReport(p.id));
       if (['admin', 'adminTeam', 'profile'].indexOf(r) >= 0 && canApprove()) jobs.push(loadStaff());
       if (['adminSetup', 'setupSection'].indexOf(r) >= 0) { state.themeDraft = null; jobs.push(loadAdminSettings()); }
       return Promise.all(jobs.map((j) => Promise.resolve(j).catch(() => {})));
     },
-    async run(fromTap) {
+    async run() {
       if (this.busy) return;
       this.busy = true;
-      if (!fromTap) this.btn = this.button();
-      const useBtn = this.btn && this.btn.isConnected;
-      if (useBtn) {
-        this.btn.classList.remove('pulling', 'ready');
-        const svg = this.btn.querySelector('svg'); if (svg) svg.style.transform = '';
-        this.mark();
-      } else if (!fromTap) {
-        this.el.classList.add('spin');
-        this.el.style.transform = 'translate(-50%, 64px)';
-      }
+      this.el.querySelectorAll('rect').forEach((r) => r.classList.add('on'));
+      this.el.classList.add('spin');
+      this.el.style.opacity = '1';
+      this.shift(this.HOLD, true);
       const started = Date.now();
       try { await this.reloadScreen(); } catch (e) { /* each screen shows its own message */ }
-      await new Promise((res) => setTimeout(res, Math.max(0, 700 - (Date.now() - started))));
+      await new Promise((res) => setTimeout(res, Math.max(0, 800 - (Date.now() - started))));
       this.busy = false;
+      this.page = null;
       render();
-      this.hide();
-      this.btn = null;
-      toast(state.offline ? 'You’re offline. Showing what you loaded last.' : 'Up to date.');
+      // The page was drawn again: slide the new one back up from where the old one was.
+      this.page = app.querySelector('.screen > .page, .screen > form.page');
+      this.shift(this.HOLD, false);
+      requestAnimationFrame(() => requestAnimationFrame(() => this.hide()));
+      if (state.offline) toast('You’re offline. Showing what you loaded last.');
     }
   };
 
@@ -5253,7 +5626,6 @@
   function afterPaint() {
     Bar.setup();
     Lens.place(true);
-    if (PTR.busy) PTR.mark();
   }
 
   /* ---------------- Start ---------------- */
