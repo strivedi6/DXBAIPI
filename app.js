@@ -702,6 +702,7 @@
     FX.stop();
     app.innerHTML = view(state.route.params);
     if (top) window.scrollTo(0, 0);
+    afterPaint();
     FX.start(app);
     const auto = app.querySelector('[data-autofocus]');
     if (auto && !('ontouchstart' in window)) auto.focus();
@@ -753,6 +754,9 @@
       inner.style.marginTop = -y + 'px';
       inner.innerHTML = app.innerHTML;
       inner.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
+      // Keep the sticky top bar where it was on screen.
+      const tb = inner.querySelector('.topbar.tb');
+      if (tb && y > 12) { tb.style.position = 'relative'; tb.style.top = (y - 12) + 'px'; }
       inner.querySelectorAll('canvas, .hap-ov, input, select, textarea').forEach((n) => { if (n.tagName === 'CANVAS' || n.classList.contains('hap-ov')) n.remove(); else n.setAttribute('tabindex', '-1'); });
       snap.appendChild(inner);
       document.documentElement.classList.add('in-transit');
@@ -782,7 +786,7 @@
     active = map[active] || active;
     const items = [['feed', 'Home', I.home], ['hr', 'HR', I.users], ['today', 'Today', I.star], ['offers', 'Offers', I.tag], ['profile', 'Profile', I.user]];
     const pending = canApprove() && state.staff ? state.staff.filter((s) => s.status === 'Pending').length : 0;
-    return `<nav class="nav" aria-label="Main">
+    return `<nav class="nav" aria-label="Main"><span class="nav-lens" aria-hidden="true"></span>
       <div class="nav-brand" aria-hidden="true">${safeUrl(state.settings.logo) ? logoImg('nav-logo', false) : `<span class="monogram">${esc(CONFIG.monogram || 'BB')}</span><b>${esc(CONFIG.appShortName || CONFIG.appName)}</b>`}</div>
       ${items.map(([k, label, ic]) => `
       <button type="button" class="${k === 'today' ? 'nav-today' : ''}" data-act="nav" data-to="${k}" ${active === k ? 'aria-current="page"' : ''}><span class="ic">${active === k && IF[k] ? IF[k] : ic}</span><span class="lb">${k === 'today' ? '<span class="lb-m">Today</span><span class="lb-d">Today’s Special</span>' : label}</span>${k === 'profile' && pending ? `<span class="badge">${pending}</span>` : ''}</button>`).join('')}</nav>`;
@@ -1441,6 +1445,7 @@
       </div>`;
     document.body.appendChild(el);
     const stop = FX.run(el.querySelector('canvas'), 'confetti', { full: true, burst: true });
+    Sound.play('confetti');
     const close = () => { stop(); el.classList.add('out'); setTimeout(() => el.remove(), 300); };
     el.querySelector('[data-close]').addEventListener('click', close);
     el.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
@@ -1455,7 +1460,7 @@
         <div class="greet"><span class="small muted">${eyebrow || greeting()}</span><h1>${esc(title || firstName(u.name))}</h1></div>
         <div class="row" style="gap:8px">
           <button class="icon-btn" type="button" data-act="nav" data-to="search" aria-label="Search">${I.search}</button>
-          <button class="icon-btn" type="button" data-act="refresh" aria-label="Refresh">${I.refresh}</button>
+          <button class="icon-btn" type="button" data-act="refresh" aria-label="Refresh" data-refresh>${I.refresh}</button>
           <button class="icon-btn avatar-btn" type="button" data-act="nav" data-to="profile" aria-label="Your profile">${avatarHtml(u, 40)}${showBellDot ? '<span class="dot" style="top:0;right:0"></span>' : ''}</button>
         </div>
       </div>
@@ -1739,7 +1744,7 @@
     <div class="screen"><div class="page with-nav">
       <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
         <div class="greet spacer"><span class="eyebrow">HR</span><h1>Leavers</h1></div>
-        <button class="icon-btn" type="button" data-act="reloadLeavers" aria-label="Refresh">${I.refresh}</button></div>
+        <button class="icon-btn" type="button" data-act="reloadLeavers" aria-label="Refresh" data-refresh>${I.refresh}</button></div>
       <p class="muted small">Set the last working day for a colleague who has resigned. Their access to the app ends at 6:00 pm that day, and they see a thank-you message when they open the app on their last day.</p>
       <div class="search">${I.search}<label class="sr-only" for="lq">Find a colleague</label><input class="input" id="lq" type="search" placeholder="Find by first name, last name or Employee ID" value="${esc(state.leaverQuery || '')}" data-input="leaverSearch"></div>
       ${!state.leavers ? '<div class="spinner"></div>' : `
@@ -1946,15 +1951,16 @@
     </div></div>`;
   };
 
+  async function loadReport(id) {
+    try { state.report = Object.assign({ postId: id }, await api('attendanceReport', { postId: id })); }
+    catch (e) { showError(e); if (!state.report || state.report.postId !== id) state.report = { postId: id, rows: [], error: true }; }
+    if (state.route.name === 'trainingReport') render();
+  }
   /** Trainer, HR, Admin: who signed up and who checked in, with a CSV download. */
   VIEWS.trainingReport = ({ id }) => {
     const r = state.report && state.report.postId === id ? state.report : null;
     if (!r) {
-      setTimeout(async () => {
-        try { state.report = Object.assign({ postId: id }, await api('attendanceReport', { postId: id })); }
-        catch (e) { showError(e); state.report = { postId: id, rows: [], error: true }; }
-        if (state.route.name === 'trainingReport') render();
-      }, 0);
+      setTimeout(() => loadReport(id), 0);
       return `<div class="screen"><div class="page"><div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button><h1 style="flex:1">Attendance report</h1></div><div class="spinner"></div></div></div>`;
     }
     const inn = r.rows.filter((x) => x.checkedIn);
@@ -1965,7 +1971,7 @@
     <div class="screen"><div class="page">
       <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
         <div class="greet spacer"><span class="eyebrow">Attendance report</span><h1>${esc(r.title || 'Training')}</h1></div>
-        <button class="icon-btn" type="button" data-act="reloadReport" data-id="${esc(id)}" aria-label="Refresh">${I.refresh}</button></div>
+        <button class="icon-btn" type="button" data-act="reloadReport" data-id="${esc(id)}" aria-label="Refresh" data-refresh>${I.refresh}</button></div>
       <p class="small muted">${esc([r.date ? dayParts(r.date).long : '', fmtTiming(r.timing), r.location, r.presenter ? 'with ' + r.presenter : ''].filter(Boolean).join(' · '))}</p>
       <div class="grid-2">
         <div class="fact"><span>Checked in</span><b style="font-size:24px">${inn.length}</b></div>
@@ -2131,7 +2137,7 @@
     const bd = info.hr || info.self;
     return `
     <div class="screen"><div class="page with-nav">
-      <h1 class="title-lg" style="font-size:34px;margin-top:6px">Profile</h1>
+      <div class="topbar"><div class="greet"><h1>Profile</h1></div></div>
       <div class="set-group">
         <button type="button" class="me-row" data-act="nav" data-to="me">
           ${avatarHtml(u, 64)}
@@ -2145,6 +2151,8 @@
         ${setRow({ attrs: 'data-act="nav" data-to="me"', icon: I.cake, color: '#D9487A', title: 'Birthday', right: `<span class="set-val">${bd ? esc(bdText(bd)) : 'Add'}</span>${I.chevron}` })}
         ${setRow({ tag: 'label', icon: sv('<path d="M7 4v16M12 7v10M17 4v16M3 9v6M21 9v6"/>', 18), color: '#7A4BC2', title: 'Haptic feedback', sub: 'A light tick when you tap',
           right: `<span class="switch"><input type="checkbox" role="switch" aria-label="Haptic feedback" data-change="haptics" ${Haptics.on() ? 'checked' : ''}><span></span></span>` })}
+        ${setRow({ tag: 'label', icon: sv('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>', 18), color: '#E07A2E', title: 'Sounds', sub: 'With pop-ups and celebrations',
+          right: `<span class="switch"><input type="checkbox" role="switch" aria-label="Sounds" data-change="sounds" ${Sound.on() ? 'checked' : ''}><span></span></span>` })}
         ${setRow({ attrs: 'data-act="nav" data-to="appearance"', icon: sv('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>', 18), color: '#3B3F4A', title: 'Appearance', right: `<span class="set-val">${{ light: 'Light', dark: 'Dark', auto: 'Automatic' }[appearance()]}</span>${I.chevron}` })}
         ${!isStandalone() ? setRow({ attrs: 'data-act="addHome"', icon: I.addHome, color: '#2F6FDB', title: 'Add to Home Screen' }) : ''}
       </div>
@@ -2320,6 +2328,7 @@
       </div>`;
     document.body.appendChild(el);
     const stop = x.animation && x.animation !== 'none' ? FX.run(el.querySelector('canvas'), x.animation, { full: true, burst: true }) : () => {};
+    Sound.play(x.animation || 'none');
     const close = () => { stop(); el.classList.add('out'); setTimeout(() => el.remove(), 300); };
     el.querySelector('[data-close]').addEventListener('click', close);
     const goBtn = el.querySelector('[data-go]');
@@ -2885,7 +2894,7 @@
     return `
     <div class="screen"><div class="page with-nav">
       <div class="topbar"><div class="greet"><span class="eyebrow">${isAdmin() ? 'All posts' : 'Published by you'}</span><h1>My posts</h1></div>
-        <button class="icon-btn" type="button" data-act="reloadMine" aria-label="Refresh">${I.refresh}</button></div>
+        <button class="icon-btn" type="button" data-act="reloadMine" aria-label="Refresh" data-refresh>${I.refresh}</button></div>
       ${!all.length ? `<div class="empty">${I.inbox}<b>No posts yet</b><span class="small">Tap + to share your first update.</span></div>` : `
       <div class="search">${I.search}<label class="sr-only" for="mq">Search posts</label><input class="input" id="mq" type="search" placeholder="Search by title${isAdmin() ? ' or who posted' : ''}" value="${esc(state.mineFilter.q)}" data-input="mineSearch"></div>
       <div class="chips" role="group" aria-label="Status">${statuses.map((x) => `
@@ -3009,7 +3018,7 @@
       <div class="topbar">
         <button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
         <div class="greet spacer"><span class="eyebrow">${title ? 'App setup' : isAdmin() ? 'Admin' : 'HR'}</span><h1>${sec === 'team' ? (isAdmin() ? 'Team access' : 'Access requests') : esc(title || 'App setup')}</h1></div>
-        <button class="icon-btn" type="button" data-act="${sec === 'team' ? 'reloadStaff' : 'reloadSetup'}" aria-label="Refresh">${I.refresh}</button></div>
+        <button class="icon-btn" type="button" data-act="${sec === 'team' ? 'reloadStaff' : 'reloadSetup'}" aria-label="Refresh" data-refresh>${I.refresh}</button></div>
       ${inner}
     </div>${nav('admin')}</div>`;
   }
@@ -3781,7 +3790,7 @@
     },
     setCat(el) { state.filter.cat = el.dataset.v; render(); },
     setProp(el) { state.filter.prop = el.dataset.v; render(); },
-    refresh() { loadFeed(); toast('Refreshing…'); },
+    refresh(el) { PTR.btn = el; PTR.run(true); },
     open(el) { go('post', { id: el.dataset.id }); },
     enablePush() { Push.enable(); },
     installApp: async () => {
@@ -3864,7 +3873,7 @@
       const form = el.closest('form');
       form.querySelector(`input[name="${el.dataset.name}"]`).value = el.dataset.v;
       el.parentElement.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b === el)));
-      if (el.dataset.name === 'animation') refreshPreview();
+      if (el.dataset.name === 'animation') { refreshPreview(); if (form.dataset.form === 'popup') Sound.play(el.dataset.v); }
       if (el.dataset.name === 'type') { const sf = form.querySelector('#sub-field'); if (sf) sf.hidden = el.dataset.v !== 'people'; }
     },
     addSub() {
@@ -3964,8 +3973,8 @@
       if (!ok && !confirm('You seem to be offline, so the app can’t sign you out properly.\n\nIf you sign out now, you may not be able to sign in on another phone until your Admin signs you out of all devices.\n\nSign out anyway?')) { if (el) el.disabled = false; return; }
       signOut('Signed out.');
     },
-    reloadReport() { state.report = null; render(); },
-    reloadLeavers() { state.leavers = null; render(); },
+    reloadReport(el) { PTR.btn = el; PTR.run(true); },
+    reloadLeavers(el) { PTR.btn = el; PTR.run(true); },
     async clearLastDay(el) {
       const x = (state.leavers || []).find((p) => p.employeeId === el.dataset.id) || {};
       const back = x.status === 'Left';
@@ -4004,7 +4013,7 @@
         render();
       } catch (e) { showError(e); el.disabled = false; }
     },
-    reloadMine() { state.myPosts = null; render(); },
+    reloadMine(el) { PTR.btn = el; PTR.run(true); },
     editPost(el) { go('compose', { id: el.dataset.id }); },
     async setPostStatus(el) {
       const v = el.dataset.v;
@@ -4152,8 +4161,8 @@
     },
     bdayCheck() { state.bdayCheckOnly = !state.bdayCheckOnly; render(); },
     pushLater() { LS.set('bb_push_later', Date.now()); render(); },
-    reloadStaff() { state.staff = null; render(); },
-    reloadSetup() { state.adminCats = null; state.themeDraft = null; render(); },
+    reloadStaff(el) { PTR.btn = el; PTR.run(true); },
+    reloadSetup(el) { PTR.btn = el; PTR.run(true); },
     adminSection(el) { state.adminSection = el.dataset.v; render(); },
     editCat(el) { go('category', { id: el.dataset.id || '' }); },
     addHome: async () => {
@@ -4586,6 +4595,7 @@
       if (prev) prev.style.setProperty({ primary: '--p', accent: '--a', background: '--b' }[el.name], el.value);
     },
     pushToggle(el) { Push.setOn(el.checked); },
+    sounds(el) { LS.set('bb_sounds', !!el.checked); if (el.checked) { Sound.unlock(); Sound.play('none'); } toast(el.checked ? 'Sounds on.' : 'Sounds off.'); },
     haptics(el) { LS.set('bb_haptics', !!el.checked); if (el.checked) Haptics.decorate(document.body); else Haptics.strip(); toast(el.checked ? 'Haptic feedback on.' : 'Haptic feedback off.'); render(); },
     customColor(el) {
       const box = el.closest('.field') || el.closest('form');
@@ -4742,6 +4752,121 @@
    * A light tick on every tap, like the phone keyboard. Android: the vibration motor.
    * iPhone (iOS 18 and later): Safari has no vibration API, but toggling a native switch plays the system haptic,
    * so each tap flips a hidden switch. Turn it off in Profile › Haptic feedback. */
+  /*
+   * Pop-up sounds, made on the phone with Web Audio (no sound files to download).
+   * Phones only allow sound after the person has touched the screen once, so the first touch "unlocks" it.
+   * On iPhone the silent switch mutes these sounds, as it should.
+   */
+  const Sound = {
+    ctx: null, out: null,
+    on() { return LS.get('bb_sounds') !== false; },
+    unlock() {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!this.ctx) {
+          this.ctx = new AC();
+          const comp = this.ctx.createDynamicsCompressor();
+          this.out = this.ctx.createGain();
+          this.out.gain.value = 0.45;
+          this.out.connect(comp); comp.connect(this.ctx.destination);
+        }
+        if (this.ctx.state !== 'running') this.ctx.resume();
+        const b = this.ctx.createBufferSource();
+        b.buffer = this.ctx.createBuffer(1, 1, 22050);
+        b.connect(this.ctx.destination); b.start(0);
+      } catch (e) { /* no sound on this phone */ }
+    },
+    ready() { return !!this.ctx && this.on(); },
+    env(g, t, peak, a, d) {
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak, t + a);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + a + d);
+    },
+    tone(f, t, d, o) {
+      o = o || {};
+      const c = this.ctx, osc = c.createOscillator(), g = c.createGain();
+      osc.type = o.type || 'sine';
+      osc.frequency.setValueAtTime(f, t);
+      if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t + (o.glide || d));
+      this.env(g, t, o.gain || 0.2, o.a || 0.005, d);
+      osc.connect(g);
+      if (o.lp) { const f2 = c.createBiquadFilter(); f2.type = 'lowpass'; f2.frequency.value = o.lp; g.connect(f2); f2.connect(this.out); } else g.connect(this.out);
+      osc.start(t); osc.stop(t + (o.a || 0.005) + d + 0.05);
+    },
+    bell(f, t, d, gain) {
+      this.tone(f, t, d, { gain: gain });
+      this.tone(f * 2.76, t, d * 0.45, { gain: gain * 0.28 });
+      this.tone(f * 5.4, t, d * 0.2, { gain: gain * 0.12 });
+    },
+    noise(t, d, o) {
+      o = o || {};
+      const c = this.ctx, len = Math.max(1, Math.floor(c.sampleRate * (d + 0.1)));
+      const buf = c.createBuffer(1, len, c.sampleRate), ch = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
+      const src = c.createBufferSource(), flt = c.createBiquadFilter(), g = c.createGain();
+      src.buffer = buf;
+      flt.type = o.filter || 'bandpass'; flt.Q.value = o.q || 1;
+      flt.frequency.setValueAtTime(o.f || 1500, t);
+      if (o.to) flt.frequency.exponentialRampToValueAtTime(o.to, t + d);
+      this.env(g, t, o.gain || 0.2, o.a || 0.004, d);
+      src.connect(flt); flt.connect(g); g.connect(this.out);
+      src.start(t); src.stop(t + d + 0.1);
+    },
+    rnd(a, b) { return a + Math.random() * (b - a); },
+    /** kind: an animation name (confetti, sparkle, fireworks, snow, lights) or 'none' for a soft chime. */
+    play(kind) {
+      if (!this.ready()) return;
+      try {
+        if (this.ctx.state !== 'running') this.ctx.resume();
+        const t = this.ctx.currentTime + 0.05;
+        (this.KINDS[kind] || this.KINDS.none).call(this, t);
+      } catch (e) { /* ignore */ }
+    },
+    KINDS: {
+      // Party popper: a pop, a thump, a bright run up and the paper fluttering down.
+      confetti(t) {
+        this.noise(t, 0.07, { f: 1900, q: 0.8, gain: 0.55, a: 0.002 });
+        this.tone(190, t, 0.14, { to: 55, gain: 0.45, a: 0.002 });
+        [1047, 1319, 1568, 2093].forEach((f, i) => this.tone(f, t + 0.08 + i * 0.06, 0.32, { type: 'triangle', gain: 0.1 }));
+        for (let i = 0; i < 18; i++) this.noise(t + 0.15 + this.rnd(0, 0.9), 0.025, { f: this.rnd(3000, 7000), q: 6, gain: this.rnd(0.03, 0.08) * (1 - i / 22) });
+      },
+      // Twinkling chimes, high and light.
+      sparkle(t) {
+        const notes = [1568, 1760, 2093, 2349, 2637, 3136, 3520];
+        for (let i = 0; i < 9; i++) this.bell(notes[Math.floor(Math.random() * notes.length)], t + i * 0.11 + this.rnd(0, 0.05), 0.9, 0.07 * (1 - i / 14));
+        this.tone(523, t, 1.4, { type: 'sine', gain: 0.04, a: 0.25 });
+      },
+      // A rocket whoosh, a boom and crackles, then a second smaller one.
+      fireworks(t) {
+        const shot = (s, size) => {
+          this.noise(s, 0.55, { filter: 'highpass', f: 500, to: 3200, gain: 0.12 * size, a: 0.45 });
+          this.tone(110, s + 0.58, 0.9, { to: 38, gain: 0.55 * size, a: 0.004 });
+          this.noise(s + 0.58, 0.8, { filter: 'lowpass', f: 900, to: 120, gain: 0.4 * size, a: 0.004 });
+          for (let i = 0; i < 26; i++) this.noise(s + 0.75 + this.rnd(0, 0.9), 0.012, { f: this.rnd(2500, 6500), q: 4, gain: this.rnd(0.05, 0.14) * size });
+        };
+        shot(t, 1); shot(t + 1.1, 0.6);
+      },
+      // A soft music box, falling slowly, over a breath of wind.
+      snow(t) {
+        this.noise(t, 2, { filter: 'lowpass', f: 600, to: 300, gain: 0.05, a: 0.8 });
+        [1568, 1319, 1175, 1047, 1319, 1568].forEach((f, i) => this.bell(f, t + i * 0.26, 1.3, 0.08));
+      },
+      // A warm chord that glows in, with a glint on top.
+      lights(t) {
+        [220, 277, 330, 440].forEach((f) => this.tone(f, t, 1.6, { type: 'triangle', gain: 0.07, a: 0.45, lp: 1600 }));
+        this.bell(1760, t + 0.5, 1.2, 0.06);
+        this.bell(2637, t + 0.75, 1, 0.045);
+      },
+      // A simple two-note chime.
+      none(t) {
+        this.bell(1319, t, 0.9, 0.12);
+        this.bell(1976, t + 0.14, 1.1, 0.1);
+      }
+    }
+  };
+  ['touchend', 'pointerdown', 'keydown'].forEach((ev) => window.addEventListener(ev, () => { if (!Sound.ctx || Sound.ctx.state !== 'running') Sound.unlock(); }, { passive: true, capture: true }));
+
   const Haptics = {
     el: null,
     busy: false,
@@ -4888,11 +5013,16 @@
     if (document.visibilityState === 'visible' && state.token && Date.now() - state.lastLoad >= REFRESH_MS - 5000) loadFeed(true);
   }, 30 * 1000);
 
-  /* ---------------- Pull down to refresh (phones) ---------------- */
+  /* ---------------- Refresh: pull down, or tap the refresh button ---------------- */
+  /*
+   * Pages with a refresh button in the top bar: pulling down turns that button with your finger, and it keeps
+   * spinning while the app reloads. Pages without one show a small round refresh sign instead.
+   */
   const PTR = {
-    y0: null, x0: 0, dist: 0, pulling: false, busy: false, el: null,
-    PAGES: ['today', 'feed', 'hr', 'offers', 'profile', 'post', 'section', 'collection', 'search', 'myposts', 'leavers', 'adminTeam', 'trainingReport', 'birthdays', 'attendees', 'popups', 'collections'],
+    y0: null, x0: 0, dist: 0, pulling: false, busy: false, el: null, btn: null,
+    PAGES: ['today', 'feed', 'hr', 'offers', 'profile', 'post', 'section', 'collection', 'search', 'myposts', 'leavers', 'adminTeam', 'adminSetup', 'setupSection', 'trainingReport', 'birthdays', 'attendees', 'popups', 'collections', 'admin'],
     ok() { return !!state.token && !this.busy && this.PAGES.indexOf(state.route.name) >= 0 && !document.querySelector('.celebrate'); },
+    button() { return app.querySelector('.topbar [data-refresh]'); },
     init() {
       if (!('ontouchstart' in window)) return;
       this.el = document.createElement('div');
@@ -4903,14 +5033,14 @@
       window.addEventListener('touchstart', (e) => {
         this.y0 = null;
         if (!this.ok() || e.touches.length !== 1 || window.scrollY > 0) return;
-        if (e.target.closest && e.target.closest('input, textarea, select, .scan-box')) return;
+        if (e.target.closest && e.target.closest('input, textarea, select, .scan-box, .nav')) return;
         this.y0 = e.touches[0].clientY; this.x0 = e.touches[0].clientX; this.dist = 0; this.pulling = false;
       }, { passive: true });
       window.addEventListener('touchmove', (e) => {
         if (this.y0 === null) return;
         const dy = e.touches[0].clientY - this.y0, dx = Math.abs(e.touches[0].clientX - this.x0);
         if (!this.pulling) {
-          if (dy > 12 && dy > dx * 1.5 && window.scrollY <= 0) this.pulling = true;
+          if (dy > 12 && dy > dx * 1.5 && window.scrollY <= 0) { this.pulling = true; this.btn = this.button(); }
           else if (dx > 12 || dy < -4) { this.y0 = null; return; }
         }
         if (this.pulling) { this.dist = Math.min(130, dy * 0.55); this.show(); }
@@ -4924,36 +5054,207 @@
     },
     show() {
       const ready = this.dist >= 64;
+      if (ready && !this.wasReady) { try { Haptics.tap(true); } catch (e) { /* none */ } }
+      this.wasReady = ready;
+      if (this.btn && this.btn.isConnected) {
+        // The page's own refresh button turns with the finger.
+        this.btn.classList.add('pulling');
+        this.btn.classList.toggle('ready', ready);
+        const svg = this.btn.querySelector('svg');
+        if (svg) svg.style.transform = `rotate(${Math.round(this.dist * 4.2)}deg)`;
+        const shift = Math.min(28, this.dist * 0.35);
+        app.style.transform = `translateY(${shift}px)`;
+        return;
+      }
       this.el.style.opacity = String(Math.min(1, this.dist / 50));
       this.el.style.transform = `translate(-50%, ${this.dist}px) rotate(${this.dist * 3}deg)`;
-      if (ready && !this.el.classList.contains('ready')) { try { Haptics.tap(true); } catch (e) { /* none */ } }
       this.el.classList.toggle('ready', ready);
     },
     hide() {
+      this.wasReady = false;
+      app.style.transition = 'transform .3s cubic-bezier(.2, .9, .3, 1)';
+      app.style.transform = '';
+      setTimeout(() => { app.style.transition = ''; }, 320);
+      if (this.btn) {
+        this.btn.classList.remove('pulling', 'ready');
+        const svg = this.btn.querySelector('svg'); if (svg) svg.style.transform = '';
+      }
       this.el.classList.remove('ready', 'spin');
       this.el.style.opacity = '0';
       this.el.style.transform = 'translate(-50%, 0)';
     },
-    async run() {
+    /** Keeps the refresh button spinning, also after the screen is drawn again. Called after every paint. */
+    mark() {
+      const b = this.button();
+      if (b) b.classList.toggle('spinning', this.busy);
+    },
+    /** Loads again what this screen shows, keeping the old content on screen until the new arrives. */
+    reloadScreen() {
+      const r = state.route.name, p = state.route.params || {};
+      const jobs = [loadFeed(true)];
+      if (r === 'leavers') jobs.push(loadLeavers());
+      if (r === 'popups') jobs.push(loadPopups());
+      if (r === 'collections') jobs.push(loadCollections());
+      if (r === 'birthdays') jobs.push(loadBirthdays());
+      if (r === 'myposts') jobs.push(loadMyPosts());
+      if (r === 'trainingReport') jobs.push(loadReport(p.id));
+      if (['admin', 'adminTeam', 'profile'].indexOf(r) >= 0 && canApprove()) jobs.push(loadStaff());
+      if (['adminSetup', 'setupSection'].indexOf(r) >= 0) { state.themeDraft = null; jobs.push(loadAdminSettings()); }
+      return Promise.all(jobs.map((j) => Promise.resolve(j).catch(() => {})));
+    },
+    async run(fromTap) {
+      if (this.busy) return;
       this.busy = true;
-      this.el.classList.add('spin');
-      this.el.style.transform = 'translate(-50%, 64px)';
-      // Clear what each screen loads for itself, then fetch the feed again.
-      const r = state.route.name;
-      state.leavers = null; state.report = null; state.popupList = null;
-      if (r === 'myposts') state.myPosts = null;
-      if (r === 'birthdays') state.bdayList = null;
-      if (r === 'collections') state.adminColls = null;
-      if (r === 'adminTeam') state.staff = null;
+      if (!fromTap) this.btn = this.button();
+      const useBtn = this.btn && this.btn.isConnected;
+      if (useBtn) {
+        this.btn.classList.remove('pulling', 'ready');
+        const svg = this.btn.querySelector('svg'); if (svg) svg.style.transform = '';
+        this.mark();
+      } else if (!fromTap) {
+        this.el.classList.add('spin');
+        this.el.style.transform = 'translate(-50%, 64px)';
+      }
       const started = Date.now();
-      try { await loadFeed(true); } catch (e) { /* the feed shows its own message */ }
-      await new Promise((res) => setTimeout(res, Math.max(0, 600 - (Date.now() - started))));
+      try { await this.reloadScreen(); } catch (e) { /* each screen shows its own message */ }
+      await new Promise((res) => setTimeout(res, Math.max(0, 700 - (Date.now() - started))));
+      this.busy = false;
       render();
       this.hide();
-      this.busy = false;
+      this.btn = null;
       toast(state.offline ? 'You’re offline. Showing what you loaded last.' : 'Up to date.');
     }
   };
+
+  /*
+   * Top bar like iPhone Mail: it stays at the top while you scroll. Over the page it turns to frosted glass,
+   * and on main pages the big title scrolls away under it while a small title appears in the bar.
+   */
+  const Bar = {
+    el: null, big: null,
+    setup() {
+      this.el = null; this.big = null;
+      const bar = app.querySelector('.page > .topbar');
+      if (!bar || bar.parentElement.firstElementChild !== bar) return;
+      bar.classList.add('tb');
+      const greet = bar.querySelector(':scope > .greet');
+      const h1 = greet ? greet.querySelector('h1') : null;
+      if (greet && h1) {
+        const ey = greet.querySelector('span');
+        const mini = document.createElement('div');
+        mini.className = 'tb-title';
+        mini.setAttribute('aria-hidden', 'true');
+        mini.innerHTML = `<b>${esc(h1.textContent)}</b>${ey ? `<span>${esc(ey.textContent)}</span>` : ''}`;
+        greet.replaceWith(mini);
+        greet.classList.remove('spacer');
+        greet.classList.add('large-title');
+        bar.after(greet);
+        this.big = greet;
+      }
+      this.el = bar;
+      this.update();
+    },
+    update() {
+      const bar = this.el;
+      if (!bar || !bar.isConnected) return;
+      const y = window.scrollY;
+      bar.classList.toggle('is-scrolled', y > 4);
+      const tuck = this.big ? this.big.getBoundingClientRect().bottom < bar.getBoundingClientRect().bottom + 4 : y > 4;
+      bar.classList.toggle('is-tucked', tuck);
+    }
+  };
+  window.addEventListener('scroll', () => Bar.update(), { passive: true });
+  window.addEventListener('resize', () => { Bar.update(); Lens.place(false); });
+
+  /*
+   * Bottom bar like iOS: a glass lens sits behind the current tab and slides to the next one.
+   * Press and slide your finger along the bar: the lens lifts, follows the finger, and opens the tab you let go on.
+   */
+  const Lens = {
+    last: null, drag: null,
+    wide() { return window.matchMedia('(min-width: 960px)').matches; },
+    nav() { return document.querySelector('.nav'); },
+    rectOf(btn, nav) {
+      const n = nav.getBoundingClientRect(), b = btn.getBoundingClientRect();
+      return { x: b.left - n.left, w: b.width };
+    },
+    set(lens, r, animate) {
+      lens.style.transition = animate ? '' : 'none';
+      lens.style.width = r.w + 'px';
+      lens.style.transform = `translateX(${r.x}px)`;
+      if (!animate) { void lens.offsetWidth; lens.style.transition = ''; }
+    },
+    place(animate) {
+      const nav = this.nav();
+      const lens = nav && nav.querySelector('.nav-lens');
+      if (!lens || this.wide()) return;
+      const cur = nav.querySelector('button[aria-current="page"]');
+      if (!cur) { lens.style.opacity = '0'; this.last = null; return; }
+      lens.style.opacity = '';
+      const to = this.rectOf(cur, nav);
+      if (animate && this.last && Math.abs(this.last.x - to.x) > 2) {
+        this.set(lens, this.last, false);
+        requestAnimationFrame(() => this.set(lens, to, true));
+      } else this.set(lens, to, false);
+      this.last = to;
+    },
+    btnAt(nav, x) {
+      return [...nav.querySelectorAll('button[data-to]')].find((b) => { const r = b.getBoundingClientRect(); return x >= r.left && x <= r.right; });
+    },
+    init() {
+      document.addEventListener('touchstart', (e) => {
+        const nav = e.target.closest && e.target.closest('.nav');
+        if (!nav || this.wide() || e.touches.length !== 1) return;
+        const lens = nav.querySelector('.nav-lens');
+        if (!lens) return;
+        this.drag = { nav, lens, x0: e.touches[0].clientX, moved: false, over: null };
+      }, { passive: true });
+      document.addEventListener('touchmove', (e) => {
+        const d = this.drag;
+        if (!d) return;
+        const x = e.touches[0].clientX;
+        if (!d.moved && Math.abs(x - d.x0) < 10) return;
+        d.moved = true;
+        const n = d.nav.getBoundingClientRect();
+        const w = parseFloat(d.lens.style.width) || 64;
+        const left = Math.max(0, Math.min(n.width - w, x - n.left - w / 2));
+        d.lens.classList.add('lifted');
+        d.lens.style.transition = 'none';
+        d.lens.style.transform = `translateX(${left}px)`;
+        const over = this.btnAt(d.nav, x);
+        if (over && over !== d.over) {
+          if (d.over) d.over.classList.remove('lens-over');
+          over.classList.add('lens-over');
+          if (d.over) { try { Haptics.tap(true); } catch (er) { /* none */ } }
+          d.over = over;
+        }
+      }, { passive: true });
+      const end = () => {
+        const d = this.drag;
+        this.drag = null;
+        if (!d) return;
+        d.lens.classList.remove('lifted');
+        d.lens.style.transition = '';
+        d.nav.querySelectorAll('.lens-over').forEach((b) => b.classList.remove('lens-over'));
+        if (!d.moved) return;
+        const target = d.over;
+        const cur = d.nav.querySelector('button[aria-current="page"]');
+        if (target && target !== cur) {
+          this.last = { x: parseFloat((d.lens.style.transform.match(/-?[\d.]+/) || [0])[0]), w: parseFloat(d.lens.style.width) || 0 };
+          ACT.nav(target);
+        } else this.place(true);
+      };
+      document.addEventListener('touchend', end, { passive: true });
+      document.addEventListener('touchcancel', end, { passive: true });
+    }
+  };
+
+  /** Runs after every screen is drawn. */
+  function afterPaint() {
+    Bar.setup();
+    Lens.place(true);
+    if (PTR.busy) PTR.mark();
+  }
 
   /* ---------------- Start ---------------- */
   applyAppearance();
@@ -4966,6 +5267,7 @@
   if (state.token) setTimeout(() => Preload.images(state.posts), 300);
   Push.init();
   PTR.init();
+  Lens.init();
   state.route = { name: state.token ? (state.deepLinkPost ? 'post' : 'today') : 'login', params: state.deepLinkPost ? { id: state.deepLinkPost } : {} };
   if (state.token && state.deepLinkReport) {
     state.route = { name: 'trainingReport', params: { id: state.deepLinkReport } };

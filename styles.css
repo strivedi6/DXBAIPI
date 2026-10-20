@@ -806,3 +806,93 @@ html[data-theme="dark"] .host-bar { background: #EEE7DA; }
 .ptr.spin { transition: transform .2s, opacity .2s; }
 .ptr.spin svg { animation: spin .8s linear infinite; }
 html[data-theme="dark"] .ptr { background: var(--card); color: var(--text-strong); }
+
+/* ===== Version 1.12: iOS-style glass bars ===== */
+/* Page padding as variables, so the sticky top bar can reach the edges of every page. */
+.page { --pt: calc(20px + var(--safe-top)); --px: 20px; }
+.full-hero + .page { --pt: 22px; }
+@media (min-width: 960px) {
+  .page.with-nav { --pt: 32px; --px: max(40px, calc((100vw - 236px - 1120px) / 2)); }
+  .screen > .page:not(.with-nav), .screen > form.page { --pt: 32px; }
+}
+
+/* Top bar: stays at the top; turns to frosted glass over the page (like iPhone Mail). */
+.topbar.tb { position: sticky; top: -12px; z-index: 25; margin: calc(-1 * var(--pt)) calc(-1 * var(--px)) -4px; padding: var(--pt) var(--px) 10px; isolation: isolate; }
+.topbar.tb::before { content: ''; position: absolute; inset: 0 0 -22px; z-index: -1; pointer-events: none; opacity: 0; transition: opacity .25s ease;
+  background: color-mix(in srgb, var(--bar-bg, var(--cream)) 84%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+  -webkit-mask-image: linear-gradient(#000 calc(100% - 26px), transparent); mask-image: linear-gradient(#000 calc(100% - 26px), transparent); }
+.topbar.tb.is-scrolled::before { opacity: 1; }
+.coll-page .topbar.tb { --bar-bg: var(--bg); }
+/* The small title that appears in the bar once the big one has scrolled away. */
+.tb-title { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; opacity: 0; transform: translateY(6px); transition: opacity .2s ease, transform .25s ease; pointer-events: none; }
+.tb-title b { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--navy); }
+.tb-title span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar.tb.is-tucked .tb-title { opacity: 1; transform: none; }
+.large-title { display: flex; flex-direction: column; gap: 2px; margin-top: -6px; }
+.large-title h1 { font-size: 32px; line-height: 1.12; }
+.topbar.tb:not(:has(button, a)) { min-height: 34px; }
+/* Glass buttons in the top bar: round icons and capsule text buttons. */
+.topbar.tb .icon-btn, .topbar.tb .link-btn {
+  background: rgba(255, 255, 255, .62); color: var(--navy);
+  -webkit-backdrop-filter: blur(14px) saturate(180%); backdrop-filter: blur(14px) saturate(180%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 0 0 .5px rgba(255, 255, 255, .7), 0 1px 2px rgba(19, 41, 75, .06), 0 4px 14px rgba(19, 41, 75, .08);
+}
+.topbar.tb .link-btn { border-radius: 999px; padding: 0 16px; min-height: 40px; font-size: 15px; }
+.topbar.tb .avatar-btn { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.coll-page .topbar.tb .icon-btn { background: rgba(255, 255, 255, .85); }
+html[data-theme="dark"] .topbar.tb .icon-btn, html[data-theme="dark"] .topbar.tb .link-btn { background: rgba(58, 64, 78, .55); color: var(--text-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 0 0 .5px rgba(255, 255, 255, .1), 0 4px 14px rgba(0, 0, 0, .3); }
+html[data-theme="dark"] .tb-title b { color: var(--text-strong); }
+
+/* Refresh button: turns as you pull, spins while loading. */
+[data-refresh] svg { transition: transform .3s cubic-bezier(.2, .9, .3, 1); transform-origin: 50% 50%; }
+[data-refresh].pulling svg { transition: none; }
+[data-refresh].ready { color: var(--gold-text) !important; }
+[data-refresh].spinning svg { animation: spin .8s linear infinite; }
+#app { will-change: auto; }
+
+/* ===== Bottom bar: Liquid Glass look ===== */
+.nav-lens { display: none; }
+@media (max-width: 959px) {
+  .nav {
+    background: rgba(255, 255, 255, .42);
+    -webkit-backdrop-filter: blur(16px) saturate(200%) brightness(1.04); backdrop-filter: blur(16px) saturate(200%) brightness(1.04);
+    border: 0;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, .95), inset 1px 0 0 rgba(255, 255, 255, .45), inset -1px 0 0 rgba(255, 255, 255, .45),
+      inset 0 -1px 1px rgba(255, 255, 255, .5), inset 0 0 0 .5px rgba(0, 0, 0, .06),
+      0 12px 36px rgba(19, 30, 50, .16), 0 2px 8px rgba(19, 30, 50, .06);
+    isolation: isolate;
+  }
+  /* A soft light across the top edge of the glass. */
+  .nav::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .5) 0%, rgba(255, 255, 255, 0) 45%), radial-gradient(120% 90% at 15% 0%, rgba(255, 255, 255, .35), transparent 60%); }
+  .nav button { position: relative; z-index: 2; background: none !important; }
+  .nav button[aria-current="page"] { background: none !important; }
+  /* The lens behind the current tab. */
+  .nav-lens { display: block; position: absolute; top: 6px; bottom: 6px; left: 0; width: 64px; z-index: 1; border-radius: 999px; pointer-events: none;
+    background: rgba(19, 41, 75, .09);
+    transition: transform .5s cubic-bezier(.3, 1.35, .45, 1), width .4s cubic-bezier(.3, 1.2, .45, 1), background-color .2s, box-shadow .2s, scale .25s cubic-bezier(.3, 1.5, .5, 1), opacity .2s; }
+  .nav:has(.nav-today[aria-current="page"]) .nav-lens { background: color-mix(in srgb, var(--gold) 18%, transparent); }
+  /* Pressed and sliding: the lens lifts into clear glass with a rainbow edge, bigger than the bar. */
+  .nav-lens.lifted { scale: 1.16 1.32; background: rgba(255, 255, 255, .22);
+    -webkit-backdrop-filter: blur(1.5px) saturate(160%) brightness(1.08); backdrop-filter: blur(1.5px) saturate(160%) brightness(1.08);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, .95), inset 0 -1px 1px rgba(255, 255, 255, .6),
+      inset 4px 0 8px rgba(255, 110, 150, .32), inset -4px 0 8px rgba(80, 160, 255, .36), inset 0 -4px 8px rgba(255, 200, 80, .26),
+      0 0 0 .5px rgba(19, 41, 75, .18), 0 10px 26px rgba(19, 30, 50, .26); }
+  .nav button.lens-over { color: var(--navy); }
+  .nav button.lens-over .ic { transform: scale(1.18); }
+  .nav-lens.lifted { border: 1px solid rgba(255, 255, 255, .85); }
+  html[data-theme="dark"] .nav { background: rgba(30, 34, 44, .5);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), inset 0 0 0 .5px rgba(255, 255, 255, .1), 0 12px 36px rgba(0, 0, 0, .5); }
+  html[data-theme="dark"] .nav::before { background: linear-gradient(180deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, 0) 45%); }
+  html[data-theme="dark"] .nav-lens { background: rgba(255, 255, 255, .12); }
+  html[data-theme="dark"] .nav:has(.nav-today[aria-current="page"]) .nav-lens { background: color-mix(in srgb, var(--gold) 24%, transparent); }
+  html[data-theme="dark"] .nav-lens.lifted { background: rgba(255, 255, 255, .1);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, .4), inset 3px 0 6px rgba(255, 120, 160, .25), inset -3px 0 6px rgba(90, 170, 255, .28), 0 8px 22px rgba(0, 0, 0, .5); }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .nav { background: rgba(255, 255, 255, .95); }
+  }
+}
+@media (prefers-reduced-motion: reduce) { .nav-lens { transition: none; } }
