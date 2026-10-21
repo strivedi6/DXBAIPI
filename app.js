@@ -3831,7 +3831,9 @@
           <input class="input" data-k="heading" maxlength="120" placeholder="Heading (optional)" value="${esc(b.heading || '')}">
           <textarea class="textarea" data-k="text" maxlength="4000" placeholder="Write this section…">${esc(b.text || '')}</textarea>
           <label class="switch-row" style="border:0;padding:0;min-height:0"><span class="small"><b>White box</b> · turn off for text on the page background</span>
-            <span class="switch"><input type="checkbox" role="switch" data-k="box" ${b.plain ? '' : 'checked'}><span></span></span></label>`
+            <span class="switch"><input type="checkbox" role="switch" data-k="box" ${b.plain ? '' : 'checked'}><span></span></span></label>
+          <label class="switch-row" style="border:0;padding:0;min-height:0"><span class="small"><b>Highlight this section</b> · a tinted band, edge to edge, for this section and what follows it</span>
+            <span class="switch"><input type="checkbox" role="switch" data-k="hl" ${b.highlight ? 'checked' : ''}><span></span></span></label>`
         : b.type === 'image' ? imageField('blkimg' + n, safeUrl(b.url), { id: 'bi' + n, noun: 'image', style: 'min-height:120px' })
         : b.type === 'posts' ? `
           <input class="input" data-k="title" maxlength="80" placeholder="Section title, e.g. This month’s offers" value="${esc(b.title || '')}">
@@ -3865,7 +3867,10 @@
     read(form) {
       return [...form.querySelectorAll('.blk-list > .blk')].map((el) => {
         const t = el.dataset.type;
-        if (t === 'text') return Object.assign({ type: t, heading: el.querySelector('[data-k=heading]').value.trim(), text: el.querySelector('[data-k=text]').value.trim() }, el.querySelector('[data-k=box]').checked ? {} : { plain: true });
+        if (t === 'text') { const o = { type: t, heading: el.querySelector('[data-k=heading]').value.trim(), text: el.querySelector('[data-k=text]').value.trim() };
+          if (!el.querySelector('[data-k=box]').checked) o.plain = true;
+          if (el.querySelector('[data-k=hl]').checked) o.highlight = true;
+          return o; }
         if (t === 'image') return { type: t, url: (el.querySelector('input[type=hidden]') || {}).value || '' };
         if (t === 'posts') return { type: t, title: el.querySelector('[data-k=title]').value.trim(), ids: [...el.querySelectorAll('[data-k=id]:checked')].map((i) => i.value) };
         return { type: t };
@@ -3895,13 +3900,13 @@
         if (!cur || (b.type === 'text' && b.heading)) { cur = { items: [] }; groups.push(cur); }
         cur.items.push(b);
       });
-      const real = groups.filter((g) => g.divider || (g.items && g.items.length));
-      const multi = real.filter((g) => !g.divider).length > 1;
-      return real.map((g) => {
+      return groups.map((g) => {
         if (g.divider) return '<div class="blk-divider" aria-hidden="true"><span></span></div>';
+        if (!g.items || !g.items.length) return '';
         const inner = g.items.map((b) => this.one(b, opts)).join('');
         if (!inner.trim()) return '';
-        return multi ? `<div class="blk-group">${inner}</div>` : inner;
+        const hl = g.items[0].type === 'text' && g.items[0].highlight;
+        return hl ? `<div class="blk-band">${inner}</div>` : inner;
       }).join('');
     }
   };
@@ -3945,7 +3950,8 @@
     navy: '#13294B', gold: '#B48A4E', goldText: '#7E5F2E', muted: '#5A6273', cream: '#F4EFE7', line: '#E3DBCD' };
 
   /** Text, image and post sections on the shared picture. Returns the new y. */
-  function drawBlocksCanvas(ctx, blocks, a, y, draw, PAD, INNER) {
+  /** Draws one list of section blocks straight down. */
+  function drawBlockItems(ctx, blocks, a, y, draw, PAD, INNER) {
     const { serif, sans, navy, goldText, muted } = SH;
     blocks.forEach((b) => {
       if (b.type === 'text') {
@@ -4012,6 +4018,30 @@
           y += CH + 24;
         });
         y += 12;
+      }
+    });
+    return y;
+  }
+
+  /** Groups blocks and, for a highlighted section, paints a full-width tinted band behind it. */
+  function drawBlocksCanvas(ctx, blocks, a, y, draw, PAD, INNER) {
+    const W = PAD * 2 + INNER;
+    const groups = [];
+    let cur = null;
+    (blocks || []).forEach((b) => {
+      if (b.type === 'divider') { groups.push({ divider: true }); cur = null; return; }
+      if (!cur || (b.type === 'text' && b.heading)) { cur = { items: [], hl: false }; groups.push(cur); }
+      if (b.type === 'text' && cur.items.length === 0) cur.hl = !!b.highlight;
+      cur.items.push(b);
+    });
+    groups.forEach((g) => {
+      if (g.divider) { y = drawBlockItems(ctx, [{ type: 'divider' }], a, y, draw, PAD, INNER); return; }
+      if (g.hl) {
+        const h = drawBlockItems(ctx, g.items, a, y, false, PAD, INNER) - y;
+        if (draw) { ctx.fillStyle = 'rgba(180,138,78,0.10)'; ctx.fillRect(0, y - 20, W, h + 20); }
+        y = drawBlockItems(ctx, g.items, a, y, draw, PAD, INNER) + 12;
+      } else {
+        y = drawBlockItems(ctx, g.items, a, y, draw, PAD, INNER);
       }
     });
     return y;

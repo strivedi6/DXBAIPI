@@ -1034,16 +1034,15 @@ html[data-theme="dark"] .person-hero.plain-hero { background: none; }
 .ach-prev.story img { max-width: 300px; }
 .ach-prev .card { width: 100%; min-height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
-/* ===== Version 1.21: grouped newsletter / collection sections ===== */
-/* Related blocks (a heading and the posts under it) read as one softly tinted section. */
-.blk-group { background: color-mix(in srgb, var(--gold) 7%, transparent); border: 1px solid color-mix(in srgb, var(--gold) 12%, transparent); border-radius: 22px; padding: 16px 14px; display: flex; flex-direction: column; gap: 14px; }
-.blk-group > .card { box-shadow: 0 2px 10px rgba(19, 41, 75, .05); }
-.blk-group .hrow { margin: 0 -14px; padding: 4px 14px 8px; }
-.blk-group .blk-img { background: #fff; }
-.coll-page .blk-group { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .16); }
-html[data-theme="dark"] .blk-group { background: rgba(255, 255, 255, .035); border-color: rgba(255, 255, 255, .08); }
-/* A divider the editor can place between two groups. */
-.blk-divider { display: flex; justify-content: center; padding: 2px 0; }
+/* ===== Version 1.22: highlighted (edge-to-edge) sections ===== */
+/* A section the author marks as highlighted: a tinted band that runs to the screen edges. */
+.blk-band { margin-left: calc(-1 * var(--px)); margin-right: calc(-1 * var(--px)); padding: 18px var(--px); display: flex; flex-direction: column; gap: 14px;
+  background: color-mix(in srgb, var(--gold) 10%, transparent); }
+.blk-band .hrow { margin: 0 calc(-1 * var(--px)); padding: 4px var(--px) 8px; }
+.coll-page .blk-band { background: rgba(255, 255, 255, .1); }
+html[data-theme="dark"] .blk-band { background: rgba(255, 255, 255, .05); }
+/* A divider line the author can place between two plain sections. */
+.blk-divider { display: flex; justify-content: center; padding: 4px 0; }
 .blk-divider span { width: 120px; height: 2px; border-radius: 2px; background: color-mix(in srgb, var(--gold) 55%, transparent); }
 .coll-page .blk-divider span { background: rgba(255, 231, 163, .6); }
-@media (min-width: 960px) { .blk-group .hrow { margin: 0; padding: 4px 0 8px; } }
+@media (min-width: 960px) { .blk-band .hrow { margin: 0; padding: 4px 0 8px; } }
