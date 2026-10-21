@@ -25,7 +25,8 @@ const SHEET_BDAYS = 'Birthdays';
 const SHEET_COLLS = 'Collections';
 const SHEET_POPUPS = 'Popups';
 const SHEET_ATTEND = 'Attendance';
-const SCHEMA_VERSION = 10;
+const SHEET_QUOTES = 'Quotes';
+const SCHEMA_VERSION = 15;
 const BIRTHDAY_HOUR = 9;
 
 const SESSION_DAYS = 30;
@@ -51,7 +52,8 @@ const ANIMATIONS = ['none', 'sparkle', 'confetti', 'snow', 'lights', 'fireworks'
 const NEWSLETTER_STYLES = ['Regular', 'Special', 'Festive'];
 
 const ROLES = ['Viewer', 'HR', 'Marketing', 'Admin'];
-const STAFF_STATUSES = ['Pending', 'Approved', 'Declined', 'Blocked'];
+const STAFF_STATUSES = ['Pending', 'Approved', 'Declined', 'Blocked', 'Left'];
+const LEAVE_HOUR = 18; // access ends at 6:00 pm (Dubai) on the last working day
 // DXBAI = Embassy Suites by Hilton Dubai Business Bay, DXBPI = Hilton Garden Inn Dubai Business Bay.
 // Cluster = cluster colleagues (staff) or both hotels (posts).
 const HOTELS = ['DXBAI', 'DXBPI'];
@@ -62,7 +64,7 @@ const POST_PROPERTIES = ['DXBAI', 'DXBPI', 'Cluster'];
 /* Entry points                                                        */
 /* ------------------------------------------------------------------ */
 
-const BACKEND_VERSION = '1.9.2';
+const BACKEND_VERSION = '1.16.0';
 
 function doGet() {
   return out({ ok: true, status: 'running', version: BACKEND_VERSION });
@@ -93,10 +95,12 @@ function setup() {
   const folder = uploadFolder_();
   ensureSchema_(true);
   ScriptApp.getProjectTriggers().forEach(function (t) {
-    if (t.getHandlerFunction() === 'dailyBirthdayPush') ScriptApp.deleteTrigger(t);
+    if (['dailyBirthdayPush', 'trainingWrapUp'].indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('dailyBirthdayPush').timeBased().everyDays(1).atHour(BIRTHDAY_HOUR).nearMinute(0).inTimezone(TZ).create();
-  console.log('Setup complete. Birthday and training notifications scheduled daily at ' + BIRTHDAY_HOUR + ':00 (' + TZ + '). Uploads folder: ' + folder.getUrl());
+  // Every 10 minutes: when a training session has ended, tell the trainer the attendance report is ready.
+  ScriptApp.newTrigger('trainingWrapUp').timeBased().everyMinutes(10).create();
+  console.log('Setup complete. Birthday and training notifications scheduled daily at ' + BIRTHDAY_HOUR + ':00 (' + TZ + '), and attendance reports after each training. Uploads folder: ' + folder.getUrl());
 }
 
 /**
@@ -138,16 +142,25 @@ function ensureSchema_(force) {
       headers.forEach(function (h) { t = ensureColumn_(t, h); });
       return t;
     };
-    ensureColumn_(table_(SHEET_STAFF), 'Photo URL');
+    ensureColumn_(ensureColumn_(ensureColumn_(table_(SHEET_STAFF), 'Photo URL'), 'Last Working Day'), 'Position');
+    // The Status dropdown on the Staff tab reads Lists › Statuses: add "Left" so it is accepted.
+    const lists = table_(SHEET_LISTS);
+    const sc = lists.col['Statuses'];
+    if (sc !== undefined) {
+      const vals = listColumn_(lists, 'Statuses');
+      if (vals.length && vals.indexOf('Left') < 0) lists.sh.getRange(vals.length + 2, sc + 1).setValue('Left');
+    }
     let posts = table_(SHEET_POSTS);
     ['Days', 'CTA Text', 'CTA Link', 'Collection', 'Style', 'Theme Color', 'Animation', 'Person Name', 'Person ID', 'Position', 'Subtitle',
-      'Event Date', 'Today Special', 'Person Photo', 'Special Date', 'Terms', 'Includes']
+      'Event Date', 'Today Special', 'Person Photo', 'Special Date', 'Terms', 'Includes', 'Checkin Secret', 'Report Sent', 'Collection Only', 'Blocks', 'Shareable']
       .forEach(function (h) { posts = ensureColumn_(posts, h); });
     tab(SHEET_BDAYS, ['Employee ID', 'Name', 'Birthday', 'Property', 'Department', 'Updated', 'Self Birthday']);
-    tab(SHEET_COLLS, ['ID', 'Name', 'Color', 'Animation', 'Banner URL', 'Start Date', 'End Date', 'Active', 'Created By']);
+    tab(SHEET_COLLS, ['ID', 'Name', 'Color', 'Animation', 'Banner URL', 'Start Date', 'End Date', 'Active', 'Created By', 'Blocks']);
     tab(SHEET_POPUPS, ['ID', 'Title', 'Message', 'Image URL', 'Button Text', 'Button Link', 'Color', 'Animation', 'Delay Seconds',
       'Frequency', 'Property', 'Start Date', 'End Date', 'Active', 'Created By', 'Updated']);
-    tab(SHEET_ATTEND, ['Timestamp', 'Post ID', 'Employee ID', 'Full Name']);
+    tab(SHEET_ATTEND, ['Timestamp', 'Post ID', 'Employee ID', 'Full Name', 'Checked In', 'Check-in Method']);
+    tab(SHEET_QUOTES, ['Date', 'Quote', 'Author', 'Created By', 'Updated']);
+    ss.getSheetByName(SHEET_QUOTES).getRange('A:A').setNumberFormat('@');
     ss.getSheetByName(SHEET_ATTEND).getRange('C:C').setNumberFormat('@');
     ss.getSheetByName(SHEET_BDAYS).getRange('A:A').setNumberFormat('@');
     ss.getSheetByName(SHEET_BDAYS).getRange('C:C').setNumberFormat('@');
@@ -201,6 +214,12 @@ const ACTIONS = {
   feed: actionFeed_,
   ack: actionAck_,
   attend: actionAttend_,
+  checkinCode: actionCheckinCode_,
+  checkIn: actionCheckIn_,
+  attendanceReport: actionAttendanceReport_,
+  signOutEverywhere: actionSignOutEverywhere_,
+  leavers: actionLeavers_,
+  setLastDay: actionSetLastDay_,
   createPost: actionCreatePost_,
   updatePost: actionUpdatePost_,
   myPosts: actionMyPosts_,
@@ -224,6 +243,10 @@ const ACTIONS = {
   deleteBirthday: actionDeleteBirthday_,
   setMyBirthday: actionSetMyBirthday_,
   popups: actionPopups_,
+  quotes: actionQuotes_,
+  saveQuote: actionSaveQuote_,
+  deleteQuote: actionDeleteQuote_,
+  setMyPosition: actionSetMyPosition_,
   savePopup: actionSavePopup_,
   deletePopup: actionDeletePopup_,
   lookupStaff: actionLookupStaff_,
@@ -269,7 +292,8 @@ function actionSignup_(req) {
       'Role': 'Viewer',
       'Status': 'Pending',
       'PIN Hash': hashPin_(id, req.pin),
-      'Signed Up': new Date()
+      'Signed Up': new Date(),
+      'Position': asText_(String(req.position || '').slice(0, 80))
     });
     try { notifyAccessRequest_(t, id, name, req.department, req.property); } catch (e) { console.error('Access request alert failed', e); }
     return { status: 'Pending' };
@@ -324,11 +348,17 @@ function actionLogin_(req) {
   }
   cache.remove(failKey);
 
+  if (user.status === 'Approved' && hasLeft_(user)) { markLeft_(t, i); return { status: 'Left' }; }
   if (user.status !== 'Approved') return { status: user.status || 'Pending' };
 
-  setCell_(t, i, 'Last Login', new Date());
   pruneSessions_();
-  return { status: 'Approved', token: newSession_(id), user: user, canPublish: publishableFor_(user), categories: activeCategories_() };
+  // One device at a time (Admins can use several): sign out on the other device first.
+  if (user.role !== 'Admin') {
+    const other = activeSessions_(id)[0];
+    if (other) return { status: 'SignedInElsewhere', device: other.device || '', since: other.at || 0 };
+  }
+  setCell_(t, i, 'Last Login', new Date());
+  return { status: 'Approved', token: newSession_(id, req.device), user: user, canPublish: publishableFor_(user), categories: activeCategories_() };
 }
 
 /* ------------------------------------------------------------------ */
@@ -395,6 +425,8 @@ function actionFeed_(req) {
     birthdaysMonth: bd.month,
     myBirthday: bd.mine,
     myBirthdayInfo: myBirthdayInfo_(user.employeeId),
+    farewell: farewell_(user),
+    quote: quoteFor_(Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd')),
     theme: theme_(),
     brand: brand_(),
     popups: popups_().filter(function (x) { return x.live && seesProperty_(user.property, x.property); })
@@ -426,6 +458,17 @@ function addAttendance_(posts, user, cats) {
   const training = (cats || activeCategories_()).filter(function (c) { return c.type === 'training'; }).map(function (c) { return c.id; });
   if (!training.length) return;
   const map = attendanceMap_();
+  const checked = {};
+  const at = table_(SHEET_ATTEND);
+  at.rows.forEach(function (r) {
+    const ci = r[at.col['Checked In']];
+    if (!ci) return;
+    const pid = String(r[at.col['Post ID']] || '');
+    (checked[pid] = checked[pid] || {})[normId_(r[at.col['Employee ID']])] = new Date(ci).getTime();
+  });
+  const rawById = {};
+  const pt = table_(SHEET_POSTS);
+  pt.rows.forEach(function (r) { const o = rowObject_(pt, r); if (o['Post ID']) rawById[String(o['Post ID'])] = o; });
   const staff = table_(SHEET_STAFF);
   const byId = {};
   staff.rows.forEach(function (r, i) { const u = userAt_(staff, i); if (u.employeeId) byId[u.employeeId] = u; });
@@ -434,9 +477,210 @@ function addAttendance_(posts, user, cats) {
     if (training.indexOf(String(c.category)) < 0) return;
     const ids = map[c.id] || [];
     c.attending = ids.indexOf(me) >= 0;
+    c.checkedInAt = (checked[c.id] || {})[me] || 0;
+    c.checkedInCount = Object.keys(checked[c.id] || {}).length;
+    const raw = rawById[c.id];
+    if (raw) {
+      const w = trainingWindow_(raw);
+      if (w) { c.checkinOpens = w.opens.getTime(); c.checkinCloses = w.closes.getTime(); }
+      c.canRunCheckin = canRunCheckin_(user, raw);
+    }
     c.attendees = ids.map(function (id) {
       const u = byId[id] || {};
       return { employeeId: id, name: u.name || id, photo: u.photo || '', department: u.department || '' };
+    });
+  });
+}
+
+/* ---------- Training check-in: rotating code / QR shown by the trainer ---------- */
+
+const CHECKIN_STEP_MS = 30 * 1000;      // the code changes every 30 seconds
+const CHECKIN_EARLY_MIN = 15;           // check-in opens 15 minutes before the start
+const CHECKIN_LATE_MIN = 15;            // and closes 15 minutes after the end
+
+/** The session's start and end as Dates (Dubai time). Without times: the whole day. */
+function trainingWindow_(p) {
+  const d = p['Event Date'] ? new Date(p['Event Date']) : null;
+  if (!d) return null;
+  const ymd = Utilities.formatDate(d, TZ, 'yyyy-MM-dd').split('-').map(Number);
+  const m = /(\d{1,2}):(\d{2})(?:\s*[–-]\s*(\d{1,2}):(\d{2}))?/.exec(cellText_(p['Timing']));
+  const at = function (h, mi) { return dubaiDate_(ymd[0], ymd[1], ymd[2], h, mi); };
+  let start, end, timed = !!m;
+  if (m) {
+    start = at(Number(m[1]), Number(m[2]));
+    end = m[3] ? at(Number(m[3]), Number(m[4])) : new Date(start.getTime() + 2 * 3600 * 1000);
+  } else {
+    start = at(0, 0); end = at(23, 59);
+  }
+  return {
+    start: start, end: end, timed: timed,
+    opens: new Date(start.getTime() - (timed ? CHECKIN_EARLY_MIN : 0) * 60000),
+    closes: new Date(end.getTime() + (timed ? CHECKIN_LATE_MIN : 0) * 60000)
+  };
+}
+
+/** A Date for a wall-clock time in Dubai (UTC+4, no daylight saving). */
+function dubaiDate_(y, mo, d, h, mi) {
+  return new Date(Date.UTC(y, mo - 1, d, h - 4, mi));
+}
+
+function checkinSecret_(posts, i) {
+  let sec = String(posts.rows[i][posts.col['Checkin Secret']] || '');
+  if (!sec) {
+    sec = Utilities.getUuid().replace(/-/g, '');
+    setCell_(posts, i, 'Checkin Secret', sec);
+  }
+  return sec;
+}
+
+/** 6-digit code for a 30-second step, from the session's secret. */
+function checkinCodeAt_(secret, postId, step) {
+  const sig = Utilities.computeHmacSha256Signature(postId + ':' + step, secret);
+  let n = 0;
+  for (let k = 0; k < 4; k++) n = (n * 256 + ((sig[k] + 256) % 256)) % 1000000007;
+  return ('000000' + (n % 1000000)).slice(-6);
+}
+
+/** Trainer (presenter), whoever posted it, HR and Admin can run check-in and see the report. */
+function canRunCheckin_(user, p) {
+  if (user.role === 'Admin' || user.role === 'HR') return true;
+  if (normId_(String(p['Person ID'] || '').replace(/^'/, '')) === normId_(user.employeeId)) return true;
+  return String(p['Posted By'] || '').slice(-(user.employeeId.length + 2)) === '(' + user.employeeId + ')';
+}
+
+function trainingPost_(postId) {
+  const posts = table_(SHEET_POSTS);
+  const i = findPost_(posts, postId);
+  if (i < 0) fail_('This training is no longer available.');
+  const p = rowObject_(posts, posts.rows[i]);
+  const cat = categories_().filter(function (c) { return c.id === String(p['Category']); })[0];
+  if (!cat || cat.type !== 'training') fail_('This is not a training session.');
+  return { posts: posts, i: i, p: p };
+}
+
+function checkedInRows_(postId) {
+  const t = table_(SHEET_ATTEND);
+  return t.rows.map(function (r) { return rowObject_(t, r); })
+    .filter(function (o) { return String(o['Post ID']) === String(postId) && o['Checked In']; });
+}
+
+/** Trainer screen: the current code (and QR text), how long it stays valid and how many have checked in. */
+function actionCheckinCode_(req) {
+  const user = auth_(req).user;
+  return withLock_(function () {
+    const x = trainingPost_(String(req.postId || ''));
+    if (!canRunCheckin_(user, x.p)) fail_('Only the trainer, HR or Admin can show the check-in code.');
+    const w = trainingWindow_(x.p);
+    if (!w) fail_('Please add the training date first.');
+    const now = Date.now();
+    const open = now >= w.opens.getTime() && now <= w.closes.getTime();
+    const res = { open: open, opens: w.opens.getTime(), closes: w.closes.getTime(), count: checkedInRows_(x.p['Post ID']).length };
+    if (!open) return res;
+    const step = Math.floor(now / CHECKIN_STEP_MS);
+    res.code = checkinCodeAt_(checkinSecret_(x.posts, x.i), String(x.p['Post ID']), step);
+    res.qr = 'DXBAIPI-CHECKIN:' + x.p['Post ID'] + ':' + res.code;
+    res.validFor = Math.round(((step + 1) * CHECKIN_STEP_MS - now) / 1000);
+    return res;
+  });
+}
+
+/** Anyone: check in to a session with the trainer's current code (typed or scanned). */
+function actionCheckIn_(req) {
+  const user = auth_(req).user;
+  const code = String(req.code || '').replace(/\D/g, '');
+  if (code.length !== 6) fail_('Please enter the 6-digit code shown by the trainer.');
+  return withLock_(function () {
+    const x = trainingPost_(String(req.postId || ''));
+    const w = trainingWindow_(x.p);
+    const now = Date.now();
+    if (!w) fail_('This training has no date yet.');
+    if (now < w.opens.getTime()) fail_('Check-in opens at ' + Utilities.formatDate(w.opens, TZ, 'h:mm a') + ' on ' + Utilities.formatDate(w.opens, TZ, 'd MMM') + '.');
+    if (now > w.closes.getTime()) fail_('Check-in for this training has closed.');
+    const secret = String(x.posts.rows[x.i][x.posts.col['Checkin Secret']] || '');
+    const step = Math.floor(now / CHECKIN_STEP_MS);
+    const pid = String(x.p['Post ID']);
+    const ok = secret && [step, step - 1, step - 2].some(function (s) { return checkinCodeAt_(secret, pid, s) === code; });
+    if (!ok) fail_('That code is not right or has expired. Please scan or type the code on the trainer’s screen now.');
+    const t = table_(SHEET_ATTEND);
+    const me = normId_(user.employeeId);
+    const method = req.method === 'qr' ? 'QR scan' : 'Code';
+    let row = -1;
+    t.rows.forEach(function (r, k) { if (row < 0 && String(r[t.col['Post ID']]) === pid && normId_(r[t.col['Employee ID']]) === me) row = k; });
+    if (row >= 0 && t.rows[row][t.col['Checked In']]) {
+      return { checkedIn: new Date(t.rows[row][t.col['Checked In']]).getTime(), already: true };
+    }
+    const at = new Date();
+    if (row >= 0) {
+      setCell_(t, row, 'Checked In', at);
+      setCell_(t, row, 'Check-in Method', method);
+    } else {
+      appendRow_(t, { 'Timestamp': at, 'Post ID': pid, 'Employee ID': "'" + me, 'Full Name': clean_(user.name), 'Checked In': at, 'Check-in Method': method });
+    }
+    return { checkedIn: at.getTime() };
+  });
+}
+
+/** Trainer, poster, HR, Admin: everyone who signed up or checked in, with times. */
+function actionAttendanceReport_(req) {
+  const user = auth_(req).user;
+  const x = trainingPost_(String(req.postId || ''));
+  if (!canRunCheckin_(user, x.p)) fail_('Only the trainer, HR or Admin can see the attendance report.');
+  const t = table_(SHEET_ATTEND);
+  const staff = table_(SHEET_STAFF);
+  const byId = {};
+  staff.rows.forEach(function (r, i) { const u = userAt_(staff, i); if (u.employeeId) byId[normId_(u.employeeId)] = u; });
+  const seen = {};
+  const rows = [];
+  t.rows.forEach(function (r) {
+    if (String(r[t.col['Post ID']]) !== String(x.p['Post ID'])) return;
+    const id = normId_(r[t.col['Employee ID']]);
+    if (!id || seen[id]) return;
+    seen[id] = true;
+    const u = byId[id] || {};
+    const ci = r[t.col['Checked In']];
+    rows.push({ employeeId: id, name: u.name || cellText_(r[t.col['Full Name']]), department: u.department || '', position: u.position || '', property: u.property || '', photo: u.photo || '',
+      signedUp: r[t.col['Timestamp']] ? new Date(r[t.col['Timestamp']]).getTime() : 0,
+      checkedIn: ci ? new Date(ci).getTime() : 0, method: cellText_(r[t.col['Check-in Method']]) });
+  });
+  rows.sort(function (a, b) { return (b.checkedIn ? 1 : 0) - (a.checkedIn ? 1 : 0) || (a.checkedIn - b.checkedIn) || a.name.localeCompare(b.name); });
+  const w = trainingWindow_(x.p);
+  return { title: cellText_(x.p['Title']), date: dateString_(x.p['Event Date']), timing: cellText_(x.p['Timing']), location: cellText_(x.p['Location']),
+    presenter: cellText_(x.p['Person Name']), opens: w ? w.opens.getTime() : 0, closes: w ? w.closes.getTime() : 0, rows: rows };
+}
+
+/**
+ * Runs every 10 minutes (set up by setup()). When a session has ended, the trainer
+ * (if they use the app) and whoever posted it get a notification to download the attendance report.
+ */
+function trainingWrapUp() {
+  ensureSchema_();
+  try { expireLeavers_(); } catch (e) { console.error('Leavers check failed', e); }
+  const training = activeCategories_().filter(function (c) { return c.type === 'training'; }).map(function (c) { return c.id; });
+  if (!training.length) return;
+  const appUrl = (PropertiesService.getScriptProperties().getProperty('APP_URL') || '').replace(/\/$/, '');
+  withLock_(function () {
+    const posts = table_(SHEET_POSTS);
+    const now = Date.now();
+    posts.rows.forEach(function (r, i) {
+      const p = rowObject_(posts, r);
+      if (!p['Post ID'] || p['Status'] !== 'Live' || training.indexOf(String(p['Category'])) < 0 || p['Report Sent']) return;
+      const w = trainingWindow_(p);
+      if (!w || now < w.end.getTime() || now - w.end.getTime() > 2 * 864e5) return;
+      const to = [];
+      const trainer = normId_(String(p['Person ID'] || '').replace(/^'/, ''));
+      if (trainer) to.push(trainer);
+      const m = /\(([^)]*)\)\s*$/.exec(String(p['Posted By'] || ''));
+      if (m && to.indexOf(normId_(m[1])) < 0) to.push(normId_(m[1]));
+      const count = checkedInRows_(p['Post ID']).length;
+      if (to.length) {
+        oneSignal_({
+          include_aliases: { external_id: to },
+          headings: { en: 'Training finished: attendance report' },
+          contents: { en: cellText_(p['Title']) + ': ' + count + ' checked in. Tap to view and download the report.' },
+          web_url: appUrl ? appUrl + '/?report=' + encodeURIComponent(String(p['Post ID'])) : undefined
+        });
+      }
+      setCell_(posts, i, 'Report Sent', new Date());
     });
   });
 }
@@ -697,7 +941,7 @@ function brand_(s) {
   const fonts = fontsSetting_(s);
   const pub = {};
   Object.keys(fonts).forEach(function (k) { pub[k] = { id: fonts[k].id, name: fonts[k].name }; });
-  return { logo: safeUrl_(s.logo), logoTone: String(s.logoTone) === 'light' ? 'light' : 'dark', fonts: pub };
+  return { logo: safeUrl_(s.logo), logoTone: String(s.logoTone) === 'light' ? 'light' : 'dark', reportLogo: safeUrl_(s.reportLogo), hotels: hotels_(s), fonts: pub };
 }
 
 /** Admin: upload a font file for one slot. Replaces (and bins) the previous file. */
@@ -858,6 +1102,15 @@ function actionSaveSettings_(req) {
     if (req.logo && !url) fail_('That logo link is not valid.');
     withLock_(function () { setSetting_('logo', url); });
   }
+  if (req.hotels && typeof req.hotels === 'object') {
+    const h = cleanHotels_(req.hotels);
+    withLock_(function () { setSetting_('hotels', JSON.stringify(h)); });
+  }
+  if (Object.prototype.hasOwnProperty.call(req, 'reportLogo')) {
+    const url = safeUrl_(req.reportLogo);
+    if (req.reportLogo && !url) fail_('That logo link is not valid.');
+    withLock_(function () { setSetting_('reportLogo', url); });
+  }
   if (Object.prototype.hasOwnProperty.call(req, 'logoTone')) {
     withLock_(function () { setSetting_('logoTone', req.logoTone === 'light' ? 'light' : 'dark'); });
   }
@@ -966,10 +1219,18 @@ function isTrue_(v) {
 function actionStaffList_(req) {
   const me = requireApprover_(req).user;
   const t = table_(SHEET_STAFF);
+  const all = PropertiesService.getScriptProperties().getProperties();
+  const now = Date.now();
+  const devices = {};
+  Object.keys(all).forEach(function (k) {
+    if (k.indexOf('sess_') !== 0) return;
+    try { const x = JSON.parse(all[k]); if (x.exp > now) (devices[x.id] = devices[x.id] || []).push({ device: x.device || '', at: x.at || 0 }); } catch (e) { /* ignore */ }
+  });
   const staff = t.rows.map(function (r, i) {
     const u = userAt_(t, i);
     const signed = r[t.col['Signed Up']];
     u.signedUp = signed ? new Date(signed).getTime() : 0;
+    u.devices = (devices[normId_(u.employeeId)] || []).sort(function (a, b) { return b.at - a.at; });
     return u;
   }).filter(function (u) { return u.employeeId && (me.role === 'Admin' || u.status === 'Pending'); });
   return { staff: staff };
@@ -1007,6 +1268,7 @@ function actionSetStaff_(req) {
       if (req.status === 'Approved') {
         setCell_(t, i, 'Approved By', admin.name);
         setCell_(t, i, 'Approved On', new Date());
+        if (t.col['Last Working Day'] !== undefined && hasLeft_(userAt_(t, i))) setCell_(t, i, 'Last Working Day', '');
       } else {
         revokeSessions_(req.employeeId);
       }
@@ -1045,6 +1307,7 @@ function auth_(req) {
   const i = findStaff_(t, s.id);
   if (i < 0) fail_('SESSION_EXPIRED');
   const user = userAt_(t, i);
+  if (user.status === 'Approved' && hasLeft_(user)) { markLeft_(t, i); fail_('ACCESS_REMOVED'); }
   if (user.status !== 'Approved') fail_('ACCESS_REMOVED');
   return { user: user, staff: t, index: i };
 }
@@ -1055,11 +1318,101 @@ function requireAdmin_(req) {
   return a;
 }
 
-function newSession_(id) {
+function newSession_(id, device) {
   const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
   PropertiesService.getScriptProperties().setProperty('sess_' + token,
-    JSON.stringify({ id: normId_(id), exp: Date.now() + SESSION_DAYS * 864e5 }));
+    JSON.stringify({ id: normId_(id), exp: Date.now() + SESSION_DAYS * 864e5, at: Date.now(),
+      device: String(device || '').replace(/[^\w .,·()\-]/g, '').slice(0, 40) }));
   return token;
+}
+
+/** Signed-in devices for one person, newest first: [{ device, at }]. */
+function activeSessions_(employeeId) {
+  const id = normId_(employeeId);
+  const all = PropertiesService.getScriptProperties().getProperties();
+  const now = Date.now();
+  const out = [];
+  Object.keys(all).forEach(function (k) {
+    if (k.indexOf('sess_') !== 0) return;
+    try {
+      const s = JSON.parse(all[k]);
+      // Sessions from before this rule (no "at") don't block a new sign-in; they simply expire.
+      if (s.id === id && s.exp > now && s.at) out.push({ device: s.device || '', at: s.at });
+    } catch (e) { /* ignore */ }
+  });
+  return out.sort(function (a, b) { return b.at - a.at; });
+}
+
+/* ---------- Leavers: HR sets the last working day; access ends at 6:00 pm that day ---------- */
+
+function markLeft_(t, i) {
+  try {
+    withLock_(function () {
+      setCell_(t, i, 'Status', 'Left');
+      revokeSessions_(t.rows[i][t.col['Employee ID']]);
+    });
+  } catch (e) { console.error('Could not mark leaver', e); }
+}
+
+/** Runs with the 10-minute trigger: ends access for everyone whose last working day has passed 6:00 pm. */
+function expireLeavers_() {
+  const t = table_(SHEET_STAFF);
+  if (t.col['Last Working Day'] === undefined) return 0;
+  let n = 0;
+  t.rows.forEach(function (r, i) {
+    const u = userAt_(t, i);
+    if (u.employeeId && u.status === 'Approved' && hasLeft_(u)) { markLeft_(t, i); n++; }
+  });
+  return n;
+}
+
+/** HR / Admin: everyone with access (to search), plus who is leaving and who has left. */
+function actionLeavers_(req) {
+  requireApprover_(req);
+  const t = table_(SHEET_STAFF);
+  const staff = t.rows.map(function (r, i) { return userAt_(t, i); })
+    .filter(function (u) { return u.employeeId && (u.status === 'Approved' || u.status === 'Left'); })
+    .map(function (u) { return { employeeId: u.employeeId, name: u.name, department: u.department, property: u.property, role: u.role, status: u.status, photo: u.photo, lastDay: u.lastDay }; });
+  return { staff: staff };
+}
+
+/** HR / Admin: set or clear someone's last working day (today or later). */
+function actionSetLastDay_(req) {
+  const me = requireApprover_(req).user;
+  const date = String(req.date || '');
+  if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) fail_('Please choose a valid date.');
+  if (date && date < Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd')) fail_('The last working day can’t be in the past.');
+  return withLock_(function () {
+    const t = ensureColumn_(table_(SHEET_STAFF), 'Last Working Day');
+    const i = findStaff_(t, req.employeeId);
+    if (i < 0) fail_('Staff member not found.');
+    const u = userAt_(t, i);
+    if (normId_(u.employeeId) === normId_(me.employeeId)) fail_('You can’t set your own last working day. Please ask another HR colleague or your Admin.');
+    if (u.role === 'Admin' && me.role !== 'Admin') fail_('Only an Admin can set the last working day for an Admin.');
+    if (u.status === 'Left' && !date) {
+      // Clearing the date for someone who has left gives their access back.
+      setCell_(t, i, 'Status', 'Approved');
+    } else if (u.status !== 'Approved') fail_('This person doesn’t have access to the app.');
+    setCell_(t, i, 'Last Working Day', parseDate_(date));
+    return { person: Object.assign({}, userAt_(t, i), { lastDay: date }) };
+  });
+}
+
+/** The thank-you message for someone on their last working day. */
+function farewell_(user) {
+  if (!user.lastDay || user.lastDay !== Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd')) return null;
+  const names = { DXBAI: 'Embassy Suites by Hilton Dubai Business Bay', DXBPI: 'Hilton Garden Inn Dubai Business Bay' };
+  const where = names[user.property] || (names.DXBAI + ' and ' + names.DXBPI);
+  return { where: where, endsAt: leaveAt_(user.lastDay).getTime() };
+}
+
+/** Admin: sign a colleague out of every device (e.g. a lost or changed phone). */
+function actionSignOutEverywhere_(req) {
+  requireAdmin_(req);
+  const t = table_(SHEET_STAFF);
+  if (findStaff_(t, req.employeeId) < 0) fail_('Staff member not found.');
+  revokeSessions_(req.employeeId);
+  return {};
 }
 
 function pruneSessions_() {
@@ -1173,6 +1526,7 @@ function postFields_(p, isNew) {
     const cid = String(p.collection || '').trim();
     if (cid && !collections_().some(function (c) { return c.id === cid; })) fail_('That special collection no longer exists.');
     f['Collection'] = cid;
+    if (has('collectionOnly')) f['Collection Only'] = !!(cid && p.collectionOnly);
   }
   if (has('style')) f['Style'] = NEWSLETTER_STYLES.indexOf(p.style) >= 0 ? p.style : 'Regular';
   if (has('themeColor')) f['Theme Color'] = validColor_(p.themeColor);
@@ -1186,6 +1540,8 @@ function postFields_(p, isNew) {
   if (has('specialDate')) f['Special Date'] = parseDate_(p.specialDate);
   if (has('includes')) f['Includes'] = (Array.isArray(p.includes) ? p.includes : []).map(String)
     .filter(function (x) { return /^P[A-Z0-9]+$/.test(x); }).slice(0, 60).join(',');
+  if (has('blocks')) f['Blocks'] = blocksCell_(p.blocks);
+  if (has('shareable')) f['Shareable'] = !!p.shareable;
   if (has('terms')) f['Terms'] = clean_(String(p.terms || '').slice(0, 2000));
   if (f['Start Date'] && f['End Date'] && f['End Date'] < f['Start Date']) {
     fail_('The end date is before the start date.');
@@ -1220,6 +1576,7 @@ function clientPost_(p) {
     postedBy: String(p['Posted By'] || '').replace(/\s*\([^)]*\)\s*$/, ''),
     status: p['Status'],
     collection: String(p['Collection'] || ''),
+    collectionOnly: !!String(p['Collection'] || '').trim() && isTrue_(p['Collection Only']),
     style: p['Style'] || 'Regular',
     themeColor: p['Theme Color'] || '',
     animation: p['Animation'] || 'none',
@@ -1231,6 +1588,8 @@ function clientPost_(p) {
     todaySpecial: isTrue_(p['Today Special']),
     specialDate: dateString_(p['Special Date']),
     terms: String(p['Terms'] || '').replace(/^'/, ''),
+    blocks: parseBlocks_(p['Blocks']),
+    shareable: isTrue_(p['Shareable']),
     includes: String(p['Includes'] || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean),
     postedById: (/\(([^)]*)\)\s*$/.exec(String(p['Posted By'] || '')) || [])[1] || '',
     personPhoto: safeUrl_(p['Person Photo'])
@@ -1474,6 +1833,7 @@ function collections_() {
         start: dateString_(c['Start Date']),
         end: dateString_(c['End Date']),
         active: isTrue_(c['Active']),
+        blocks: parseBlocks_(c['Blocks']),
         createdBy: String(c['Created By'] || '').replace(/\s*\([^)]*\)\s*$/, '')
       };
     });
@@ -1510,7 +1870,8 @@ function actionSaveCollection_(req) {
     'Banner URL': safeUrl_(c.banner),
     'Start Date': parseDate_(c.start),
     'End Date': parseDate_(c.end),
-    'Active': c.active !== false
+    'Active': c.active !== false,
+    'Blocks': blocksCell_(c.blocks)
   };
   if (row['Start Date'] && row['End Date'] && row['End Date'] < row['Start Date']) fail_('The end date is before the start date.');
   return withLock_(function () {
@@ -1667,6 +2028,7 @@ function birthdayRows_() {
     const md = okHr ? hr : okSelf ? self : '';
     if (!id || !md) return null;
     const u = byId[id];
+    if (u && u.status === 'Left') return null; // colleagues who have left are not celebrated any more
     return {
       hr: okHr ? hr : '',
       self: okSelf ? self : '',
@@ -1951,8 +2313,20 @@ function userAt_(t, i) {
     property: String(o['Property'] || '').trim(),
     role: ROLES.indexOf(String(o['Role']).trim()) >= 0 ? String(o['Role']).trim() : 'Viewer',
     status: String(o['Status'] || '').trim(),
-    photo: safeUrl_(o['Photo URL'])
+    photo: safeUrl_(o['Photo URL']),
+    position: cellText_(o['Position']),
+    lastDay: o['Last Working Day'] ? dateString_(o['Last Working Day']) : ''
   };
+}
+
+/** When someone's access ends: 6:00 pm Dubai time on their last working day. */
+function leaveAt_(lastDay) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(lastDay || ''));
+  return m ? dubaiDate_(Number(m[1]), Number(m[2]), Number(m[3]), LEAVE_HOUR, 0) : null;
+}
+function hasLeft_(u) {
+  const at = leaveAt_(u.lastDay);
+  return !!at && Date.now() >= at.getTime();
 }
 
 function listColumn_(t, header) {
@@ -2056,4 +2430,157 @@ function dateString_(d) {
 
 function dayKey_(d) {
   return Utilities.formatDate(new Date(d), TZ, 'yyyyMMdd');
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Quote of the day (Today page) and job titles                        */
+/* ------------------------------------------------------------------ */
+
+function quotes_() {
+  const ss = SpreadsheetApp.getActive();
+  if (!ss.getSheetByName(SHEET_QUOTES)) return [];
+  const t = table_(SHEET_QUOTES);
+  return t.rows.map(function (r) { return rowObject_(t, r); })
+    .map(function (o) { return { date: dateString_(o['Date']), text: cellText_(o['Quote']), author: cellText_(o['Author']) }; })
+    .filter(function (q) { return q.date && q.text; });
+}
+
+/** The quote set for one day (yyyy-MM-dd), or null (the app then shows one of its own). */
+function quoteFor_(day) {
+  try {
+    const q = quotes_().filter(function (x) { return x.date === day; })[0];
+    return q ? { text: q.text, author: q.author } : null;
+  } catch (e) { return null; }
+}
+
+/** Admin, HR, Marketing: quotes from a week ago onwards. */
+function actionQuotes_(req) {
+  const user = auth_(req).user;
+  if (!canPopups_(user)) fail_('Not allowed.');
+  const from = Utilities.formatDate(new Date(Date.now() - 7 * 864e5), TZ, 'yyyy-MM-dd');
+  return { quotes: quotes_().filter(function (q) { return q.date >= from; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; }) };
+}
+
+/** Sets (or replaces) the quote for one day. */
+function actionSaveQuote_(req) {
+  const user = auth_(req).user;
+  if (!canPopups_(user)) fail_('Only Admin, HR and Marketing can set the quote of the day.');
+  const day = String(req.date || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) fail_('Please choose a date.');
+  const text = String(req.text || '').trim().slice(0, 240);
+  if (!text) fail_('Please write the quote.');
+  const author = String(req.author || '').trim().slice(0, 60);
+  return withLock_(function () {
+    const t = table_(SHEET_QUOTES);
+    let i = -1;
+    for (let k = 0; k < t.rows.length; k++) if (dateString_(t.rows[k][t.col['Date']]) === day) { i = k; break; }
+    if (i >= 0) {
+      setCell_(t, i, 'Quote', asText_(text));
+      setCell_(t, i, 'Author', asText_(author));
+      setCell_(t, i, 'Updated', new Date());
+    } else {
+      appendRow_(t, { 'Date': "'" + day, 'Quote': asText_(text), 'Author': asText_(author), 'Created By': user.name + ' (' + user.employeeId + ')', 'Updated': new Date() });
+    }
+    return actionQuotes_(req);
+  });
+}
+
+function actionDeleteQuote_(req) {
+  const user = auth_(req).user;
+  if (!canPopups_(user)) fail_('Not allowed.');
+  const day = String(req.date || '');
+  return withLock_(function () {
+    const t = table_(SHEET_QUOTES);
+    for (let k = t.rows.length - 1; k >= 0; k--) {
+      if (dateString_(t.rows[k][t.col['Date']]) === day) t.sh.deleteRow(k + 2);
+    }
+    return actionQuotes_(req);
+  });
+}
+
+/** Anyone: their own job title (shown on attendance sheets). */
+function actionSetMyPosition_(req) {
+  const user = auth_(req).user;
+  const pos = String(req.position || '').trim().slice(0, 80);
+  return withLock_(function () {
+    const t = table_(SHEET_STAFF);
+    const i = findStaff_(t, user.employeeId);
+    if (i < 0) fail_('Staff member not found.');
+    setCell_(t, i, 'Position', asText_(pos));
+    return { user: userAt_(table_(SHEET_STAFF), i) };
+  });
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Body sections (offers, newsletters, collections) and hotel profiles */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A post or collection body is a list of sections, in order:
+ * {type:'text', heading, text}, {type:'image', url}, {type:'posts', title, ids:[...]},
+ * and for collections {type:'auto'} = the posts in the collection.
+ */
+function cleanBlocks_(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  list.slice(0, 40).forEach(function (b) {
+    if (!b || typeof b !== 'object') return;
+    if (b.type === 'text') {
+      const heading = String(b.heading || '').trim().slice(0, 120), text = String(b.text || '').trim().slice(0, 4000);
+      if (heading || text) out.push({ type: 'text', heading: heading, text: text });
+    } else if (b.type === 'image') {
+      const url = safeUrl_(b.url);
+      if (url) out.push({ type: 'image', url: url });
+    } else if (b.type === 'posts') {
+      const ids = (Array.isArray(b.ids) ? b.ids : []).map(String).filter(function (x) { return /^P[A-Z0-9]+$/.test(x); }).slice(0, 40);
+      if (ids.length) out.push({ type: 'posts', title: String(b.title || '').trim().slice(0, 80), ids: ids });
+    } else if (b.type === 'auto') {
+      if (!out.some(function (x) { return x.type === 'auto'; })) out.push({ type: 'auto' });
+    }
+  });
+  return out;
+}
+function blocksCell_(list) {
+  const b = cleanBlocks_(list);
+  if (!b.length) return '';
+  const json = JSON.stringify(b);
+  if (json.length > 45000) fail_('The sections are too long. Please shorten the text.');
+  return "'" + json;
+}
+function parseBlocks_(v) {
+  const s = String(v || '').replace(/^'/, '').trim();
+  if (!s || s.charAt(0) !== '[') return [];
+  try { return cleanBlocks_(JSON.parse(s)); } catch (e) { return []; }
+}
+
+const HOTEL_KEYS = ['DXBAI', 'DXBPI', 'Cluster'];
+const HOTEL_DEFAULTS = {
+  DXBAI: { name: 'Embassy Suites by Hilton Dubai Business Bay' },
+  DXBPI: { name: 'Hilton Garden Inn Dubai Business Bay' },
+  Cluster: { name: 'Embassy Suites by Hilton & Hilton Garden Inn Dubai Business Bay' }
+};
+/** Name, address, contact details and footer logo for each hotel, used on what guests receive. */
+function cleanHotels_(h) {
+  const out = {};
+  HOTEL_KEYS.forEach(function (k) {
+    const x = (h && h[k]) || {};
+    out[k] = {
+      name: String(x.name || '').trim().slice(0, 120),
+      address: String(x.address || '').trim().slice(0, 300),
+      phone: String(x.phone || '').trim().slice(0, 40),
+      email: String(x.email || '').trim().slice(0, 120),
+      website: String(x.website || '').trim().slice(0, 160),
+      logo: safeUrl_(x.logo)
+    };
+  });
+  return out;
+}
+function hotels_(s) {
+  let h = {};
+  try { h = JSON.parse(String((s || settings_()).hotels || '{}')) || {}; } catch (e) { h = {}; }
+  const c = cleanHotels_(h);
+  HOTEL_KEYS.forEach(function (k) { if (!c[k].name) c[k].name = HOTEL_DEFAULTS[k].name; });
+  return c;
 }
