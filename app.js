@@ -1821,17 +1821,19 @@
     const img = safeUrl(p.image);
     return `
     <div class="screen"><div class="page">
-      <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button><span class="row" style="gap:8px">${catTag(c)}${editBtn(p)}</span></div>
-      <div class="person-hero" style="--c:${esc(color)}" ${celebrates(c) ? 'data-fx="confetti-celebrate"' : ''}>
+      <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button><span class="row" style="gap:8px">${editBtn(p)}</span></div>
+      <div class="person-hero plain-hero" style="--c:${esc(color)}" ${celebrates(c) ? 'data-fx="confetti-celebrate"' : ''}>
         <span class="ph">${img ? `<img src="${esc(img)}" alt="${esc(p.personName || p.title)}">` : `<span class="ini">${esc(initials(p.personName || p.title))}</span>`}</span>
         ${isAward(c) && p.subtitle ? `<span class="ribbon">${I.award}${esc(p.subtitle)}</span>` : ''}
         <h1 class="title-lg">${esc(p.personName || p.title)}</h1>
-        ${p.position ? `<span class="pos">${esc(p.position)}</span>` : ''}
+        ${(p.position || p.department) ? `<span class="pos">${esc(p.position || p.department)}</span>` : ''}
         <span class="small muted">${esc(PROP_LABEL[postProp(p.property)] || '')}</span>
       </div>
-      ${p.message ? `<div class="prose${p.plainText ? ' plain' : ''}">${esc(p.message)}</div>` : ''}
+      ${p.message ? `<div class="prose center${p.plainText ? ' plain' : ''}">${esc(p.message)}</div>` : ''}
       ${attachments(p)}
       <p class="small muted center">${p.postedBy ? `Shared by ${esc(p.postedBy)} · ` : ''}${esc(fmtStamp(p.created))}</p>
+      <div class="spacer"></div>
+      <div class="sticky-actions"><button class="btn" type="button" data-act="nav" data-to="achievement" data-id="${esc(p.id)}">${I.share} Share this achievement</button></div>
     </div></div>`;
   }
 
@@ -4357,6 +4359,192 @@
     return out;
   }
 
+  /* ---------------- Social share: a team member's achievement ---------------- */
+  /** The one-line message on the achievement card, by category. */
+  function achievementText(p) {
+    const c = catOf(p.category);
+    const key = (c.id + ' ' + c.label).toLowerCase();
+    if (isAward(c) && p.subtitle) return 'Congratulations on being named ' + p.subtitle + '!';
+    if (/join|welcome|new/.test(key)) return 'Welcome to the team!';
+    if (/promot/.test(key)) return 'Congratulations on a well-deserved promotion!';
+    return 'Congratulations!';
+  }
+
+  /** Pictures the achievement card needs: the person's photo and the hotel logo. */
+  async function achievementAssets(p) {
+    const a = { photo: null, logo: null };
+    const h = hotelFor(p);
+    const jobs = [];
+    if (safeUrl(p.image)) jobs.push(loadShareImage(p.image).then((i) => { a.photo = i; }));
+    if (h && safeUrl(h.logo)) jobs.push(loadShareImage(h.logo).then((i) => { a.logo = i; }));
+    await Promise.all(jobs.map((j) => j.catch(() => {})));
+    return a;
+  }
+
+  /** A clean social card for a person post: 'post' (4:5) or 'story' (9:16). */
+  function drawAchievement(ctx, p, a, format) {
+    const W = 1080, H = format === 'story' ? 1920 : 1350;
+    const { serif, sans, navy, gold, goldText, muted, cream } = SH;
+    const c = catOf(p.category);
+    const name = p.personName || p.title;
+    const msg = achievementText(p);
+    const eyebrow = (c.label || '').toUpperCase();
+    const D = format === 'story' ? 460 : 400;
+
+    // Measure the stack so it can be centred.
+    const parts = [];
+    parts.push({ t: 'eyebrow', h: 40 });
+    parts.push({ gap: format === 'story' ? 96 : 76 });
+    parts.push({ t: 'photo', h: D });
+    if (isAward(c) && p.subtitle) { parts.push({ gap: 30 }); parts.push({ t: 'badge', h: 66 }); }
+    parts.push({ gap: 40 });
+    ctx.font = `84px ${serif}`;
+    const nameLines = wrapLines(ctx, name, W - 140);
+    parts.push({ t: 'name', h: nameLines.length * 92, lines: nameLines });
+    if (p.position) { parts.push({ gap: 14 }); parts.push({ t: 'pos', h: 44 }); }
+    parts.push({ gap: 44 });
+    ctx.font = `40px ${sans}`;
+    const msgLines = wrapLines(ctx, msg, W - 200);
+    parts.push({ t: 'msg', h: msgLines.length * 56, lines: msgLines });
+
+    const foot = 190; // reserved for the hotel logo and name at the bottom
+    const total = parts.reduce((s, x) => s + (x.h || x.gap || 0), 0);
+    let y = Math.max(96, (H - foot - total) / 2);
+
+    // Where the photo will sit, so the divider curve can pass behind it (like the design).
+    let py = y;
+    for (const x of parts) { if (x.t === 'photo') break; py += (x.h || x.gap || 0); }
+    const pcy = py + D / 2;
+
+    // Background: cream, with a soft white curve peaking behind the photo and one faint gold line.
+    ctx.fillStyle = cream; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.moveTo(0, H); ctx.lineTo(0, pcy + 150);
+    ctx.quadraticCurveTo(W / 2, pcy - 120, W, pcy + 150); ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+    ctx.save(); ctx.globalAlpha = 0.4; ctx.strokeStyle = gold; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(-20, pcy + 40); ctx.quadraticCurveTo(W * 0.45, pcy - 210, W + 20, pcy - 30); ctx.stroke();
+    ctx.restore();
+
+    const centerText = (txt, font, color, baseline) => { ctx.font = font; ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.fillText(txt, W / 2, baseline); ctx.textAlign = 'left'; };
+
+    parts.forEach((x) => {
+      if (x.gap) { y += x.gap; return; }
+      if (x.t === 'eyebrow' && eyebrow) { ctx.font = `bold 28px ${sans}`; ctx.fillStyle = goldText; ctx.textAlign = 'center';
+        ctx.fillText(eyebrow.length > 42 ? eyebrow.slice(0, 42) : eyebrow, W / 2, y + 28);
+        ctx.strokeStyle = gold; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(W / 2 - 36, y + 50); ctx.lineTo(W / 2 + 36, y + 50); ctx.stroke(); ctx.textAlign = 'left'; }
+      else if (x.t === 'photo') {
+        const cx = W / 2, cy = y + D / 2, r = D / 2;
+        ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.closePath();
+        ctx.fillStyle = '#FFFFFF'; ctx.fill(); ctx.clip();
+        if (a.photo) {
+          const s = Math.max(D / a.photo.naturalWidth, D / a.photo.naturalHeight);
+          ctx.drawImage(a.photo, cx - a.photo.naturalWidth * s / 2, cy - a.photo.naturalHeight * s / 2, a.photo.naturalWidth * s, a.photo.naturalHeight * s);
+        } else { ctx.fillStyle = navy; ctx.fillRect(cx - r, cy - r, D, D);
+          ctx.fillStyle = '#E8D3AE'; ctx.font = `${D * 0.32}px ${serif}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(initials(name), cx, cy + 4); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left'; }
+        ctx.restore();
+        ctx.beginPath(); ctx.arc(cx, cy, r + 2, 0, Math.PI * 2); ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 14; ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, r + 9, 0, Math.PI * 2); ctx.strokeStyle = gold; ctx.lineWidth = 6; ctx.stroke();
+      }
+      else if (x.t === 'badge') {
+        ctx.font = `bold 30px ${sans}`;
+        const tw = ctx.measureText(p.subtitle).width, bw = tw + 108, bx = (W - bw) / 2;
+        roundRect(ctx, bx, y, bw, 58, 29); ctx.fillStyle = gold; ctx.fill();
+        // small award glyph
+        ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(bx + 34, y + 25, 11, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(bx + 27, y + 33); ctx.lineTo(bx + 24, y + 46); ctx.lineTo(bx + 34, y + 40); ctx.lineTo(bx + 44, y + 46); ctx.lineTo(bx + 41, y + 33); ctx.stroke();
+        centerText(p.subtitle, `bold 30px ${sans}`, '#FFFFFF', y + 38);
+      }
+      else if (x.t === 'name') { ctx.font = `84px ${serif}`; ctx.fillStyle = navy; ctx.textAlign = 'center';
+        x.lines.forEach((ln, i) => ctx.fillText(ln, W / 2, y + 72 + i * 92)); ctx.textAlign = 'left'; }
+      else if (x.t === 'pos') centerText(p.position, `38px ${sans}`, muted, y + 34);
+      else if (x.t === 'msg') { ctx.font = `40px ${sans}`; ctx.fillStyle = navy; ctx.textAlign = 'center';
+        x.lines.forEach((ln, i) => ctx.fillText(ln, W / 2, y + 36 + i * 56)); ctx.textAlign = 'left'; }
+      y += x.h;
+    });
+
+    // Footer: hotel logo (or name) centred at the bottom.
+    const h = hotelFor(p);
+    let fy = H - foot + 30;
+    if (a.logo) {
+      const s = Math.min(460 / a.logo.naturalWidth, 110 / a.logo.naturalHeight);
+      const lw = a.logo.naturalWidth * s, lh = a.logo.naturalHeight * s;
+      ctx.drawImage(a.logo, (W - lw) / 2, fy, lw, lh);
+      fy += lh + 24;
+      if (h.name) centerText(h.name.length > 52 ? h.name : h.name, `30px ${serif}`, navy, fy);
+    } else if (h.name) {
+      ctx.font = `34px ${serif}`;
+      wrapLines(ctx, h.name, W - 160).forEach((ln, i) => centerText(ln, `34px ${serif}`, navy, fy + 20 + i * 46));
+    }
+    return { W, H };
+  }
+
+  const Ach = {
+    cache: {}, building: false, failedKey: null, fmt: 'post',
+    key(p, fmt) { return p.id + '|' + fmt; },
+    async build(p, fmt) {
+      try { await Fonts.queue; } catch (e) { /* built-in */ }
+      try { await Promise.all(['84px AppHeading', '84px "Hilton Serif"', '40px AppBody', 'bold 30px AppBody'].map((f) => document.fonts.load(f))); } catch (e) { /* fallback */ }
+      const a = await achievementAssets(p);
+      const H = fmt === 'story' ? 1920 : 1350;
+      const SCALE = Math.min(2, Math.sqrt(12e6 / (1080 * H)));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(1080 * SCALE); cv.height = Math.round(H * SCALE);
+      const ctx = cv.getContext('2d'); ctx.scale(SCALE, SCALE);
+      drawAchievement(ctx, p, a, fmt);
+      const blob = await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.94));
+      const base = ((p.personName || p.title || 'achievement').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-').slice(0, 40) || 'achievement') + '-' + (fmt === 'story' ? 'story' : 'post');
+      const out = { blob, base, url: URL.createObjectURL(blob), version: p };
+      this.cache[this.key(p, fmt)] = out;
+      return out;
+    },
+    async send(p) {
+      const cur = this.cache[this.key(p, this.fmt)];
+      if (!cur) return;
+      const file = new File([cur.blob], cur.base + '.jpg', { type: 'image/jpeg' });
+      try {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+      } catch (e) { if (e && e.name === 'AbortError') return; }
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(cur.blob); link.download = cur.base + '.jpg';
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+      toast('Saved to your device.');
+    }
+  };
+
+  VIEWS.achievement = ({ id }) => {
+    const p = state.posts.find((x) => x.id === id) || (state.myPosts || []).find((x) => x.id === id);
+    if (!p) return `<div class="screen"><div class="page"><div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button><h1 style="flex:1">Share</h1><span style="width:44px"></span></div><p>Not found.</p></div></div>`;
+    const fmt = Ach.fmt;
+    const cur = Ach.cache[Ach.key(p, fmt)];
+    const ready = cur && cur.version === p;
+    const failed = Ach.failedKey === Ach.key(p, fmt);
+    if (!ready && !Ach.building && !failed) {
+      Ach.building = true;
+      Ach.build(p, fmt).then(() => { Ach.failedKey = null; })
+        .catch((e) => { Ach.failedKey = Ach.key(p, fmt); showError(e); })
+        .finally(() => { Ach.building = false; if (state.route.name === 'achievement') render(); });
+    }
+    return `
+    <div class="screen"><div class="page">
+      <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
+        <h1 style="flex:1">Share achievement</h1><span style="width:44px"></span></div>
+      <div class="seg" role="group" aria-label="Size">
+        <button type="button" data-act="achFmt" data-v="post" aria-pressed="${fmt === 'post'}">Post · 4:5</button>
+        <button type="button" data-act="achFmt" data-v="story" aria-pressed="${fmt === 'story'}">Story · 9:16</button>
+      </div>
+      <div class="ach-prev ${fmt}">
+        ${ready ? `<img src="${esc(cur.url)}" alt="Achievement card">`
+          : failed ? `<div class="card center"><p>Could not prepare the image.</p><button class="btn btn-outline" type="button" data-act="achRetry">Try again</button></div>`
+          : '<div class="card center"><div class="spinner"></div><p class="small muted">Preparing your image…</p></div>'}
+      </div>
+      <p class="hint center">Save it, then post it to Instagram, WhatsApp status or LinkedIn.</p>
+      <div class="sticky-actions">
+        <button class="btn" type="button" data-act="achSend" data-id="${esc(p.id)}" ${ready ? '' : 'disabled'}>${I.share} Save / share</button>
+      </div>
+    </div></div>`;
+  };
+
   VIEWS.share = ({ id }) => {
     const p = state.posts.find((x) => x.id === id) || (state.myPosts || []).find((x) => x.id === id);
     if (!p) return `<div class="screen"><div class="page"><div class="row"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button></div><p>Not found.</p></div></div>`;
@@ -4454,7 +4642,7 @@
     nav(el) {
       const to = el.dataset.to;
       if (to === 'section' && el.dataset.coll) { go(to, { id: el.dataset.id, coll: el.dataset.coll }); return; }
-      if (['share', 'section', 'collection', 'collectionEdit', 'popupEdit', 'attendees', 'setupSection', 'checkin', 'checkinHost'].indexOf(to) >= 0) { go(to, { id: el.dataset.id }); return; }
+      if (['share', 'achievement', 'section', 'collection', 'collectionEdit', 'popupEdit', 'attendees', 'setupSection', 'checkin', 'checkinHost'].indexOf(to) >= 0) { go(to, { id: el.dataset.id }); return; }
       if (to === 'trainingReport') { state.report = null; go(to, { id: el.dataset.id }); return; }
       if (to === 'leavers') { state.leavers = null; state.leaverQuery = ''; }
       if (to === 'popups') state.popupList = null;
@@ -4815,6 +5003,12 @@
     },
     mineStatus(el) { state.mineFilter.status = el.dataset.v; render(); },
     shareImage() { Share.send('image'); },
+    achFmt(el) { if (Ach.fmt === el.dataset.v) return; Ach.fmt = el.dataset.v; render(); },
+    achRetry() { Ach.failedKey = null; render(); },
+    async achSend(el) {
+      const p = state.posts.find((x) => x.id === el.dataset.id) || (state.myPosts || []).find((x) => x.id === el.dataset.id);
+      if (p) await Ach.send(p);
+    },
     retryShare() { Share.failedId = null; render(); },
     sharePdf() { Share.send('pdf'); },
     pushOnBanner() { Push.setOn(true); },
