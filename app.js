@@ -3816,7 +3816,7 @@
    */
   const Blocks = {
     uid: 0,
-    KIND: { text: 'Text section', image: 'Image', posts: 'Selected posts', auto: 'Posts in this collection' },
+    KIND: { text: 'Text section', image: 'Image', posts: 'Selected posts', divider: 'Divider', auto: 'Posts in this collection' },
     pickList(sel, exclude) {
       const groups = cats().filter((c) => c.active !== false && c.type !== 'monthly')
         .map((c) => [c, state.posts.filter((x) => x.category === c.id && x.id !== exclude)]).filter((g) => g[1].length);
@@ -3836,6 +3836,7 @@
         : b.type === 'posts' ? `
           <input class="input" data-k="title" maxlength="80" placeholder="Section title, e.g. This month’s offers" value="${esc(b.title || '')}">
           <div class="blk-pick">${this.pickList(new Set(b.ids || []), exclude)}</div>`
+        : b.type === 'divider' ? '<p class="small muted" style="margin:0">A line that separates the section above from the one below.</p>'
         : '<p class="small muted" style="margin:0">All posts added to this collection, grouped by category. Move it to choose where they appear.</p>';
       return `<div class="blk" data-type="${esc(b.type)}">
         <div class="blk-bar"><span class="blk-kind">${esc(this.KIND[b.type] || '')}</span>
@@ -3857,6 +3858,7 @@
           <button type="button" class="btn btn-sm btn-ghost" data-act="blkAdd" data-v="text">${sv('<path d="M4 6h16M4 12h16M4 18h10"/>', 16)} Text</button>
           <button type="button" class="btn btn-sm btn-ghost" data-act="blkAdd" data-v="image">${I.image} Image</button>
           ${opts.posts ? `<button type="button" class="btn btn-sm btn-ghost" data-act="blkAdd" data-v="posts">${I.tag} Posts</button>` : ''}
+          <button type="button" class="btn btn-sm btn-ghost" data-act="blkAdd" data-v="divider">${sv('<path d="M4 12h16"/>', 16)} Divider</button>
         </div>
       </div>`;
     },
@@ -3867,21 +3869,39 @@
         if (t === 'image') return { type: t, url: (el.querySelector('input[type=hidden]') || {}).value || '' };
         if (t === 'posts') return { type: t, title: el.querySelector('[data-k=title]').value.trim(), ids: [...el.querySelectorAll('[data-k=id]:checked')].map((i) => i.value) };
         return { type: t };
-      }).filter((b) => (b.type === 'text' && (b.heading || b.text)) || (b.type === 'image' && b.url) || (b.type === 'posts' && b.ids.length) || b.type === 'auto');
+      }).filter((b) => (b.type === 'text' && (b.heading || b.text)) || (b.type === 'image' && b.url) || (b.type === 'posts' && b.ids.length) || b.type === 'auto' || b.type === 'divider');
     },
-    /** In the app. opts: { auto: html for the collection's posts } */
+    one(b, opts) {
+      if (b.type === 'text') return `<section class="${b.plain ? 'blk-text plain' : 'card blk-text'}">${b.heading ? `<h3>${esc(b.heading)}</h3>` : ''}${b.text ? `<div class="blk-prose">${esc(b.text)}</div>` : ''}</section>`;
+      if (b.type === 'image' && safeUrl(b.url)) return `<img class="blk-img" src="${esc(b.url)}" alt="" loading="lazy">`;
+      if (b.type === 'posts') {
+        const ps = b.ids.map((id) => state.posts.find((x) => x.id === id)).filter(Boolean);
+        if (!ps.length) return '';
+        return `<section class="sec blk-posts">${b.title ? `<div class="sec-h"><h2>${esc(b.title)}</h2></div>` : ''}<div class="hrow">${ps.map(hcard).join('')}</div></section>`;
+      }
+      if (b.type === 'auto') return opts.auto || '';
+      return '';
+    },
+    /**
+     * In the app. Related blocks are grouped into one softly tinted section: a group starts at each
+     * text section with a heading, and a Divider block separates groups. opts: { auto: collection posts }
+     */
     render(blocks, opts) {
       opts = opts || {};
-      return (blocks || []).map((b) => {
-        if (b.type === 'text') return `<section class="${b.plain ? 'blk-text plain' : 'card blk-text'}">${b.heading ? `<h3>${esc(b.heading)}</h3>` : ''}${b.text ? `<div class="blk-prose">${esc(b.text)}</div>` : ''}</section>`;
-        if (b.type === 'image' && safeUrl(b.url)) return `<img class="blk-img" src="${esc(b.url)}" alt="" loading="lazy">`;
-        if (b.type === 'posts') {
-          const ps = b.ids.map((id) => state.posts.find((x) => x.id === id)).filter(Boolean);
-          if (!ps.length) return '';
-          return `<section class="sec blk-posts">${b.title ? `<div class="sec-h"><h2>${esc(b.title)}</h2></div>` : ''}<div class="hrow">${ps.map(hcard).join('')}</div></section>`;
-        }
-        if (b.type === 'auto') return opts.auto || '';
-        return '';
+      const groups = [];
+      let cur = null;
+      (blocks || []).forEach((b) => {
+        if (b.type === 'divider') { groups.push({ divider: true }); cur = null; return; }
+        if (!cur || (b.type === 'text' && b.heading)) { cur = { items: [] }; groups.push(cur); }
+        cur.items.push(b);
+      });
+      const real = groups.filter((g) => g.divider || (g.items && g.items.length));
+      const multi = real.filter((g) => !g.divider).length > 1;
+      return real.map((g) => {
+        if (g.divider) return '<div class="blk-divider" aria-hidden="true"><span></span></div>';
+        const inner = g.items.map((b) => this.one(b, opts)).join('');
+        if (!inner.trim()) return '';
+        return multi ? `<div class="blk-group">${inner}</div>` : inner;
       }).join('');
     }
   };
@@ -3957,6 +3977,9 @@
           ctx.restore();
         }
         y += h + 32;
+      } else if (b.type === 'divider') {
+        if (draw) { ctx.strokeStyle = SH.gold; ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.beginPath(); const mx = PAD + INNER / 2; ctx.moveTo(mx - 60, y + 18); ctx.lineTo(mx + 60, y + 18); ctx.stroke(); ctx.globalAlpha = 1; }
+        y += 44;
       } else if (b.type === 'posts') {
         const ps = b.ids.map((id) => state.posts.find((x) => x.id === id)).filter(Boolean);
         if (!ps.length) return;
