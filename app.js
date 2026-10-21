@@ -1227,7 +1227,7 @@
     const color = colorHex(c.color);
     return `<section class="sec" style="--c:${esc(color)}" aria-label="${esc(c.label)}">
       <div class="sec-h"><h2><span class="dot"></span>${esc(c.label)}</h2>
-        ${posts.length > 1 && !(opts && opts.noMore) ? `<button type="button" class="link-btn" data-act="nav" data-to="section" data-id="${esc(c.id)}">See all (${posts.length})</button>` : ''}</div>
+        ${posts.length > 1 && !(opts && opts.noMore) ? `<button type="button" class="link-btn" data-act="nav" data-to="section" data-id="${esc(c.id)}" ${opts && opts.coll ? `data-coll="${esc(opts.coll)}"` : ''}>See all (${posts.length})</button>` : ''}</div>
       <div class="hrow ${opts && opts.onDark ? 'on-dark' : ''}">${posts.map(hcard).join('')}</div>
     </section>`;
   }
@@ -1666,14 +1666,16 @@
   };
 
   /** All posts of one category, as a list. */
-  VIEWS.section = ({ id }) => {
+  VIEWS.section = ({ id, coll }) => {
     const c = catOf(id);
-    const list = visiblePosts().filter((p) => p.category === id);
+    // From inside a special collection: only that collection's posts in this category.
+    const cl = coll ? (state.collections.find((x) => x.id === coll) || (state.adminColls || []).find((x) => x.id === coll)) : null;
+    const list = coll ? visiblePosts(true).filter((p) => p.category === id && p.collection === coll) : visiblePosts().filter((p) => p.category === id);
     const grid = c.type === 'people';
     return `
     <div class="screen"><div class="page">
       <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
-        <h1 style="flex:1">${esc(c.label)}</h1><span style="width:44px"></span></div>
+        ${cl ? `<div class="greet spacer"><span class="eyebrow">${esc(cl.name)}</span><h1>${esc(c.label)}</h1></div>` : `<h1 style="flex:1">${esc(c.label)}</h1>`}<span style="width:44px"></span></div>
       ${grid ? `<div class="pgrid">${list.map(hcard).join('')}</div>` : `<div class="list">${list.map(postCard).join('') || emptyState('Nothing posted yet.')}</div>`}
     </div></div>`;
   };
@@ -1695,7 +1697,7 @@
     if (!c) return `<div class="screen"><div class="page"><div class="row"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button></div>${emptyState('This collection has ended.')}</div></div>`;
     const bg = colorHex(c.color);
     const posts = visiblePosts(true).filter((p) => p.collection === id);
-    const rows = cats().filter((k) => k.active !== false).map((k) => sectionRow(k, posts.filter((p) => p.category === k.id), { onDark: true })).join('');
+    const rows = cats().filter((k) => k.active !== false).map((k) => sectionRow(k, posts.filter((p) => p.category === k.id), { onDark: true, coll: id })).join('');
     const h = heroTop({ image: c.banner }, canCollect() ? `<button class="icon-btn" type="button" data-act="nav" data-to="collectionEdit" data-id="${esc(c.id)}" aria-label="Edit collection">${I.edit}</button>` : '', 'fade');
     return `
     <div class="screen coll-page" style="--bg:${esc(bg)};background-color:${esc(bg)}" ${c.animation !== 'none' ? `data-fx="${esc(c.animation)}" data-fx-full` : ''}>
@@ -4054,7 +4056,12 @@
     if (!safeUrl(url)) return null;
     if (state.shareCache[url]) return state.shareCache[url];
     let img = null;
-    try { img = await loadImg(url, true); } catch (e) {
+    try {
+      const res = await fetch(url, { mode: 'cors', cache: 'reload', credentials: 'omit' });
+      if (!res.ok) throw new Error('Image did not load');
+      img = await loadImg(URL.createObjectURL(await res.blob()), false);
+    } catch (e0) { img = null; }
+    if (!img) try { img = await loadImg(url, true); } catch (e) {
       try {
         const j = await api('getImage', { url });
         img = await loadImg('data:' + j.mimeType + ';base64,' + j.data, false);
@@ -4364,6 +4371,7 @@
   const ACT = {
     nav(el) {
       const to = el.dataset.to;
+      if (to === 'section' && el.dataset.coll) { go(to, { id: el.dataset.id, coll: el.dataset.coll }); return; }
       if (['share', 'section', 'collection', 'collectionEdit', 'popupEdit', 'attendees', 'setupSection', 'checkin', 'checkinHost'].indexOf(to) >= 0) { go(to, { id: el.dataset.id }); return; }
       if (to === 'trainingReport') { state.report = null; go(to, { id: el.dataset.id }); return; }
       if (to === 'leavers') { state.leavers = null; state.leaverQuery = ''; }
@@ -5407,7 +5415,8 @@
       el.dataset.uploading = '1';
       label.textContent = 'Uploading…';
       try {
-        const payload = await filePayload(file);
+        // Logos keep their transparent background (PNG); photos are made smaller as JPEG.
+        const payload = el.dataset.noun === 'logo' ? await logoPayload(file) : await filePayload(file);
         const j = await api('uploadFile', payload);
         hidden.value = j.url;
         label.textContent = el.dataset.noun ? 'Change ' + el.dataset.noun : 'File attached · tap to replace';

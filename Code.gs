@@ -64,7 +64,7 @@ const POST_PROPERTIES = ['DXBAI', 'DXBPI', 'Cluster'];
 /* Entry points                                                        */
 /* ------------------------------------------------------------------ */
 
-const BACKEND_VERSION = '1.16.0';
+const BACKEND_VERSION = '1.16.1';
 
 function doGet() {
   return out({ ok: true, status: 'running', version: BACKEND_VERSION });
@@ -887,7 +887,12 @@ function actionGetImage_(req) {
   let inFolder = false;
   const parents = file.getParents();
   while (parents.hasNext()) { if (parents.next().getId() === folderId) { inFolder = true; break; } }
-  if (!inFolder) fail_('Image not found.');
+  // Also allowed: pictures already public by link (anyone could open them anyway), e.g. uploaded with an earlier folder.
+  if (!inFolder) {
+    let pub = false;
+    try { const a = file.getSharingAccess(); pub = a === DriveApp.Access.ANYONE_WITH_LINK || a === DriveApp.Access.ANYONE; } catch (e) { pub = false; }
+    if (!pub || !/^image\//.test(file.getMimeType())) fail_('Image not found.');
+  }
   const blob = file.getBlob();
   return { mimeType: blob.getContentType(), data: Utilities.base64Encode(blob.getBytes()) };
 }

@@ -5,7 +5,7 @@ try {
   // Push stays off if the OneSignal worker can't load; the app still works.
 }
 
-const CACHE = 'bbteam-v25';
+const CACHE = 'bbteam-v26';
 const SHELL = [
   './',
   './index.html',
@@ -43,7 +43,8 @@ self.addEventListener('fetch', (event) => {
   if (url.hostname === 'lh3.googleusercontent.com') {
     event.respondWith(
       caches.open(IMG_CACHE).then((c) => c.match(req).then((hit) => {
-        if (hit) return hit;
+        // A copy saved for display only (opaque) can't be used where the app reads the picture (share images, PDFs).
+        if (hit && !(req.mode === 'cors' && hit.type === 'opaque')) return hit;
         return fetch(req).then((res) => {
           if (res && (res.ok || res.type === 'opaque')) {
             c.put(req, res.clone()).then(() => c.keys()).then((keys) => {
