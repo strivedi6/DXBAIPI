@@ -4048,6 +4048,26 @@
   }
 
   /** Bottom of everything guests receive: the hotel's logo, name, address and contacts. */
+  /** Crops the transparent margin off a logo so logos of different shapes end up a consistent size. */
+  function logoTrim(img) {
+    try {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+      const d = x.getImageData(0, 0, w, h).data;
+      let minX = w, minY = h, maxX = -1, maxY = -1;
+      for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
+        if (d[(yy * w + xx) * 4 + 3] > 14) { if (xx < minX) minX = xx; if (xx > maxX) maxX = xx; if (yy < minY) minY = yy; if (yy > maxY) maxY = yy; }
+      }
+      if (maxX < 0) return { src: img, w: w, h: h };
+      const cw = maxX - minX + 1, ch = maxY - minY + 1;
+      if (cw >= w - 2 && ch >= h - 2) return { src: img, w: w, h: h };
+      const cc = document.createElement('canvas'); cc.width = cw; cc.height = ch;
+      cc.getContext('2d').drawImage(img, minX, minY, cw, ch, 0, 0, cw, ch);
+      return { src: cc, w: cw, h: ch };
+    } catch (e) { return { src: img, w: img.naturalWidth, h: img.naturalHeight }; }
+  }
+
   function drawFooter(ctx, p, a, y, draw, W, PAD) {
     const { serif, sans, navy, muted, line } = SH;
     const h = hotelFor(p);
@@ -4059,11 +4079,12 @@
       wrapLines(ctx, txt, W - PAD * 2).forEach((ln) => { if (draw) { ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.fillText(ln, W / 2, y); ctx.textAlign = 'left'; } y += lh; });
     };
     if (a.logo) {
-      const s = Math.min(520 / a.logo.naturalWidth, 160 / a.logo.naturalHeight);
-      const lw = a.logo.naturalWidth * s, lh = a.logo.naturalHeight * s;
-      if (draw) ctx.drawImage(a.logo, (W - lw) / 2, y - 20, lw, lh);
-      y += lh + 30;
-      if (h.name) center(h.name, `30px ${serif}`, navy, 44);
+      // Logo only (no name): scaled to a steady height so every hotel's logo looks the same size.
+      const L = a.logoFit || (a.logoFit = logoTrim(a.logo));
+      const s = Math.min(560 / L.w, 150 / L.h);
+      const lw = L.w * s, lh = L.h * s;
+      if (draw) ctx.drawImage(L.src, (W - lw) / 2, y - 6, lw, lh);
+      y += lh + 20;
     } else if (h.name) center(h.name, `34px ${serif}`, navy, 50);
     if (h.address) { y += 4; center(h.address, `28px ${sans}`, muted, 40); }
     const contact = [h.phone, h.email].filter(Boolean).join('  ·  ');
@@ -4519,11 +4540,10 @@
     const h = hotelFor(p);
     let fy = H - foot + 30;
     if (a.logo) {
-      const s = Math.min(460 / a.logo.naturalWidth, 110 / a.logo.naturalHeight);
-      const lw = a.logo.naturalWidth * s, lh = a.logo.naturalHeight * s;
-      ctx.drawImage(a.logo, (W - lw) / 2, fy, lw, lh);
-      fy += lh + 24;
-      if (h.name) centerText(h.name.length > 52 ? h.name : h.name, `30px ${serif}`, navy, fy);
+      const L = a.logoFit || (a.logoFit = logoTrim(a.logo));
+      const s = Math.min(520 / L.w, 150 / L.h);
+      const lw = L.w * s, lh = L.h * s;
+      ctx.drawImage(L.src, (W - lw) / 2, fy, lw, lh);
     } else if (h.name) {
       ctx.font = `34px ${serif}`;
       wrapLines(ctx, h.name, W - 160).forEach((ln, i) => centerText(ln, `34px ${serif}`, navy, fy + 20 + i * 46));

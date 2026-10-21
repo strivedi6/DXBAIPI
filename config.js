@@ -6,7 +6,7 @@ window.APP_CONFIG = {
   subtitle: 'Embassy Suites · Hilton Garden Inn',
 
   // Raise this each time you upload a new version (shown on the Profile screen).
-  appVersion: '1.22.0',
+  appVersion: '1.22.1',
 
   // Google Apps Script web app (/exec link)
   apiUrl: 'https://script.google.com/macros/s/AKfycbyixFoZ4Oby8HaEuzp_kKovO1afQnOeNilCTfo3bH4mw6lVd4A7niwTWET2c53ncdy8/exec',
