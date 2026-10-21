@@ -239,6 +239,7 @@
       s.logoTone = brand.logoTone === 'light' ? 'light' : 'dark';
       s.reportLogo = safeUrl(brand.reportLogo);
       s.hotels = brand.hotels || {};
+      s.outletLogos = brand.outletLogos || {};
       s.fonts = brand.fonts || {};
     }
     state.settings = s;
@@ -3481,6 +3482,17 @@
         <div class="error-box" id="form-error" hidden></div>
         <button class="btn btn-sm" style="width:100%" type="submit">Save outlets</button>
       </form>
+      <div class="card">
+        <span class="section-title" style="margin:0">Outlet logos</span>
+        <p class="hint" style="margin-top:-6px">Printed in place of the outlet name on offers shared with guests. Upload a black logo as SVG or PNG with a transparent background; it keeps the transparency.</p>
+        <div class="set-group" style="background:none">${(state.adminOutlets || []).map((o) => {
+          const u = safeUrl((state.settings.outletLogos || {})[o]);
+          return `<div class="ol-row"><span class="ol-name">${esc(o)}</span>
+            <span class="ol-prev">${u ? `<img src="${esc(u)}" alt="">` : '<span class="small muted">No logo</span>'}</span>
+            <label class="btn btn-sm btn-outline ol-up">${u ? 'Change' : 'Upload'}<input type="file" accept="image/svg+xml,.svg,image/png,image/webp" data-change="outletLogo" data-outlet="${esc(o)}"></label>
+            ${u ? `<button type="button" class="blk-btn danger" data-act="removeOutletLogo" data-outlet="${esc(o)}" aria-label="Remove logo">${I.trash}</button>` : ''}</div>`;
+        }).join('') || '<p class="small muted">Add outlets above first.</p>'}</div>
+      </div>
 `;
     if (sec === 'departments') return head + `
       <form class="card" data-form="departments" novalidate>
@@ -3894,6 +3906,8 @@
     });
     const h = hotelFor(p);
     const jobs = [loadShareImage(p.image).then((i) => { a.hero = i; })];
+    const ol = !isNl && p.outlet ? (state.settings.outletLogos || {})[p.outlet] : '';
+    if (safeUrl(ol)) jobs.push(loadShareImage(ol).then((i) => { a.outletLogo = i; }));
     if (h && safeUrl(h.logo)) jobs.push(loadShareImage(h.logo).then((i) => { a.logo = i; }));
     urls.forEach((u) => jobs.push(loadShareImage(u).then((i) => { a.imgs[u] = i; })));
     await Promise.all(jobs.map((j) => j.catch(() => {})));
@@ -4128,7 +4142,7 @@
     const navy = '#13294B', gold = '#B48A4E', goldText = '#7E5F2E', muted = '#5A6273', cream = '#F4EFE7';
     const draw = !measureOnly;
     let y = 0;
-    const imgH = img ? 1080 : 620;
+    const imgH = img ? 810 : 620; // 4:3 landscape photo
     if (draw) {
       ctx.fillStyle = cream; ctx.fillRect(0, 0, W, 99999);
       if (img) {
@@ -4157,9 +4171,14 @@
     }
     ctx.textBaseline = 'alphabetic';
     y += 84;
-    // Outlet eyebrow
+    // Outlet: its logo if one is uploaded (App setup › Outlets), otherwise its name.
     const eyebrow = (p.outlet || '').toUpperCase();
-    if (eyebrow) {
+    if (a.outletLogo) {
+      const L = a.outletLogo, s = Math.min(440 / L.naturalWidth, 120 / L.naturalHeight);
+      const lw = L.naturalWidth * s, lh = L.naturalHeight * s;
+      if (draw) ctx.drawImage(L, PAD, y - 34, lw, lh);
+      y += lh - 34;
+    } else if (eyebrow) {
       ctx.font = `bold 30px ${sans}`;
       if (draw) { ctx.fillStyle = goldText; ctx.fillText(eyebrow, PAD, y); }
       y += 30;
@@ -4385,6 +4404,22 @@
       img.src = url;
     });
   }
+  /** An SVG logo drawn large and sharp, with a transparent background (saved as PNG). */
+  async function svgImage(file) {
+    const txt = await file.text();
+    const doc = new DOMParser().parseFromString(txt, 'image/svg+xml');
+    const svg = doc.documentElement;
+    if (!svg || svg.nodeName.toLowerCase() !== 'svg') throw new Error('That SVG file could not be opened.');
+    let w = parseFloat(svg.getAttribute('width')) || 0, h = parseFloat(svg.getAttribute('height')) || 0;
+    const vb = (svg.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+    if (vb.length === 4 && vb[2] > 0 && vb[3] > 0) { w = vb[2]; h = vb[3]; }
+    if (!w || !h) { w = 300; h = 150; }
+    if (!svg.getAttribute('viewBox')) svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    const scale = 1200 / Math.max(w, h);
+    svg.setAttribute('width', Math.round(w * scale)); svg.setAttribute('height', Math.round(h * scale));
+    const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' });
+    return loadImage(blob);
+  }
   async function filePayload(file, maxSide) {
     if (file.type === 'application/pdf') {
       if (file.size > 8 * 1024 * 1024) throw new Error('The PDF is too large (8 MB maximum).');
@@ -4404,7 +4439,7 @@
 
   /** Logo upload: keeps transparency (PNG), scaled to at most 1200 px. */
   async function logoPayload(file) {
-    const img = await loadImage(file);
+    const img = /svg/i.test(file.type) || /\.svg$/i.test(file.name || '') ? await svgImage(file) : await loadImage(file);
     const scale = Math.min(1, 1200 / Math.max(img.naturalWidth, img.naturalHeight));
     const c = document.createElement('canvas');
     c.width = Math.round(img.naturalWidth * scale);
@@ -4721,6 +4756,17 @@
         setSettings({ heroImage: j.heroImage || '' }, j.brand);
         toast('Logo updated.');
         const y0 = window.scrollY; render(); window.scrollTo(0, y0);
+      } catch (e) { showError(e); }
+    },
+    async removeOutletLogo(el) {
+      if (!confirm('Remove the logo for ' + el.dataset.outlet + '?')) return;
+      try {
+        const logos = Object.assign({}, state.settings.outletLogos || {});
+        delete logos[el.dataset.outlet];
+        const j = await api('saveSettings', { outletLogos: logos });
+        setSettings({ heroImage: j.heroImage || '' }, j.brand);
+        Share.current = null;
+        render();
       } catch (e) { showError(e); }
     },
     async removeReportLogo() {
@@ -5420,6 +5466,21 @@
         setSettings({ heroImage: j.heroImage || '' }, j.brand);
         Share.current = null;
         toast('Logo updated. Check how it looks on both backgrounds.');
+      } catch (e) { showError(e); }
+      render();
+    },
+    async outletLogo(el) {
+      const file = el.files && el.files[0];
+      if (!file) return;
+      const lab = el.parentElement; lab.firstChild.textContent = 'Uploading…';
+      try {
+        const up = await api('uploadFile', await logoPayload(file));
+        const logos = Object.assign({}, state.settings.outletLogos || {}, { [el.dataset.outlet]: up.url });
+        const j = await api('saveSettings', { outletLogos: logos });
+        if (!j.brand || !j.brand.outletLogos) throw new Error('The backend needs updating: paste the new Code.gs into Apps Script, then Deploy › Manage deployments › Edit › New version › Deploy.');
+        setSettings({ heroImage: j.heroImage || '' }, j.brand);
+        Share.current = null;
+        toast('Logo saved for ' + el.dataset.outlet + '.');
       } catch (e) { showError(e); }
       render();
     },

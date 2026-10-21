@@ -1003,3 +1003,12 @@ html[data-theme="dark"] .wk-chip input:checked + span { background: var(--gold);
 .prose.plain, .prose.on-dark.plain { background: none; padding: 0 2px; border-radius: 0; box-shadow: none; }
 .blk-text.plain { display: flex; flex-direction: column; gap: 8px; padding: 0 2px; }
 .coll-page .prose.plain, .coll-page .blk-text.plain h3, .coll-page .blk-text.plain .blk-prose { color: #fff; }
+
+/* Outlet logos (App setup › Outlets) */
+.ol-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.ol-row:last-child { border-bottom: 0; }
+.ol-name { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; }
+.ol-prev { width: 96px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #F4EFE7; padding: 4px; }
+.ol-prev img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.ol-up { position: relative; overflow: hidden; width: auto; padding: 0 14px; }
+.ol-up input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
