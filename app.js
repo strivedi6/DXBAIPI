@@ -1353,14 +1353,38 @@
     if (/weekday/.test(t)) return today >= 1 && today <= 5;
     return true;
   }
+  /** Whether a post shows in Today's Special on this day (yyyy-mm-dd), from its "How often" choice. */
+  function specialToday(p, iso) {
+    const r = p.specialRepeat || '';
+    const [y, m, d] = iso.split('-').map(Number);
+    if (r === 'off') return false;
+    if (r === 'date') return p.specialDate === iso;
+    if (r === 'daily') return true;
+    if (r.startsWith('weekly:')) return r.slice(7).split(',').map(Number).indexOf(new Date(y, m - 1, d).getDay()) >= 0;
+    if (r.startsWith('monthly:')) { const last = new Date(y, m, 0).getDate(); return d === Math.min(Number(r.slice(8)), last); }
+    // Posts saved before "How often" existed.
+    return p.specialDate === iso || (catOf(p.category).type === 'offer' && p.todaySpecial && offerRunsToday(p));
+  }
+  /** Weekdays (0 = Sunday) named in an offer's Date text, e.g. "Every Wednesday"; [] if none. */
+  function daysFromText(t) {
+    t = String(t || '').toLowerCase();
+    const found = [];
+    (t.match(/\b(sun|mon|tue|wed|thu|fri|sat)[a-z]*/g) || []).forEach((w) => {
+      const i = WEEKDAYS.findIndex((x) => x.startsWith(w.slice(0, 3)));
+      if (i >= 0 && found.indexOf(i) < 0) found.push(i);
+    });
+    if (!found.length && /weekend/.test(t)) return [0, 6];
+    if (!found.length && /weekday/.test(t)) return [1, 2, 3, 4, 5];
+    return found;
+  }
   function todayItems() {
     const today = todayIso();
     const posts = visiblePosts(true);
     const training = posts.filter((p) => catOf(p.category).type === 'training' && p.eventDate === today)
       .sort((a, b) => String(a.timing).localeCompare(String(b.timing)));
     // Only what is happening today: training today, birthdays, and posts set to show in Today's Special today.
-    const offers = posts.filter((p) => catOf(p.category).type === 'offer' && (p.specialDate === today || (p.todaySpecial && offerRunsToday(p))));
-    const fresh = posts.filter((p) => ['offer', 'training'].indexOf(catOf(p.category).type) < 0 && p.specialDate === today);
+    const offers = posts.filter((p) => catOf(p.category).type === 'offer' && specialToday(p, today));
+    const fresh = posts.filter((p) => ['offer', 'training'].indexOf(catOf(p.category).type) < 0 && specialToday(p, today));
     const birthdays = state.birthdaysToday || [];
     return { training, offers, fresh, birthdays, count: training.length + offers.length + fresh.length + birthdays.length };
   }
@@ -2774,7 +2798,7 @@
         <span><b style="font-size:14px">Can be shared with guests</b><br><span class="small muted">Adds a “Share with guests” button (picture or PDF, with the hotel logo and address)</span></span>
         <span class="switch"><input type="checkbox" role="switch" name="shareable" ${d.shareable ? 'checked' : ''}><span></span></span></label></div>` : ''}
       ${collectionPicker(d)}
-      ${specialFields(d, isOffer)}
+      ${specialFields(d)}
 
       <div class="card" style="gap:12px">
         <div class="field"><span class="label" id="c-prop-l">Property</span>
@@ -2823,14 +2847,31 @@
     </div>`;
   }
 
-  /** Optional date on which a post appears in Today's Special. Offers can also repeat on the days they run. */
-  function specialFields(d, isOffer) {
+  /** When a post shows in Today's Special: never, one date, every day, chosen weekdays, or a day of the month. */
+  function specialFields(d) {
+    const r = d.specialRepeat || '';
+    let mode = 'off', days = [], md = 1;
+    if (r === 'date' || r === 'daily') mode = r;
+    else if (r.startsWith('weekly:')) { mode = 'weekly'; days = r.slice(7).split(',').map(Number); }
+    else if (r.startsWith('monthly:')) { mode = 'monthly'; md = Number(r.slice(8)) || 1; }
+    else if (!r && d.specialDate) mode = 'date';
+    else if (!r && d.todaySpecial) { days = daysFromText(d.days); mode = days.length ? 'weekly' : 'daily'; }
+    const opt = (v, l) => `<option value="${v}" ${mode === v ? 'selected' : ''}>${l}</option>`;
+    const order = [1, 2, 3, 4, 5, 6, 0];
     return `<div class="card">
-      <span class="label">${I.star} Today’s Special (optional)</span>
-      <div class="field"><label for="c-sdate">Show in Today’s Special on</label>
+      <span class="label">${I.star} Today’s Special</span>
+      <div class="field"><label for="c-smode">How often</label>
+        <select class="select" id="c-smode" name="specialMode" data-change="specialMode">
+          ${opt('off', 'Don’t show in Today’s Special')}${opt('date', 'On one date')}${opt('weekly', 'Every week, on chosen days')}${opt('monthly', 'Every month, on one date')}${opt('daily', 'Every day')}
+        </select></div>
+      <div class="field" data-sm="date" ${mode === 'date' ? '' : 'hidden'}><label for="c-sdate">Date</label>
         <input class="input" id="c-sdate" name="specialDate" type="date" value="${esc(d.specialDate || '')}"></div>
-      ${isOffer ? `<label class="check-row" style="min-height:36px"><input type="checkbox" name="todaySpecial" ${d.todaySpecial ? 'checked' : ''}> Also every day it runs (from the Date field, e.g. Every Wednesday)</label>` : ''}
-      <p class="hint">Leave empty to keep it out of Today’s Special. It still appears in its own section for the dates under “Show from / Until”.</p>
+      <div class="field" data-sm="weekly" ${mode === 'weekly' ? '' : 'hidden'}><span class="label">On</span>
+        <div class="wk-chips" role="group" aria-label="Days of the week">${order.map((i) => `<label class="wk-chip"><input type="checkbox" name="specialDays" value="${i}" ${days.indexOf(i) >= 0 ? 'checked' : ''}><span>${WEEKDAYS[i].slice(0, 3).replace(/^./, (c) => c.toUpperCase())}</span></label>`).join('')}</div></div>
+      <div class="field" data-sm="monthly" ${mode === 'monthly' ? '' : 'hidden'}><label for="c-smd">Day of the month</label>
+        <select class="select" id="c-smd" name="specialMonthDay">${Array.from({ length: 31 }, (_, k) => `<option value="${k + 1}" ${md === k + 1 ? 'selected' : ''}>${k + 1}</option>`).join('')}</select>
+        <span class="hint" style="margin:0">In shorter months it shows on the last day.</span></div>
+      <p class="hint">It only shows between the “Show from / Until” dates, if you set them, and always stays in its own section too.</p>
     </div>`;
   }
 
@@ -2950,7 +2991,7 @@
           <div class="field"><label for="c-end">Until</label><input class="input" id="c-end" name="end" type="date" value="${esc(d.end || '')}"></div>
         </div>
       </div>
-      ${specialFields(d, false)}
+      ${specialFields(d)}
       <div class="card" style="gap:0;padding:4px 16px">
         ${!editing || !d.pushSent ? `<label class="switch-row"><span><b style="font-size:14px">Send notification</b><br><span class="small muted">Alerts staff at the selected hotel</span></span>
           <span class="switch"><input type="checkbox" name="sendPush" ${editing ? '' : 'checked'}><span></span></span></label>` : ''}
@@ -5066,12 +5107,17 @@
           inclusions: String(f.inclusions || '').split('\n').map((s) => s.trim()).filter(Boolean),
           serves: f.serves || '',
           terms: (f.terms || '').trim(),
-          todaySpecial: !!f.todaySpecial
+          todaySpecial: false
         });
       }
       if (ctype !== 'training') {
-        post.specialDate = f.specialDate || '';
-        if (f.specialDate && ((f.start && f.specialDate < f.start) || (f.end && f.specialDate > f.end))) return formError(form, 'The Today’s Special date is outside the “Show from / Until” dates.');
+        const sm = f.specialMode || 'off';
+        const sdays = [...form.querySelectorAll('input[name="specialDays"]:checked')].map((i) => i.value);
+        if (sm === 'date' && !f.specialDate) return formError(form, 'Please choose the date for Today’s Special.');
+        if (sm === 'weekly' && !sdays.length) return formError(form, 'Please choose at least one day of the week for Today’s Special.');
+        post.specialDate = sm === 'date' ? f.specialDate : '';
+        post.specialRepeat = sm === 'weekly' ? 'weekly:' + sdays.join(',') : sm === 'monthly' ? 'monthly:' + (f.specialMonthDay || 1) : sm;
+        if (post.specialDate && ((f.start && post.specialDate < f.start) || (f.end && post.specialDate > f.end))) return formError(form, 'The Today’s Special date is outside the “Show from / Until” dates.');
       }
       if (ctype !== 'offer') post.priority = f.priority || 'Normal';
       busy(form, true, id ? 'Saving' : 'Publishing');
@@ -5304,6 +5350,7 @@
       if (prev) prev.style.setProperty({ primary: '--p', accent: '--a', background: '--b' }[el.name], el.value);
     },
     pushToggle(el) { Push.setOn(el.checked); },
+    specialMode(el) { el.closest('.card').querySelectorAll('[data-sm]').forEach((n) => { n.hidden = n.dataset.sm !== el.value; }); },
     collPick(el) { const r = document.getElementById('coll-only'); if (r) r.hidden = !el.value; },
     sounds(el) { LS.set('bb_sounds', !!el.checked); if (el.checked) { Sound.unlock(); Sound.play('none'); } toast(el.checked ? 'Sounds on.' : 'Sounds off.'); },
     haptics(el) { LS.set('bb_haptics', !!el.checked); if (el.checked) Haptics.decorate(document.body); else Haptics.strip(); toast(el.checked ? 'Haptic feedback on.' : 'Haptic feedback off.'); render(); },

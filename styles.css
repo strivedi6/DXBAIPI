@@ -987,3 +987,14 @@ html[data-theme="dark"] .blk, html[data-theme="dark"] .blk-bar { border-color: #
 html[data-theme="dark"] .blk-btn { color: var(--text-strong); }
 .coll-page .btn.share-nl { background: #fff; color: var(--navy); }
 [data-hotel] .upload img { object-fit: contain; padding: 14px; background: #fff; }
+
+/* Today's Special: days of the week */
+.wk-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.wk-chip { position: relative; cursor: pointer; }
+.wk-chip input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.wk-chip span { display: inline-flex; align-items: center; justify-content: center; min-width: 46px; height: 40px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--field-line); background: var(--field); font-size: 14px; font-weight: 600; color: var(--navy); }
+.wk-chip input:checked + span { background: var(--navy); border-color: var(--navy); color: #fff; }
+.wk-chip input:focus-visible + span { outline: 3px solid var(--gold); outline-offset: 2px; }
+html[data-theme="dark"] .wk-chip span { color: var(--text-strong); border-color: #364052; }
+html[data-theme="dark"] .wk-chip input:checked + span { background: var(--gold); border-color: var(--gold); color: #13294B; }
+.field[hidden], [data-sm][hidden] { display: none !important; }
