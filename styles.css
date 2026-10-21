@@ -954,3 +954,36 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: .55; cursor: po
 /* Coloured pages: the colour is the page itself, also while it slides in. */
 .screen.coll-page.tr-in-forward, .screen.coll-page.tr-in-back, .screen.coll-page.tr-in-tab, .screen.coll-page.tr-in-fade { background: var(--bg); }
 .coll-page .full-hero { background: var(--bg); }
+
+/* ===== Version 1.16: body sections ===== */
+/* Images in a post body: same width and corners as the white boxes, height from the picture. */
+.blk-img { display: block; width: 100%; height: auto; border-radius: 14px; background: color-mix(in srgb, var(--navy) 8%, transparent); }
+.blk-text { gap: 8px; }
+.blk-text h3 { font-size: 22px; line-height: 1.25; color: var(--navy); }
+.blk-prose { white-space: pre-line; font-size: 15px; line-height: 1.6; color: var(--ink); }
+.coll-page .blk-text h3, .coll-page .blk-prose { color: var(--navy); }
+.coll-page .blk-posts .sec-h h2 { color: #fff; }
+html[data-theme="dark"] .blk-text h3, html[data-theme="dark"] .blk-prose { color: var(--text-strong); }
+/* Section builder in the form. */
+.blk-list { display: flex; flex-direction: column; gap: 12px; }
+.blk-list:empty { display: none; }
+.blk { border: 1px solid var(--field-line); border-radius: 16px; background: var(--field); overflow: hidden; }
+.blk[data-type="auto"] { border-style: dashed; border-color: var(--gold); }
+.blk-bar { display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 14px; border-bottom: 1px solid var(--field-line); background: color-mix(in srgb, var(--gold) 8%, var(--card)); }
+.blk-kind { flex: 1; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--gold-text); }
+.blk-btn { width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: var(--navy); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.blk-btn:active { background: rgba(19, 41, 75, .08); }
+.blk-btn.danger { color: var(--notice); }
+.blk-btn svg { width: 18px; height: 18px; }
+.blk-body { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.blk-body .img-field .upload { min-height: 120px; }
+.blk-body .img-field .upload img { position: static; width: 100%; height: auto; max-height: 360px; object-fit: contain; }
+.blk-pick { display: flex; flex-direction: column; gap: 6px; }
+.blk-add { display: flex; flex-wrap: wrap; gap: 8px; }
+.blk-add .btn { flex: 1; min-width: 96px; border: 1px dashed var(--gold); color: var(--gold-text); }
+.blk-moved { animation: blkPulse .5s ease; }
+@keyframes blkPulse { 0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 45%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+html[data-theme="dark"] .blk, html[data-theme="dark"] .blk-bar { border-color: #364052; }
+html[data-theme="dark"] .blk-btn { color: var(--text-strong); }
+.coll-page .btn.share-nl { background: #fff; color: var(--navy); }
+[data-hotel] .upload img { object-fit: contain; padding: 14px; background: #fff; }

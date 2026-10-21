@@ -238,6 +238,7 @@
       s.logo = safeUrl(brand.logo);
       s.logoTone = brand.logoTone === 'light' ? 'light' : 'dark';
       s.reportLogo = safeUrl(brand.reportLogo);
+      s.hotels = brand.hotels || {};
       s.fonts = brand.fonts || {};
     }
     state.settings = s;
@@ -1079,6 +1080,7 @@
     const cat = forceCat || f.cat;
     const q = f.q.trim().toLowerCase();
     return state.posts.filter((p) => {
+      if (p.collectionOnly && !q) return false;
       if (forceCat) { if (catOf(p.category).type !== 'offer') return false; }
       else if (cat !== 'All' && p.category !== cat) return false;
       if (f.prop !== 'All' && postProp(p.property) !== f.prop && postProp(p.property) !== 'Cluster') return false;
@@ -1157,9 +1159,10 @@
   }
 
   /* ---------------- Sections: horizontal rows ---------------- */
-  function visiblePosts() {
+  /** Posts for the main pages. Posts set to show only inside their special collection are left out (inside: true keeps them). */
+  function visiblePosts(inside) {
     const f = state.filter;
-    return state.posts.filter((p) => !(f.prop !== 'All' && postProp(p.property) !== f.prop && postProp(p.property) !== 'Cluster'));
+    return state.posts.filter((p) => !(f.prop !== 'All' && postProp(p.property) !== f.prop && postProp(p.property) !== 'Cluster') && (inside || !p.collectionOnly));
   }
 
   function hcard(p) {
@@ -1352,7 +1355,7 @@
   }
   function todayItems() {
     const today = todayIso();
-    const posts = visiblePosts();
+    const posts = visiblePosts(true);
     const training = posts.filter((p) => catOf(p.category).type === 'training' && p.eventDate === today)
       .sort((a, b) => String(a.timing).localeCompare(String(b.timing)));
     // Only what is happening today: training today, birthdays, and posts set to show in Today's Special today.
@@ -1691,7 +1694,7 @@
     const c = state.collections.find((x) => x.id === id) || (state.adminColls || []).find((x) => x.id === id);
     if (!c) return `<div class="screen"><div class="page"><div class="row"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button></div>${emptyState('This collection has ended.')}</div></div>`;
     const bg = colorHex(c.color);
-    const posts = visiblePosts().filter((p) => p.collection === id);
+    const posts = visiblePosts(true).filter((p) => p.collection === id);
     const rows = cats().filter((k) => k.active !== false).map((k) => sectionRow(k, posts.filter((p) => p.category === k.id), { onDark: true })).join('');
     const h = heroTop({ image: c.banner }, canCollect() ? `<button class="icon-btn" type="button" data-act="nav" data-to="collectionEdit" data-id="${esc(c.id)}" aria-label="Edit collection">${I.edit}</button>` : '', 'fade');
     return `
@@ -1704,7 +1707,12 @@
           <h1 class="title-lg">${esc(c.name)}</h1>
           ${c.end ? `<span class="small" style="opacity:.85">Until ${esc(fmtDate(c.end))}</span>` : ''}
         </div>
-        ${rows || `<p style="opacity:.9">Nothing added yet. When posting an offer, notice or newsletter, choose “${esc(c.name)}” under Special collection.</p>`}
+        ${(() => {
+          const auto = rows || `<p style="opacity:.9">Nothing added yet. When posting an offer, notice or newsletter, choose “${esc(c.name)}” under Special collection.</p>`;
+          const bl = c.blocks || [];
+          if (!bl.length) return auto;
+          return Blocks.render(bl, { auto }) + (bl.some((b) => b.type === 'auto') ? '' : auto);
+        })()}
       </div>
     </div>`;
   };
@@ -1771,6 +1779,7 @@
           ${p.serves ? `<span class="small muted" style="${p.inclusions && p.inclusions.length ? 'border-top:1px solid #EEE7DA;padding-top:10px' : ''}">${esc(p.serves)}</span>` : ''}
         </div>` : ''}
         ${p.message ? `<div class="prose">${esc(p.message)}</div>` : ''}
+        ${Blocks.render(p.blocks)}
         ${attachments(p)}
         ${p.terms ? `<details class="terms"><summary>Terms &amp; Conditions</summary><div class="terms-body">${esc(p.terms)}</div></details>` : ''}
         <div class="spacer"></div>
@@ -2314,13 +2323,18 @@
         ${h.bar}
         <h1 class="title-lg" style="font-size:34px">${esc(p.title)}</h1>
         ${p.message ? `<div class="prose on-dark">${esc(p.message)}</div>` : ''}
+        ${p.blocks && p.blocks.length ? Blocks.render(p.blocks) : includedSections(p, true)}
         ${attachments(p)}
-        ${includedSections(p, true)}
+        ${shareNlBtn(p)}
         <p class="small center" style="opacity:.8">${p.postedBy ? `Shared by ${esc(p.postedBy)} · ` : ''}${esc(fmtStamp(p.created))}</p>
       </div>
     </div>`;
   }
 
+  /** Newsletters that Admin or Marketing allowed to be shared get a "Share with guests" button. */
+  function shareNlBtn(p) {
+    return p.shareable ? `<button class="btn share-nl" type="button" data-act="nav" data-to="share" data-id="${esc(p.id)}">${I.share} Share with guests</button>` : '';
+  }
   function textDetail(p) {
     const cat = catOf(p.category);
     const monthly = cat.type === 'monthly';
@@ -2337,7 +2351,8 @@
       ${p.message ? `<div class="prose">${esc(p.message)}</div>` : ''}
       ${attachments(p)}
       ${p.end ? `<p class="small muted row" style="gap:6px">${I.cal}Until ${esc(fmtDate(p.end))}</p>` : ''}
-      ${monthly ? includedSections(p, false) : ''}
+      ${monthly ? (p.blocks && p.blocks.length ? Blocks.render(p.blocks) : includedSections(p, false)) : ''}
+      ${monthly ? shareNlBtn(p) : ''}
       <div class="spacer"></div>
       ${needsAck ? `<div class="sticky-actions">${p.acknowledged
         ? `<div class="acked-box">${I.check} You acknowledged this</div>`
@@ -2750,8 +2765,12 @@
         ${isOffer || isMonthly ? `<input type="hidden" name="attachment" value="${esc(safeUrl(d.attachment))}">` : `<input type="hidden" name="menu" value="${esc(safeUrl(d.menu))}">`}
       </div>
 
+      ${isOffer ? Blocks.editor(d.blocks || [], { exclude: d.id, title: 'More sections (optional)', hint: 'Add images and text sections below the description, in the order you want. Images keep their own height.' }) : ''}
       ${isMonthly ? newsletterStyleFields(d) : ''}
-      ${isMonthly ? includePicker(d) : ''}
+      ${isMonthly ? Blocks.editor(newsletterBlocks(d), { posts: true, exclude: d.id, title: 'Newsletter sections', hint: 'Build the newsletter: text sections with headings, images and chosen posts, in the order you want. Use the arrows to move them.' }) : ''}
+      ${isMonthly && canCollect() ? `<div class="card"><label class="switch-row" style="border:0;padding:0">
+        <span><b style="font-size:14px">Can be shared with guests</b><br><span class="small muted">Adds a “Share with guests” button (picture or PDF, with the hotel logo and address)</span></span>
+        <span class="switch"><input type="checkbox" role="switch" name="shareable" ${d.shareable ? 'checked' : ''}><span></span></span></label></div>` : ''}
       ${collectionPicker(d)}
       ${specialFields(d, isOffer)}
 
@@ -2879,11 +2898,14 @@
     if (!list.length && !d.collection) return '';
     return `<div class="card">
       <div class="field"><label for="c-coll">Special collection (optional)</label>
-        <select class="select" id="c-coll" name="collection">
+        <select class="select" id="c-coll" name="collection" data-change="collPick">
           <option value="">None</option>
           ${list.map((c) => `<option value="${esc(c.id)}" ${d.collection === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
         </select></div>
-      <p class="hint">Also shows this post inside the highlighted collection, e.g. Festive Season.</p>
+      <p class="hint">Shows this post inside the highlighted collection, e.g. Festive Season.</p>
+      <label class="switch-row" id="coll-only" style="border:0;padding-bottom:0" ${d.collection ? '' : 'hidden'}>
+        <span><b style="font-size:14px">Only inside the collection</b><br><span class="small muted">Turn off to also show it on the Home and Offers pages</span></span>
+        <span class="switch"><input type="checkbox" role="switch" name="collectionOnly" ${d.id ? (d.collectionOnly ? 'checked' : '') : 'checked'}><span></span></span></label>
     </div>`;
   }
 
@@ -3034,6 +3056,7 @@
         <div class="field"><span class="label">Animation</span>${animPicker('animation', c.animation)}</div>
       </div>
       ${imageField('banner', banner, { label: 'Banner image (optional)', noun: 'banner' })}
+      ${Blocks.editor(c.blocks && c.blocks.length ? (c.blocks.some((b) => b.type === 'auto') ? c.blocks : c.blocks.concat([{ type: 'auto' }])) : [{ type: 'auto' }], { posts: true, title: 'Page sections', hint: 'Build the collection page like a newsletter: add text, images and chosen posts, and move “Posts in this collection” to where you want it.' })}
       <div class="card" style="gap:12px">
         <div class="grid-2">
           <div class="field"><label for="k-cs">Show from</label><input class="input" id="k-cs" name="start" type="date" value="${esc(c.start || '')}"></div>
@@ -3336,6 +3359,7 @@
   /* App setup: a Settings-style menu, each item opens its own page. */
   const SETUP_SECTIONS = {
     logo: { title: 'Logo', color: '#13294B', icon: () => sv('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15l3-4 3 3 2-2 3 3"/>', 18), desc: 'Sign-in screen and app header' },
+    hotels: { title: 'Hotels', color: '#7E5F2E', icon: () => sv('<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 10h4a1 1 0 0 1 1 1v10M8 8h3M8 12h3M8 16h3M3 21h18"/>', 18), desc: 'Name, address, contacts and logo for what guests receive' },
     fonts: { title: 'Fonts', color: '#8A4B1F', icon: () => sv('<path d="M4 20l6-16h1l6 16"/><path d="M6.5 14h9"/>', 18), desc: 'Headline and body text fonts' },
     theme: { title: 'App theme', color: '#B48A4E', icon: () => I.sparkles, desc: 'Seasonal colours, greeting and animation' },
     signin: { title: 'Sign-in image', color: '#2F6FDB', icon: () => sv('<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5-9 8"/>', 18), desc: 'Photo at the top of the sign-in screen' },
@@ -3350,6 +3374,7 @@
     const th = state.adminTheme || {};
     return {
       logo: safeUrl(state.settings.logo) ? 'Added' : 'None',
+      hotels: ['DXBAI', 'DXBPI', 'Cluster'].filter((k) => ((state.settings.hotels || {})[k] || {}).address).length + ' of 3 set',
       fonts: Object.keys(fonts).length ? Object.keys(fonts).length + ' uploaded' : 'Built-in',
       theme: th.preset && th.preset !== 'default' ? (THEMES[th.preset] || {}).name + (th.live ? '' : ' (scheduled)') : 'Classic',
       signin: safeUrl(state.settings.heroImage) ? 'Added' : 'None',
@@ -3375,7 +3400,7 @@
         <h2>App setup</h2>
         <p>Manage how the app looks and works for everyone at DXBAI and DXBPI: the logo, fonts and seasonal theme, the lists people choose from, and the post categories.</p>
       </div>
-      <div class="set-group">${['logo', 'fonts', 'theme', 'signin'].map(row).join('')}</div>
+      <div class="set-group">${['logo', 'hotels', 'fonts', 'theme', 'signin'].map(row).join('')}</div>
       <div class="set-group">${['outlets', 'departments', 'categories'].map(row).join('')}</div>
       <div class="set-group">${row('reset')}</div>`;
   }
@@ -3386,6 +3411,7 @@
     const head = x && sec !== 'reset' ? `<div class="set-intro small-intro"><span class="set-intro-ic" style="background:${x.color}">${x.icon()}</span><h2>${esc(x.title)}</h2><p>${esc(x.desc)}.</p></div>` : '';
     if (sec === 'logo') return head + logoCard() + reportLogoCard();
     if (sec === 'fonts') return head + fontsCard();
+    if (sec === 'hotels') return head + hotelsForm();
     if (sec === 'theme') return head + themeCard();
     if (sec === 'signin') return head + `
       <div class="card">
@@ -3524,6 +3550,33 @@
         ${logo ? `<button class="btn btn-sm btn-danger" type="button" data-act="removeLogo">Remove</button>` : ''}
       </div>
     </div>`;
+  }
+
+  /** Admin: each hotel's profile, printed at the bottom of offers and newsletters shared with guests. */
+  function hotelsForm() {
+    const H = state.settings.hotels || {};
+    const card = (k, label) => {
+      const h = H[k] || {};
+      return `<div class="card" data-hotel="${k}">
+        <span class="section-title" style="margin:0">${esc(label)}</span>
+        ${imageField('hlogo-' + k, safeUrl(h.logo), { id: 'hl-' + k, label: 'Logo at the bottom of shared offers and newsletters', noun: 'logo', style: 'min-height:96px' })}
+        <div class="field"><label for="h-n-${k}">Hotel name</label><input class="input" id="h-n-${k}" name="name-${k}" maxlength="120" value="${esc(h.name || '')}"></div>
+        <div class="field"><label for="h-a-${k}">Address</label><textarea class="textarea" id="h-a-${k}" name="address-${k}" maxlength="300" style="min-height:76px" placeholder="e.g. Marasi Drive, Business Bay, Dubai, UAE">${esc(h.address || '')}</textarea></div>
+        <div class="grid-2">
+          <div class="field"><label for="h-p-${k}">Phone</label><input class="input" id="h-p-${k}" name="phone-${k}" inputmode="tel" maxlength="40" value="${esc(h.phone || '')}" placeholder="+971 4 …"></div>
+          <div class="field"><label for="h-e-${k}">Email</label><input class="input" id="h-e-${k}" name="email-${k}" inputmode="email" maxlength="120" value="${esc(h.email || '')}"></div>
+        </div>
+        <div class="field"><label for="h-w-${k}">Website</label><input class="input" id="h-w-${k}" name="website-${k}" inputmode="url" maxlength="160" value="${esc(h.website || '')}" placeholder="https://"></div>
+      </div>`;
+    };
+    return `<form class="stack" data-form="hotels" novalidate style="gap:16px">
+      <p class="hint" style="margin:0">Shown at the bottom of every offer and newsletter shared with guests, for the hotel the post is for. “Cluster” is used for posts for both hotels, so you can use a combined logo there.</p>
+      ${card('DXBAI', 'DXBAI · Embassy Suites')}
+      ${card('DXBPI', 'DXBPI · Hilton Garden Inn')}
+      ${card('Cluster', 'Cluster · both hotels')}
+      <div class="error-box" id="form-error" hidden></div>
+      <div class="sticky-actions"><button class="btn" type="submit">Save hotels</button></div>
+    </form>`;
   }
 
   /** Admin: a separate logo printed at the top of training attendance sheets (PDF). */
@@ -3696,12 +3749,251 @@
   };
 
 
+  /* ---------------- Body sections: text, images and selected posts ---------------- */
+  /*
+   * Offers, newsletters and special collections can have a body made of sections, in any order:
+   * a text section (heading + text), an image (full width, its own height), a row of selected posts,
+   * and, in a collection, "Posts in this collection". Built and reordered in the post form.
+   */
+  const Blocks = {
+    uid: 0,
+    KIND: { text: 'Text section', image: 'Image', posts: 'Selected posts', auto: 'Posts in this collection' },
+    pickList(sel, exclude) {
+      const groups = cats().filter((c) => c.active !== false && c.type !== 'monthly')
+        .map((c) => [c, state.posts.filter((x) => x.category === c.id && x.id !== exclude)]).filter((g) => g[1].length);
+      return groups.map(([c, ps]) => `<details class="inc-group" ${ps.some((x) => sel.has(x.id)) ? 'open' : ''}>
+        <summary>${catTag(c)}<span class="small muted">${ps.length}</span></summary>
+        ${ps.map((x) => `<label class="check-row"><input type="checkbox" data-k="id" value="${esc(x.id)}" ${sel.has(x.id) ? 'checked' : ''}><span>${esc(x.title)}${x.outlet ? ` <span class="small muted">· ${esc(x.outlet)}</span>` : ''}</span></label>`).join('')}
+      </details>`).join('') || '<p class="small muted">No live posts to choose yet.</p>';
+    },
+    item(b, exclude) {
+      const n = ++this.uid;
+      const body = b.type === 'text' ? `
+          <input class="input" data-k="heading" maxlength="120" placeholder="Heading (optional)" value="${esc(b.heading || '')}">
+          <textarea class="textarea" data-k="text" maxlength="4000" placeholder="Write this section…">${esc(b.text || '')}</textarea>`
+        : b.type === 'image' ? imageField('blkimg' + n, safeUrl(b.url), { id: 'bi' + n, noun: 'image', style: 'min-height:120px' })
+        : b.type === 'posts' ? `
+          <input class="input" data-k="title" maxlength="80" placeholder="Section title, e.g. This month’s offers" value="${esc(b.title || '')}">
+          <div class="blk-pick">${this.pickList(new Set(b.ids || []), exclude)}</div>`
+        : '<p class="small muted" style="margin:0">All posts added to this collection, grouped by category. Move it to choose where they appear.</p>';
+      return `<div class="blk" data-type="${esc(b.type)}">
+        <div class="blk-bar"><span class="blk-kind">${esc(this.KIND[b.type] || '')}</span>
+          <button type="button" class="blk-btn" data-act="blkMove" data-v="-1" aria-label="Move up">${sv('<path d="M12 19V5M5 12l7-7 7 7"/>', 18)}</button>
+          <button type="button" class="blk-btn" data-act="blkMove" data-v="1" aria-label="Move down">${sv('<path d="M12 5v14M5 12l7 7 7-7"/>', 18)}</button>
+          ${b.type === 'auto' ? '' : `<button type="button" class="blk-btn danger" data-act="blkDel" aria-label="Remove section">${I.trash}</button>`}
+        </div>
+        <div class="blk-body">${body}</div>
+      </div>`;
+    },
+    /** opts: { posts: allow selected posts, auto: collection posts, exclude: this post's id, hint } */
+    editor(blocks, opts) {
+      opts = opts || {};
+      return `<div class="card blk-editor" data-exclude="${esc(opts.exclude || '')}">
+        <span class="label">${esc(opts.title || 'Sections')}</span>
+        <p class="hint" style="margin-top:-8px">${esc(opts.hint || 'Add text, images' + (opts.posts ? ' and posts' : '') + ' in the order you want them to appear. Use the arrows to move a section.')}</p>
+        <div class="blk-list">${(blocks || []).map((b) => this.item(b, opts.exclude)).join('')}</div>
+        <div class="blk-add">
+          <button type="button" class="btn btn-sm btn-ghost" data-act="blkAdd" data-v="text">${sv('<path d="M4 6h16M4 12h16M4 18h10"/>', 16)} Text</button>
+          <button type="button" class="btn btn-sm btn-ghost" data-act="blkAdd" data-v="image">${I.image} Image</button>
+          ${opts.posts ? `<button type="button" class="btn btn-sm btn-ghost" data-act="blkAdd" data-v="posts">${I.tag} Posts</button>` : ''}
+        </div>
+      </div>`;
+    },
+    read(form) {
+      return [...form.querySelectorAll('.blk-list > .blk')].map((el) => {
+        const t = el.dataset.type;
+        if (t === 'text') return { type: t, heading: el.querySelector('[data-k=heading]').value.trim(), text: el.querySelector('[data-k=text]').value.trim() };
+        if (t === 'image') return { type: t, url: (el.querySelector('input[type=hidden]') || {}).value || '' };
+        if (t === 'posts') return { type: t, title: el.querySelector('[data-k=title]').value.trim(), ids: [...el.querySelectorAll('[data-k=id]:checked')].map((i) => i.value) };
+        return { type: t };
+      }).filter((b) => (b.type === 'text' && (b.heading || b.text)) || (b.type === 'image' && b.url) || (b.type === 'posts' && b.ids.length) || b.type === 'auto');
+    },
+    /** In the app. opts: { auto: html for the collection's posts } */
+    render(blocks, opts) {
+      opts = opts || {};
+      return (blocks || []).map((b) => {
+        if (b.type === 'text') return `<section class="card blk-text">${b.heading ? `<h3>${esc(b.heading)}</h3>` : ''}${b.text ? `<div class="blk-prose">${esc(b.text)}</div>` : ''}</section>`;
+        if (b.type === 'image' && safeUrl(b.url)) return `<img class="blk-img" src="${esc(b.url)}" alt="" loading="lazy">`;
+        if (b.type === 'posts') {
+          const ps = b.ids.map((id) => state.posts.find((x) => x.id === id)).filter(Boolean);
+          if (!ps.length) return '';
+          return `<section class="sec blk-posts">${b.title ? `<div class="sec-h"><h2>${esc(b.title)}</h2></div>` : ''}<div class="hrow">${ps.map(hcard).join('')}</div></section>`;
+        }
+        if (b.type === 'auto') return opts.auto || '';
+        return '';
+      }).join('');
+    }
+  };
+  /** A newsletter's sections: its own, or (older newsletters) the posts ticked under "Include". */
+  function newsletterBlocks(p) {
+    if (p.blocks && p.blocks.length) return p.blocks;
+    return p.includes && p.includes.length ? [{ type: 'posts', title: '', ids: p.includes }] : [];
+  }
+
   /* ---------------- Guest share: image and PDF ---------------- */
   const HOTEL_NAMES = {
     DXBAI: ['Embassy Suites by Hilton Dubai Business Bay'],
     DXBPI: ['Hilton Garden Inn Dubai Business Bay'],
     Cluster: ['Embassy Suites by Hilton Dubai Business Bay', 'Hilton Garden Inn Dubai Business Bay']
   };
+  /** Pictures a shared offer or newsletter needs: the cover, section images, post thumbnails, the hotel logo. */
+  async function shareAssets(p, isNl) {
+    const a = { hero: null, imgs: {}, logo: null };
+    const urls = new Set();
+    const blocks = isNl ? newsletterBlocks(p) : (p.blocks || []);
+    blocks.forEach((b) => {
+      if (b.type === 'image') urls.add(b.url);
+      if (b.type === 'posts') b.ids.forEach((id) => { const x = state.posts.find((q) => q.id === id); if (x && safeUrl(x.image)) urls.add(x.image); });
+    });
+    const h = hotelFor(p);
+    const jobs = [loadShareImage(p.image).then((i) => { a.hero = i; })];
+    if (h && safeUrl(h.logo)) jobs.push(loadShareImage(h.logo).then((i) => { a.logo = i; }));
+    urls.forEach((u) => jobs.push(loadShareImage(u).then((i) => { a.imgs[u] = i; })));
+    await Promise.all(jobs.map((j) => j.catch(() => {})));
+    return a;
+  }
+  function hotelFor(p) {
+    const k = postProp(p.property);
+    const h = (state.settings.hotels || {})[k] || {};
+    return Object.assign({ name: (HOTEL_NAMES[k] || []).join(' & ') }, h);
+  }
+
+  const SH = { serif: '"AppHeading", "Hilton Serif", Georgia, serif', sans: '"AppBody", "Hilton Sans", system-ui, sans-serif',
+    navy: '#13294B', gold: '#B48A4E', goldText: '#7E5F2E', muted: '#5A6273', cream: '#F4EFE7', line: '#E3DBCD' };
+
+  /** Text, image and post sections on the shared picture. Returns the new y. */
+  function drawBlocksCanvas(ctx, blocks, a, y, draw, PAD, INNER) {
+    const { serif, sans, navy, goldText, muted } = SH;
+    blocks.forEach((b) => {
+      if (b.type === 'text') {
+        ctx.font = `34px ${sans}`;
+        const lines = b.text ? wrapLines(ctx, b.text, INNER - 88) : [];
+        ctx.font = `52px ${serif}`;
+        const hl = b.heading ? wrapLines(ctx, b.heading, INNER - 88) : [];
+        const h = 88 + hl.length * 64 + (hl.length && lines.length ? 16 : 0) + lines.length * 50 - (lines.length ? 0 : 10);
+        if (draw) {
+          roundRect(ctx, PAD, y, INNER, h, 28); ctx.fillStyle = '#FFFFFF'; ctx.fill();
+          let ly = y + 44;
+          ctx.fillStyle = navy; ctx.font = `52px ${serif}`;
+          hl.forEach((ln) => { ctx.fillText(ln, PAD + 44, ly + 48); ly += 64; });
+          if (hl.length && lines.length) ly += 16;
+          ctx.font = `34px ${sans}`;
+          lines.forEach((ln) => { ctx.fillText(ln, PAD + 44, ly + 36); ly += 50; });
+        }
+        y += h + 32;
+      } else if (b.type === 'image') {
+        const img = a.imgs[b.url];
+        if (!img) return;
+        const h = Math.min(2400, Math.round(INNER * img.naturalHeight / img.naturalWidth));
+        if (draw) {
+          ctx.save(); roundRect(ctx, PAD, y, INNER, h, 28); ctx.clip();
+          const s = Math.max(INNER / img.naturalWidth, h / img.naturalHeight);
+          ctx.drawImage(img, PAD + (INNER - img.naturalWidth * s) / 2, y + (h - img.naturalHeight * s) / 2, img.naturalWidth * s, img.naturalHeight * s);
+          ctx.restore();
+        }
+        y += h + 32;
+      } else if (b.type === 'posts') {
+        const ps = b.ids.map((id) => state.posts.find((x) => x.id === id)).filter(Boolean);
+        if (!ps.length) return;
+        if (b.title) {
+          ctx.font = `56px ${serif}`;
+          wrapLines(ctx, b.title, INNER).forEach((ln) => { if (draw) { ctx.fillStyle = navy; ctx.fillText(ln, PAD, y + 52); } y += 68; });
+          y += 16;
+        }
+        ps.forEach((x) => {
+          const CH = 260, TH = 212, tx = PAD + 24 + TH + 36, tw = INNER - (tx - PAD) - 28;
+          if (draw) {
+            roundRect(ctx, PAD, y, INNER, CH, 28); ctx.fillStyle = '#FFFFFF'; ctx.fill();
+            const img = a.imgs[x.image];
+            ctx.save(); roundRect(ctx, PAD + 24, y + 24, TH, TH, 20); ctx.clip();
+            if (img) {
+              const s = Math.max(TH / img.naturalWidth, TH / img.naturalHeight);
+              ctx.drawImage(img, PAD + 24 + (TH - img.naturalWidth * s) / 2, y + 24 + (TH - img.naturalHeight * s) / 2, img.naturalWidth * s, img.naturalHeight * s);
+            } else { ctx.fillStyle = '#1F3A63'; ctx.fillRect(PAD + 24, y + 24, TH, TH); }
+            ctx.restore();
+            let ly = y + 64;
+            const eb = (x.outlet || catOf(x.category).label || '').toUpperCase();
+            ctx.fillStyle = goldText; ctx.font = `bold 24px ${sans}`; ctx.fillText(wrapLines(ctx, eb, tw)[0] || '', tx, ly); ly += 50;
+            ctx.fillStyle = navy; ctx.font = `40px ${serif}`;
+            wrapLines(ctx, x.title, tw).slice(0, 2).forEach((ln) => { ctx.fillText(ln, tx, ly); ly += 48; });
+            const meta = [offerDate(x), x.timing].filter(Boolean).join(' · ');
+            ctx.font = `26px ${sans}`; ctx.fillStyle = muted;
+            if (meta) { ctx.fillText(wrapLines(ctx, meta, tw)[0], tx, ly + 4); ly += 40; }
+            if (x.price !== '' && x.price != null) { ctx.fillStyle = goldText; ctx.font = `bold 30px ${sans}`; ctx.fillText('AED ' + money(x.price), tx, Math.min(ly + 6, y + CH - 28)); }
+          }
+          y += CH + 24;
+        });
+        y += 12;
+      }
+    });
+    return y;
+  }
+
+  /** Bottom of everything guests receive: the hotel's logo, name, address and contacts. */
+  function drawFooter(ctx, p, a, y, draw, W, PAD) {
+    const { serif, sans, navy, muted, line } = SH;
+    const h = hotelFor(p);
+    y += 30;
+    if (draw) { ctx.strokeStyle = line; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke(); }
+    y += 64;
+    const center = (txt, font, color, lh) => {
+      ctx.font = font;
+      wrapLines(ctx, txt, W - PAD * 2).forEach((ln) => { if (draw) { ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.fillText(ln, W / 2, y); ctx.textAlign = 'left'; } y += lh; });
+    };
+    if (a.logo) {
+      const s = Math.min(520 / a.logo.naturalWidth, 160 / a.logo.naturalHeight);
+      const lw = a.logo.naturalWidth * s, lh = a.logo.naturalHeight * s;
+      if (draw) ctx.drawImage(a.logo, (W - lw) / 2, y - 20, lw, lh);
+      y += lh + 30;
+      if (h.name) center(h.name, `30px ${serif}`, navy, 44);
+    } else if (h.name) center(h.name, `34px ${serif}`, navy, 50);
+    if (h.address) { y += 4; center(h.address, `28px ${sans}`, muted, 40); }
+    const contact = [h.phone, h.email].filter(Boolean).join('  ·  ');
+    if (contact) center(contact, `28px ${sans}`, muted, 40);
+    if (h.website) center(h.website.replace(/^https?:\/\//, ''), `bold 28px ${sans}`, navy, 40);
+    return y + 40;
+  }
+
+  /** A newsletter as one long picture: cover, title band, intro, sections, hotel footer. */
+  function drawNewsletter(ctx, p, a, measureOnly) {
+    const W = 1080, PAD = 72, INNER = W - PAD * 2;
+    const { serif, sans, navy, cream } = SH;
+    const draw = !measureOnly;
+    const special = p.style === 'Special' || p.style === 'Festive';
+    const band = special ? colorHex(p.themeColor || (p.style === 'Festive' ? FESTIVE_RED : 'navy')) : navy;
+    let y = 0;
+    if (draw) { ctx.fillStyle = cream; ctx.fillRect(0, 0, W, 99999); }
+    if (a.hero) {
+      const h = Math.min(1350, Math.round(W * a.hero.naturalHeight / a.hero.naturalWidth));
+      if (draw) {
+        ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, h); ctx.clip();
+        const s = Math.max(W / a.hero.naturalWidth, h / a.hero.naturalHeight);
+        ctx.drawImage(a.hero, (W - a.hero.naturalWidth * s) / 2, (h - a.hero.naturalHeight * s) / 2, a.hero.naturalWidth * s, a.hero.naturalHeight * s);
+        ctx.restore();
+      }
+      y = h;
+    }
+    ctx.font = `80px ${serif}`;
+    const tl = wrapLines(ctx, p.title, INNER);
+    const bandH = 80 + 40 + tl.length * 92 + 56;
+    if (draw) {
+      ctx.fillStyle = band; ctx.fillRect(0, y, W, bandH);
+      ctx.fillStyle = '#E8D3AE'; ctx.font = `bold 28px ${sans}`; ctx.fillText(tileDate(p).toUpperCase(), PAD, y + 92);
+      ctx.fillStyle = '#FFFFFF'; ctx.font = `80px ${serif}`;
+      tl.forEach((ln, i) => ctx.fillText(ln, PAD, y + 92 + 40 + 72 + i * 92));
+    }
+    y += bandH + 56;
+    if (p.message) {
+      ctx.font = `36px ${sans}`;
+      wrapLines(ctx, p.message, INNER).forEach((ln) => { if (draw) { ctx.fillStyle = navy; ctx.fillText(ln, PAD, y + 36); } y += 52; });
+      y += 32;
+    }
+    y = drawBlocksCanvas(ctx, newsletterBlocks(p), a, y, draw, PAD, INNER);
+    y = drawFooter(ctx, p, a, y, draw, W, PAD);
+    return { height: Math.ceil(y), ctaRect: null };
+  }
+
+
 
   function ctaTarget(raw) {
     const v = String(raw || '').trim();
@@ -3773,7 +4065,9 @@
   }
 
   /** Draws the guest card. Layout units are 1080 wide; the canvas is scaled up for full resolution. */
-  function drawOffer(ctx, p, img, measureOnly) {
+  function drawOffer(ctx, p, a, measureOnly) {
+    a = a || { imgs: {} };
+    const img = a.hero;
     const W = 1080, PAD = 72, INNER = W - PAD * 2;
     const serif = '"AppHeading", "Hilton Serif", Georgia, serif';
     const sans = '"AppBody", "Hilton Sans", system-ui, sans-serif';
@@ -3871,6 +4165,8 @@
       y += 24;
     }
 
+    // Sections added to the offer (text and images)
+    y = drawBlocksCanvas(ctx, p.blocks || [], a, y, draw, PAD, INNER);
     // CTA (guest share only)
     let ctaRect = null;
     const target = ctaTarget(p.ctaLink);
@@ -3898,16 +4194,8 @@
       });
       y += 20;
     }
-    // Footer: hotel name(s)
-    y += 30;
-    const names = HOTEL_NAMES[postProp(p.property)] || [];
-    if (draw) { ctx.strokeStyle = '#E3DBCD'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke(); }
-    y += 64;
-    names.forEach((n) => {
-      if (draw) { ctx.fillStyle = navy; ctx.font = `34px ${serif}`; ctx.textAlign = 'center'; ctx.fillText(n, W / 2, y); ctx.textAlign = 'left'; }
-      y += 50;
-    });
-    y += 40;
+    // Footer: hotel logo, name, address and contacts
+    y = drawFooter(ctx, p, a, y, draw, W, PAD);
     return { height: Math.ceil(y), ctaRect };
   }
 
@@ -3919,15 +4207,18 @@
         await Promise.all(['76px AppHeading', '76px "Hilton Serif"', '38px AppBody', 'bold 38px AppBody', '38px "Hilton Sans"']
           .map((f) => document.fonts.load(f)));
       } catch (e) { /* fallback fonts */ }
-      const img = p.image ? await loadShareImage(p.image) : null;
-      const SCALE = 2;
+      const isNl = catOf(p.category).type === 'monthly';
+      const draw = isNl ? drawNewsletter : drawOffer;
+      const assets = await shareAssets(p, isNl);
       const probe = document.createElement('canvas').getContext('2d');
-      const m = drawOffer(probe, p, img, true);
+      const m = draw(probe, p, assets, true);
+      // Phones limit how big a picture can be: long newsletters are drawn at a slightly lower resolution.
+      const SCALE = Math.max(0.8, Math.min(2, Math.sqrt(15e6 / (1080 * m.height))));
       const c = document.createElement('canvas');
-      c.width = 1080 * SCALE; c.height = m.height * SCALE;
+      c.width = Math.round(1080 * SCALE); c.height = Math.round(m.height * SCALE);
       const ctx = c.getContext('2d');
       ctx.scale(SCALE, SCALE);
-      const res = drawOffer(ctx, p, img, false);
+      const res = draw(ctx, p, assets, false);
       const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.92));
       const links = res.ctaRect && res.ctaRect.url ? [{ x: res.ctaRect.x * SCALE, y: res.ctaRect.y * SCALE, w: res.ctaRect.w * SCALE, h: res.ctaRect.h * SCALE, url: res.ctaRect.url }] : [];
       const pdf = makePdf(new Uint8Array(await blob.arrayBuffer()), c.width, c.height, links);
@@ -3995,7 +4286,7 @@
 
   VIEWS.share = ({ id }) => {
     const p = state.posts.find((x) => x.id === id) || (state.myPosts || []).find((x) => x.id === id);
-    if (!p) return `<div class="screen"><div class="page"><div class="row"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button></div><p>Offer not found.</p></div></div>`;
+    if (!p) return `<div class="screen"><div class="page"><div class="row"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button></div><p>Not found.</p></div></div>`;
     const ready = Share.current && Share.current.id === id && Share.current.version === p;
     const failed = Share.failedId === id;
     if (!ready && !Share.building && !failed) {
@@ -4010,7 +4301,7 @@
         <button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
         <h1>Share with guest</h1><span style="width:44px"></span>
       </div>
-      ${ready ? `<img src="${esc(Share.current.url)}" alt="Offer image for guests" style="width:100%;border-radius:16px;box-shadow:0 6px 24px rgba(19,41,75,.12)">`
+      ${ready ? `<img src="${esc(Share.current.url)}" alt="Picture for guests" style="width:100%;border-radius:16px;box-shadow:0 6px 24px rgba(19,41,75,.12)">`
         : failed ? `<div class="card center"><p>Could not prepare the image.</p><button class="btn btn-outline" type="button" data-act="retryShare">Try again</button></div>`
         : '<div class="card center"><div class="spinner"></div><p class="small muted">Preparing a full-resolution image…</p></div>'}
       <div class="sticky-actions">
@@ -4464,6 +4755,28 @@
         render();
       } catch (e) { showError(e); el.disabled = false; }
     },
+    blkAdd(el) {
+      const ed = el.closest('.blk-editor');
+      const t = el.dataset.v;
+      ed.querySelector('.blk-list').insertAdjacentHTML('beforeend', Blocks.item(t === 'posts' ? { type: t, ids: [] } : { type: t }, ed.dataset.exclude));
+      const last = ed.querySelector('.blk-list > .blk:last-child');
+      last.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const f = last.querySelector('input:not([type=hidden]):not([type=file]), textarea');
+      if (f && t !== 'posts') setTimeout(() => f.focus(), 300);
+      if (t === 'image') { const fi = last.querySelector('input[type=file]'); if (fi) fi.click(); }
+    },
+    blkMove(el) {
+      const b = el.closest('.blk');
+      if (el.dataset.v === '-1' && b.previousElementSibling) b.parentNode.insertBefore(b, b.previousElementSibling);
+      else if (el.dataset.v === '1' && b.nextElementSibling) b.parentNode.insertBefore(b.nextElementSibling, b);
+      b.classList.remove('blk-moved'); void b.offsetWidth; b.classList.add('blk-moved');
+    },
+    blkDel(el) {
+      const b = el.closest('.blk');
+      const filled = [...b.querySelectorAll('textarea, input[data-k], input[type=hidden]')].some((i) => i.value.trim()) || b.querySelector('[data-k=id]:checked');
+      if (filled && !confirm('Remove this section?')) return;
+      b.remove();
+    },
     previewPopup(el) { showPopup(popupFromForm(el.closest('form')), true); },
     popupLink(el) {
       const form = el.closest('form');
@@ -4714,8 +5027,12 @@
         menu: f.menu || '',
         attachment: f.attachment || ''
       };
-      if ('collection' in f) post.collection = f.collection || '';
-      if (ctype === 'monthly') post.includes = [...form.querySelectorAll('input[name="inc"]:checked')].map((i) => i.value);
+      if ('collection' in f) { post.collection = f.collection || ''; post.collectionOnly = !!(f.collection && f.collectionOnly); }
+      if (form.querySelector('.blk-editor')) post.blocks = Blocks.read(form);
+      if (ctype === 'monthly') {
+        post.includes = [...new Set(post.blocks.filter((b) => b.type === 'posts').reduce((acc, b) => acc.concat(b.ids), []))];
+        if (canCollect()) post.shareable = !!f.shareable;
+      }
       if (ctype === 'monthly') Object.assign(post, { style: f.style || 'Regular', themeColor: f.style === 'Regular' ? '' : (f.themeColor || ''), animation: f.style === 'Regular' ? 'none' : (f.animation || 'none') });
       if (ctype === 'people') {
         if (isAward(catOf(category)) && !f.subtitle) return formError(form, 'Please choose the award.');
@@ -4819,12 +5136,31 @@
     } catch (e) { busy(form, false); formError(form, e.message); }
   };
 
+  FORMS.hotels = async (form) => {
+    if (form.querySelector('[data-uploading="1"]')) return formError(form, 'Please wait for the upload to finish.');
+    const f = Object.fromEntries(new FormData(form));
+    const hotels = {};
+    ['DXBAI', 'DXBPI', 'Cluster'].forEach((k) => {
+      hotels[k] = { name: (f['name-' + k] || '').trim(), address: (f['address-' + k] || '').trim(), phone: (f['phone-' + k] || '').trim(),
+        email: (f['email-' + k] || '').trim(), website: (f['website-' + k] || '').trim(), logo: f['hlogo-' + k] || '' };
+    });
+    busy(form, true);
+    try {
+      const j = await api('saveSettings', { hotels });
+      if (!j.brand || !j.brand.hotels) throw new Error('The backend needs updating: paste the new Code.gs into Apps Script, then Deploy › Manage deployments › Edit › New version › Deploy.');
+      setSettings({ heroImage: j.heroImage || '' }, j.brand);
+      Share.current = null;
+      toast('Hotels saved.');
+      busy(form, false);
+    } catch (e) { busy(form, false); formError(form, e.message); }
+  };
+
   FORMS.collection = async (form) => {
     if (form.querySelector('[data-uploading="1"]')) return formError(form, 'Please wait for the upload to finish.');
     const f = Object.fromEntries(new FormData(form));
     if (!String(f.name || '').trim()) return formError(form, 'Please give the collection a name.');
     if (f.start && f.end && f.end < f.start) return formError(form, 'The “Until” date is before the “Show from” date.');
-    const collection = { id: form.dataset.id || undefined, name: f.name.trim(), color: f.color, animation: f.animation, banner: f.banner || '', start: f.start || '', end: f.end || '', active: !!f.active };
+    const collection = { id: form.dataset.id || undefined, name: f.name.trim(), color: f.color, animation: f.animation, banner: f.banner || '', start: f.start || '', end: f.end || '', active: !!f.active, blocks: Blocks.read(form) };
     busy(form, true);
     try {
       const j = await api('saveCollection', { collection });
@@ -4960,6 +5296,7 @@
       if (prev) prev.style.setProperty({ primary: '--p', accent: '--a', background: '--b' }[el.name], el.value);
     },
     pushToggle(el) { Push.setOn(el.checked); },
+    collPick(el) { const r = document.getElementById('coll-only'); if (r) r.hidden = !el.value; },
     sounds(el) { LS.set('bb_sounds', !!el.checked); if (el.checked) { Sound.unlock(); Sound.play('none'); } toast(el.checked ? 'Sounds on.' : 'Sounds off.'); },
     haptics(el) { LS.set('bb_haptics', !!el.checked); if (el.checked) Haptics.decorate(document.body); else Haptics.strip(); toast(el.checked ? 'Haptic feedback on.' : 'Haptic feedback off.'); render(); },
     customColor(el) {
