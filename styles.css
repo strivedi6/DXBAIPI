@@ -998,3 +998,8 @@ html[data-theme="dark"] .blk-btn { color: var(--text-strong); }
 html[data-theme="dark"] .wk-chip span { color: var(--text-strong); border-color: #364052; }
 html[data-theme="dark"] .wk-chip input:checked + span { background: var(--gold); border-color: var(--gold); color: #13294B; }
 .field[hidden], [data-sm][hidden] { display: none !important; }
+
+/* Text without the white box: straight on the page background. */
+.prose.plain, .prose.on-dark.plain { background: none; padding: 0 2px; border-radius: 0; box-shadow: none; }
+.blk-text.plain { display: flex; flex-direction: column; gap: 8px; padding: 0 2px; }
+.coll-page .prose.plain, .coll-page .blk-text.plain h3, .coll-page .blk-text.plain .blk-prose { color: #fff; }

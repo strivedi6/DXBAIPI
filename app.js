@@ -1804,7 +1804,7 @@
           ${p.inclusions && p.inclusions.length ? `<span class="section-title" style="margin:0">Includes</span><ul class="inclusions">${p.inclusions.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}
           ${p.serves ? `<span class="small muted" style="${p.inclusions && p.inclusions.length ? 'border-top:1px solid #EEE7DA;padding-top:10px' : ''}">${esc(p.serves)}</span>` : ''}
         </div>` : ''}
-        ${p.message ? `<div class="prose">${esc(p.message)}</div>` : ''}
+        ${p.message ? `<div class="prose${p.plainText ? ' plain' : ''}">${esc(p.message)}</div>` : ''}
         ${Blocks.render(p.blocks)}
         ${attachments(p)}
         ${p.terms ? `<details class="terms"><summary>Terms &amp; Conditions</summary><div class="terms-body">${esc(p.terms)}</div></details>` : ''}
@@ -1828,7 +1828,7 @@
         ${p.position ? `<span class="pos">${esc(p.position)}</span>` : ''}
         <span class="small muted">${esc(PROP_LABEL[postProp(p.property)] || '')}</span>
       </div>
-      ${p.message ? `<div class="prose">${esc(p.message)}</div>` : ''}
+      ${p.message ? `<div class="prose${p.plainText ? ' plain' : ''}">${esc(p.message)}</div>` : ''}
       ${attachments(p)}
       <p class="small muted center">${p.postedBy ? `Shared by ${esc(p.postedBy)} · ` : ''}${esc(fmtStamp(p.created))}</p>
     </div></div>`;
@@ -1851,7 +1851,7 @@
         <div class="fact"><span>${I.mapPin} Venue</span><b>${esc(p.location || 'To be confirmed')}</b></div>
         ${p.personName ? `<div class="fact"><span>Presenter</span>${presenterHtml(p, 30)}</div>` : ''}
       </div>
-      ${p.message ? `<div class="prose">${esc(p.message)}</div>` : ''}
+      ${p.message ? `<div class="prose${p.plainText ? ' plain' : ''}">${esc(p.message)}</div>` : ''}
       ${attachments(p)}
       ${checkinBlock(p)}
       ${attendeesBlock(p)}
@@ -2348,7 +2348,7 @@
       <div class="page">
         ${h.bar}
         <h1 class="title-lg" style="font-size:34px">${esc(p.title)}</h1>
-        ${p.message ? `<div class="prose on-dark">${esc(p.message)}</div>` : ''}
+        ${p.message ? `<div class="prose on-dark${p.plainText ? ' plain' : ''}">${esc(p.message)}</div>` : ''}
         ${p.blocks && p.blocks.length ? Blocks.render(p.blocks) : includedSections(p, true)}
         ${attachments(p)}
         ${shareNlBtn(p)}
@@ -2374,7 +2374,7 @@
         <h1 class="title-lg">${esc(p.title)}</h1>
         <span class="small muted">${p.postedBy ? `Posted by ${esc(p.postedBy)} · ` : ''}${esc(fmtStamp(p.created))}</span>
       </div>
-      ${p.message ? `<div class="prose">${esc(p.message)}</div>` : ''}
+      ${p.message ? `<div class="prose${p.plainText ? ' plain' : ''}">${esc(p.message)}</div>` : ''}
       ${attachments(p)}
       ${p.end ? `<p class="small muted row" style="gap:6px">${I.cal}Until ${esc(fmtDate(p.end))}</p>` : ''}
       ${monthly ? (p.blocks && p.blocks.length ? Blocks.render(p.blocks) : includedSections(p, false)) : ''}
@@ -2770,6 +2770,8 @@
         <div class="field"><label for="c-inc">Inclusions</label><textarea class="textarea" id="c-inc" name="inclusions" placeholder="One item per line">${esc((d.inclusions || []).join('\n'))}</textarea></div>
         <div class="field"><label for="c-serves">Note</label><input class="input" id="c-serves" name="serves" placeholder="e.g. Serves 2–3 guests" value="${esc(d.serves || '')}"></div>` : ''}
         <div class="field"><label for="c-msg">${isOffer ? 'Description (optional)' : 'Message'}</label><textarea class="textarea" id="c-msg" name="message" ${isOffer ? '' : 'required'}>${esc(d.message || '')}</textarea></div>
+        <label class="switch-row" style="border:0;padding:0;min-height:0"><span class="small"><b>White box around the ${isOffer ? 'description' : 'message'}</b><br><span class="muted">Turn off to show it as plain text on the page background</span></span>
+          <span class="switch"><input type="checkbox" role="switch" name="messageBox" ${d.plainText ? '' : 'checked'}><span></span></span></label>
         ${isOffer ? `<div class="field"><label for="c-terms">Terms &amp; Conditions (optional)</label><textarea class="textarea" id="c-terms" name="terms" maxlength="2000" placeholder="One condition per line, e.g. Prior reservation required">${esc(d.terms || '')}</textarea></div>` : ''}
       </div>
 
@@ -3813,7 +3815,9 @@
       const n = ++this.uid;
       const body = b.type === 'text' ? `
           <input class="input" data-k="heading" maxlength="120" placeholder="Heading (optional)" value="${esc(b.heading || '')}">
-          <textarea class="textarea" data-k="text" maxlength="4000" placeholder="Write this section…">${esc(b.text || '')}</textarea>`
+          <textarea class="textarea" data-k="text" maxlength="4000" placeholder="Write this section…">${esc(b.text || '')}</textarea>
+          <label class="switch-row" style="border:0;padding:0;min-height:0"><span class="small"><b>White box</b> · turn off for text on the page background</span>
+            <span class="switch"><input type="checkbox" role="switch" data-k="box" ${b.plain ? '' : 'checked'}><span></span></span></label>`
         : b.type === 'image' ? imageField('blkimg' + n, safeUrl(b.url), { id: 'bi' + n, noun: 'image', style: 'min-height:120px' })
         : b.type === 'posts' ? `
           <input class="input" data-k="title" maxlength="80" placeholder="Section title, e.g. This month’s offers" value="${esc(b.title || '')}">
@@ -3845,7 +3849,7 @@
     read(form) {
       return [...form.querySelectorAll('.blk-list > .blk')].map((el) => {
         const t = el.dataset.type;
-        if (t === 'text') return { type: t, heading: el.querySelector('[data-k=heading]').value.trim(), text: el.querySelector('[data-k=text]').value.trim() };
+        if (t === 'text') return Object.assign({ type: t, heading: el.querySelector('[data-k=heading]').value.trim(), text: el.querySelector('[data-k=text]').value.trim() }, el.querySelector('[data-k=box]').checked ? {} : { plain: true });
         if (t === 'image') return { type: t, url: (el.querySelector('input[type=hidden]') || {}).value || '' };
         if (t === 'posts') return { type: t, title: el.querySelector('[data-k=title]').value.trim(), ids: [...el.querySelectorAll('[data-k=id]:checked')].map((i) => i.value) };
         return { type: t };
@@ -3855,7 +3859,7 @@
     render(blocks, opts) {
       opts = opts || {};
       return (blocks || []).map((b) => {
-        if (b.type === 'text') return `<section class="card blk-text">${b.heading ? `<h3>${esc(b.heading)}</h3>` : ''}${b.text ? `<div class="blk-prose">${esc(b.text)}</div>` : ''}</section>`;
+        if (b.type === 'text') return `<section class="${b.plain ? 'blk-text plain' : 'card blk-text'}">${b.heading ? `<h3>${esc(b.heading)}</h3>` : ''}${b.text ? `<div class="blk-prose">${esc(b.text)}</div>` : ''}</section>`;
         if (b.type === 'image' && safeUrl(b.url)) return `<img class="blk-img" src="${esc(b.url)}" alt="" loading="lazy">`;
         if (b.type === 'posts') {
           const ps = b.ids.map((id) => state.posts.find((x) => x.id === id)).filter(Boolean);
@@ -3909,19 +3913,21 @@
     const { serif, sans, navy, goldText, muted } = SH;
     blocks.forEach((b) => {
       if (b.type === 'text') {
+        // In a white box, or (plain) straight on the page background.
+        const ip = b.plain ? 0 : 44;
         ctx.font = `34px ${sans}`;
-        const lines = b.text ? wrapLines(ctx, b.text, INNER - 88) : [];
+        const lines = b.text ? wrapLines(ctx, b.text, INNER - ip * 2) : [];
         ctx.font = `52px ${serif}`;
-        const hl = b.heading ? wrapLines(ctx, b.heading, INNER - 88) : [];
-        const h = 88 + hl.length * 64 + (hl.length && lines.length ? 16 : 0) + lines.length * 50 - (lines.length ? 0 : 10);
+        const hl = b.heading ? wrapLines(ctx, b.heading, INNER - ip * 2) : [];
+        const h = ip * 2 + hl.length * 64 + (hl.length && lines.length ? 16 : 0) + lines.length * 50 - (lines.length ? 0 : 10);
         if (draw) {
-          roundRect(ctx, PAD, y, INNER, h, 28); ctx.fillStyle = '#FFFFFF'; ctx.fill();
-          let ly = y + 44;
+          if (!b.plain) { roundRect(ctx, PAD, y, INNER, h, 28); ctx.fillStyle = '#FFFFFF'; ctx.fill(); }
+          let ly = y + ip;
           ctx.fillStyle = navy; ctx.font = `52px ${serif}`;
-          hl.forEach((ln) => { ctx.fillText(ln, PAD + 44, ly + 48); ly += 64; });
+          hl.forEach((ln) => { ctx.fillText(ln, PAD + ip, ly + 48); ly += 64; });
           if (hl.length && lines.length) ly += 16;
           ctx.font = `34px ${sans}`;
-          lines.forEach((ln) => { ctx.fillText(ln, PAD + 44, ly + 36); ly += 50; });
+          lines.forEach((ln) => { ctx.fillText(ln, PAD + ip, ly + 36); ly += 50; });
         }
         y += h + 32;
       } else if (b.type === 'image') {
@@ -5077,6 +5083,7 @@
         attachment: f.attachment || ''
       };
       if ('collection' in f) { post.collection = f.collection || ''; post.collectionOnly = !!(f.collection && f.collectionOnly); }
+      if (form.querySelector('[name=messageBox]')) post.plainText = !f.messageBox;
       if (form.querySelector('.blk-editor')) post.blocks = Blocks.read(form);
       if (ctype === 'monthly') {
         post.includes = [...new Set(post.blocks.filter((b) => b.type === 'posts').reduce((acc, b) => acc.concat(b.ids), []))];
