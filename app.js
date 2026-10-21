@@ -358,15 +358,13 @@
   const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 
-  function fmtDate(iso) {
-    if (!iso) return '';
-    const [y, m, d] = iso.split('-').map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-  }
-  function fmtStamp(ts) {
-    if (!ts) return '';
-    return new Date(ts).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
-  }
+  /** Every date in the app reads DD/MM/YY (Dubai time). */
+  const dmy = (dt) => dt.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit', timeZone: 'Asia/Dubai' });
+  const dmyIso = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '')); return m ? m[3] + '/' + m[2] + '/' + m[1].slice(2) : ''; };
+  const wdIso = (iso) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short' }); };
+  const hm = (ts) => new Date(ts).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Dubai' });
+  function fmtDate(iso) { return iso ? dmyIso(iso) : ''; }
+  function fmtStamp(ts) { return ts ? dmy(new Date(ts)) + ', ' + hm(ts) : ''; }
   function ago(ts) {
     if (!ts) return '';
     const s = (Date.now() - ts) / 1000;
@@ -374,7 +372,7 @@
     if (s < 3600) return Math.floor(s / 60) + 'm ago';
     if (s < 86400) return Math.floor(s / 3600) + 'h ago';
     if (s < 7 * 86400) return Math.floor(s / 86400) + 'd ago';
-    return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    return dmy(new Date(ts));
   }
   function greeting() {
     const h = new Date().getHours();
@@ -466,7 +464,7 @@
   /** Text the sheet turned into a date (e.g. "07 December") shows as "7 December" again. */
   function fixDates(p) {
     ['days', 'subtitle', 'position', 'serves'].forEach((k) => {
-      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(p[k] || ''))) p[k] = new Date(p[k]).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'Asia/Dubai' });
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(p[k] || ''))) p[k] = dmy(new Date(p[k]));
     });
     if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(p.timing || ''))) p.timing = new Date(p.timing).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Dubai' });
     return p;
@@ -748,6 +746,8 @@
       const rect = app.getBoundingClientRect();
       const snap = document.createElement('div');
       snap.className = 'tr-snap tr-out-' + dir;
+      const oldScr = app.querySelector('.screen');
+      if (oldScr && oldScr.classList.contains('coll-page')) snap.style.background = oldScr.style.getPropertyValue('--bg');
       snap.setAttribute('aria-hidden', 'true');
       snap.style.left = rect.left + 'px';
       snap.style.width = rect.width + 'px';
@@ -1201,8 +1201,9 @@
   /** e.g. "Thu, Dec 14": the day the post goes live (Show from), or the day it was posted. */
   function tileDate(p) {
     let d;
-    if (p.start) { const [y, m, dd] = p.start.split('-').map(Number); d = new Date(y, m - 1, dd); } else d = new Date(p.created || Date.now());
-    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    if (p.start) return wdIso(p.start) + ', ' + dmyIso(p.start);
+    d = new Date(p.created || Date.now());
+    return d.toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'Asia/Dubai' }) + ', ' + dmy(d);
   }
 
   function newsletterCard(p, compact) {
@@ -1261,7 +1262,7 @@
   function dayParts(iso) {
     const [y, m, d] = iso.split('-').map(Number);
     const dt = new Date(y, m - 1, d);
-    return { d, mon: MONTHS[m - 1], wd: dt.toLocaleDateString('en-GB', { weekday: 'short' }), long: dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) };
+    return { d, mon: MONTHS[m - 1], wd: dt.toLocaleDateString('en-GB', { weekday: 'short' }), long: dt.toLocaleDateString('en-GB', { weekday: 'long' }) + ', ' + dmyIso(iso) };
   }
   function presenterHtml(p, size) {
     if (!p.personName) return '';
@@ -1366,7 +1367,6 @@
     if (!colls.length) return '';
     return colls.map((c) => `
       <button type="button" class="coll-tile" data-act="nav" data-to="collection" data-id="${esc(c.id)}" style="--bg:${esc(colorHex(c.color))}" ${c.animation !== 'none' ? `data-fx="${esc(c.animation)}"` : ''}>
-        ${safeUrl(c.banner) ? `<img class="cb" src="${esc(c.banner)}" alt="">` : ''}
         <span class="ct">
           <span class="ey">${I.sparkles} Special</span>
           <span class="nm">${esc(c.name)}</span>
@@ -1444,7 +1444,7 @@
     el.innerHTML = `<canvas aria-hidden="true"></canvas>
       <div class="cel-card">
         ${BALLOONS}
-        <span class="cel-ey">${I.cake} ${esc(new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long' }))}</span>
+        <span class="cel-ey">${I.cake} ${esc(dmy(new Date()))}</span>
         <h2>Happy birthday,<br>${esc(firstName(state.user.name))}!</h2>
         <p>Wishing you a wonderful year ahead, from all of us at DXBAI &amp; DXBPI.</p>
         <button class="btn" type="button" data-close>Thank you</button>
@@ -1632,7 +1632,7 @@
   VIEWS.today = () => {
     if (!state.lastLoad && !state.loadingFeed) setTimeout(() => loadFeed(), 0);
     const t = todayItems();
-    const date = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+    const date = new Date().toLocaleDateString('en-GB', { weekday: 'long' }) + ', ' + dmy(new Date());
     const block = (title, color, html) => html ? `<section class="sec" style="--c:${color}"><div class="sec-h"><h2><span class="dot"></span>${title}</h2></div>${html}</section>` : '';
     return `
     <div class="screen"><div class="page with-nav">
@@ -1693,14 +1693,12 @@
     const bg = colorHex(c.color);
     const posts = visiblePosts().filter((p) => p.collection === id);
     const rows = cats().filter((k) => k.active !== false).map((k) => sectionRow(k, posts.filter((p) => p.category === k.id), { onDark: true })).join('');
+    const h = heroTop({ image: c.banner }, canCollect() ? `<button class="icon-btn" type="button" data-act="nav" data-to="collectionEdit" data-id="${esc(c.id)}" aria-label="Edit collection">${I.edit}</button>` : '', 'fade');
     return `
-    <div class="screen coll-page" style="--bg:${esc(bg)}" ${c.animation !== 'none' ? `data-fx="${esc(c.animation)}" data-fx-full` : ''}>
+    <div class="screen coll-page" style="--bg:${esc(bg)};background-color:${esc(bg)}" ${c.animation !== 'none' ? `data-fx="${esc(c.animation)}" data-fx-full` : ''}>
+      ${h.top}
       <div class="page">
-        <div class="topbar">
-          <button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
-          ${canCollect() ? `<button class="icon-btn" type="button" data-act="nav" data-to="collectionEdit" data-id="${esc(c.id)}" aria-label="Edit collection">${I.edit}</button>` : ''}
-        </div>
-        ${safeUrl(c.banner) ? `<img src="${esc(c.banner)}" alt="" class="coll-banner">` : ''}
+        ${h.bar}
         <div class="stack" style="gap:6px">
           <span class="ey">${I.sparkles} Special collection</span>
           <h1 class="title-lg">${esc(c.name)}</h1>
@@ -1804,7 +1802,7 @@
   function trainingDetail(p) {
     const c = catOf(p.category);
     const dp = p.eventDate ? dayParts(p.eventDate) : null;
-    const h = heroTop(p, `${catTag(c, c.label + ' · ' + postProp(p.property))}${editBtn(p)}`);
+    const h = heroTop(p, editBtn(p));
     return `
     <div class="screen">${h.top}<div class="page narrow">
       ${h.bar}
@@ -1847,7 +1845,7 @@
     const person = (x, mode) => `<details class="person leaver" ${state.leaverOpen === x.employeeId ? 'open' : ''}>
       <summary class="who" style="cursor:pointer;list-style:none">${avatarHtml(x)}
         <div class="spacer"><div class="n">${esc(x.name)}</div><div class="d">ID ${esc(x.employeeId)} · ${esc([x.department, x.property].filter(Boolean).join(' · '))}</div></div>
-        ${mode === 'leaving' ? `<span class="tag ${x.lastDay === today ? 'tag-red' : 'tag-fb'}">${x.lastDay === today ? 'Today' : esc(dayParts(x.lastDay).d + ' ' + dayParts(x.lastDay).mon)}</span>` : mode === 'left' ? '<span class="tag tag-muted">Left</span>' : ''}</summary>
+        ${mode === 'leaving' ? `<span class="tag ${x.lastDay === today ? 'tag-red' : 'tag-fb'}">${x.lastDay === today ? 'Today' : esc(fmtDate(x.lastDay))}</span>` : mode === 'left' ? '<span class="tag tag-muted">Left</span>' : ''}</summary>
       ${mode === 'left' ? `<p class="small muted">Access ended on ${esc(longDate(x.lastDay))} at 6:00 pm.</p>
         <button class="btn btn-sm btn-ghost" style="border:1px solid var(--field-line)" type="button" data-act="clearLastDay" data-id="${esc(x.employeeId)}">Give access back</button>` : `
       <form class="stack" data-form="lastDay" data-id="${esc(x.employeeId)}" novalidate style="gap:10px">
@@ -2128,7 +2126,7 @@
       const W = 210, H = 297, M = 14, CW = W - M * 2;
       const NAVY = [19, 41, 75], GOLD = [126, 95, 46], MUTED = [90, 98, 115], LINE = [227, 219, 205], ZEBRA = [248, 245, 240];
       const inn = r.rows.filter((x) => x.checkedIn);
-      const longDay = r.date ? new Date(r.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '—';
+      const longDay = r.date ? dayParts(r.date).long : '—';
 
       // Pictures: the logo and each attendee's photo (4 at a time).
       const own = safeUrl(state.settings.reportLogo);
@@ -2226,7 +2224,7 @@
 
       // Footer on every page
       const pages = doc.getNumberOfPages();
-      const stamp = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dubai', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+      const stamp = fmtStamp(Date.now());
       for (let i = 1; i <= pages; i++) {
         doc.setPage(i);
         txt('Generated on ' + stamp, M, H - 8, { size: 7, color: MUTED });
@@ -2310,7 +2308,7 @@
     const bg = colorHex(p.themeColor || (p.style === 'Festive' ? FESTIVE_RED : 'navy'));
     const h = heroTop(p, editBtn(p), 'fade');
     return `
-    <div class="screen coll-page" style="--bg:${esc(bg)}" ${p.animation && p.animation !== 'none' ? `data-fx="${esc(p.animation)}" data-fx-full` : ''}>
+    <div class="screen coll-page" style="--bg:${esc(bg)};background-color:${esc(bg)}" ${p.animation && p.animation !== 'none' ? `data-fx="${esc(p.animation)}" data-fx-full` : ''}>
       ${h.top}
       <div class="page">
         ${h.bar}
@@ -2348,7 +2346,8 @@
     </div></div>`;
   }
 
-  const bdText = (b) => b ? b.day + ' ' + MONTHS_LONG[b.month - 1] : '';
+  const dm = (day, month) => String(day).padStart(2, '0') + '/' + String(month).padStart(2, '0');
+  const bdText = (b) => b ? dm(b.day, b.month) : '';
   const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   function myBirthdayCard() {
     const info = state.myBdayInfo || {};
@@ -3161,9 +3160,9 @@
       <div class="card" style="gap:0;padding:4px 16px" id="bday-list">${shown.map((b) => `
         <div class="kv" style="align-items:center">
           <span class="stack" style="gap:2px;color:var(--ink)"><b>${esc(b.name || '(no name)')}</b><span class="small muted">ID ${esc(b.employeeId)}${b.registered ? '' : ' · not in app yet'}</span>
-            ${b.mismatch ? `<span class="small" style="color:var(--notice);font-weight:700">They entered ${b.selfDate.day} ${MONTHS[b.selfDate.month - 1]}</span>` : !b.hrDate && b.selfDate ? '<span class="small" style="color:var(--gold-text);font-weight:700">Added by colleague</span>' : ''}
+            ${b.mismatch ? `<span class="small" style="color:var(--notice);font-weight:700">They entered ${dm(b.selfDate.day, b.selfDate.month)}</span>` : !b.hrDate && b.selfDate ? '<span class="small" style="color:var(--gold-text);font-weight:700">Added by colleague</span>' : ''}
             ${needsCheck(b) ? `<button class="link-btn" type="button" data-act="useSelfBday" data-id="${esc(b.employeeId)}" data-d="${b.selfDate.day}" data-m="${b.selfDate.month}" style="align-self:flex-start;padding:0;min-height:30px">${b.mismatch ? 'Use their date' : 'Confirm'}</button>` : ''}</span>
-          <span class="row" style="gap:6px"><b>${b.day} ${MONTHS[b.month - 1]}</b>
+          <span class="row" style="gap:6px"><b>${dm(b.day, b.month)}</b>
             <button class="icon-btn" type="button" data-act="deleteBday" data-id="${esc(b.employeeId)}" aria-label="Remove ${esc(b.name)}" style="width:36px;height:36px;background:var(--notice-bg);color:var(--notice)">${sv('<path d="M6 6l12 12M18 6L6 18"/>', 16)}</button></span>
         </div>`).join('') || '<p class="small muted center" style="padding:12px 0">No birthdays yet.</p>'}</div>`}
     </div>${nav('birthdays')}</div>`;
@@ -3677,7 +3676,7 @@
           const st = s.status === 'Approved' ? 'tag-ok' : 'tag-muted';
           return `<details class="person">
             <summary class="who" style="cursor:pointer;list-style:none">${avatarHtml(s)}
-              <div class="spacer"><div class="n">${esc(s.name)}</div><div class="d">${esc(s.role)} · ${esc(s.department)} · ${esc(s.property)}${s.lastDay && s.status === 'Approved' ? ' · <b style="color:var(--notice)">leaving ' + esc(dayParts(s.lastDay).d + ' ' + dayParts(s.lastDay).mon) + '</b>' : ''}</div></div>
+              <div class="spacer"><div class="n">${esc(s.name)}</div><div class="d">${esc(s.role)} · ${esc(s.department)} · ${esc(s.property)}${s.lastDay && s.status === 'Approved' ? ' · <b style="color:var(--notice)">leaving ' + esc(fmtDate(s.lastDay)) + '</b>' : ''}</div></div>
               <span class="tag ${st}">${esc(s.status)}</span></summary>
             ${self ? '<p class="small muted">This is you.</p>' : `
             <div class="field"><label class="label">Role</label>${roleSelect(s)}</div>
@@ -3686,7 +3685,7 @@
               <button class="btn btn-sm btn-ghost" style="border:1px solid var(--field-line)" type="button" data-act="resetPin" data-id="${esc(s.employeeId)}">Reset PIN</button>
             </div>
             <div class="device-box">
-              <span class="small"><b>Signed in on:</b> ${s.devices && s.devices.length ? s.devices.map((d) => esc((d.device || 'a device') + (d.at ? ' · since ' + new Date(d.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''))).join(', ') : 'no device'}</span>
+              <span class="small"><b>Signed in on:</b> ${s.devices && s.devices.length ? s.devices.map((d) => esc((d.device || 'a device') + (d.at ? ' · since ' + dmy(new Date(d.at)) : ''))).join(', ') : 'no device'}</span>
               ${s.devices && s.devices.length ? `<button class="btn btn-sm btn-ghost" style="border:1px solid var(--field-line)" type="button" data-act="signOutEverywhere" data-id="${esc(s.employeeId)}">Sign out of all devices</button>` : ''}
             </div>
             ${s.status === 'Approved'
@@ -4318,8 +4317,8 @@
       const r = state.report;
       if (!r) return;
       const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-      const dt = (ts) => ts ? new Date(ts).toLocaleString('en-GB', { timeZone: 'Asia/Dubai', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-      const lines = [['Training', r.title], ['Date', r.date], ['Time', fmtTiming(r.timing)], ['Venue', r.location], ['Presenter', r.presenter], [],
+      const dt = (ts) => ts ? fmtStamp(ts) : '';
+      const lines = [['Training', r.title], ['Date', fmtDate(r.date)], ['Time', fmtTiming(r.timing)], ['Venue', r.location], ['Presenter', r.presenter], [],
         ['Employee ID', 'Name', 'Department', 'Position', 'Hotel', 'Signed up', 'Checked in', 'Check-in method', 'Status']]
         .concat(r.rows.map((x) => [x.employeeId, x.name, x.department, x.position || '', x.property, dt(x.signedUp), dt(x.checkedIn), x.method, x.checkedIn ? 'Attended' : 'Did not check in']));
       const csv = '\ufeff' + lines.map((l) => l.map(q).join(',')).join('\r\n');
@@ -4609,7 +4608,7 @@
         if (j.status === 'SignedInElsewhere') {
           busy(form, false);
           const where = j.device ? 'on ' + (/^(iPhone|iPad|Mac)$/.test(j.device) ? 'an ' : 'a ') + j.device : 'on another device';
-          const since = j.since ? ' since ' + new Date(j.since).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+          const since = j.since ? ' since ' + dmy(new Date(j.since)) : '';
           formError(form, `You’re already signed in ${where}${since}. Please sign out on that device first (Profile › Sign out), then try again. Lost or changed your phone? Ask your Admin to sign you out of all devices.`);
           return;
         }
@@ -5622,8 +5621,52 @@
     }
   };
 
+  /*
+   * Date boxes show DD/MM/YY on every phone and computer (the built-in box follows the device's own
+   * format, e.g. MM/DD/YYYY on a US Mac). Tapping still opens the device's calendar.
+   */
+  const DateFields = {
+    show(inp) {
+      const out = inp.parentElement && inp.parentElement.querySelector(':scope > .date-show');
+      if (!out) return;
+      out.textContent = inp.value ? dmyIso(inp.value) : 'DD/MM/YY';
+      out.classList.toggle('is-blank', !inp.value);
+    },
+    enhance(root) {
+      (root || document).querySelectorAll('input[type="date"]:not([data-dmy])').forEach((inp) => {
+        inp.dataset.dmy = '1';
+        const wrap = document.createElement('span');
+        wrap.className = 'date-wrap';
+        inp.parentNode.insertBefore(wrap, inp);
+        wrap.appendChild(inp);
+        const out = document.createElement('span');
+        out.className = 'date-show';
+        out.setAttribute('aria-hidden', 'true');
+        wrap.appendChild(out);
+        ['input', 'change', 'blur'].forEach((ev) => inp.addEventListener(ev, () => this.show(inp)));
+        inp.addEventListener('click', () => { try { if (inp.showPicker) inp.showPicker(); } catch (e) { /* the device opens its own */ } });
+        this.show(inp);
+      });
+    }
+  };
+  // Dates set by the app itself (e.g. a suggested day) also refresh the DD/MM/YY text.
+  const valueDesc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  Object.defineProperty(HTMLInputElement.prototype, 'value', {
+    get() { return valueDesc.get.call(this); },
+    set(v) { valueDesc.set.call(this, v); if (this.dataset && this.dataset.dmy) DateFields.show(this); },
+    configurable: true
+  });
+  new MutationObserver(() => DateFields.enhance(app)).observe(app, { childList: true, subtree: true });
+
   /** Runs after every screen is drawn. */
   function afterPaint() {
+    // Coloured pages (special collections, special newsletters): the whole window takes that colour,
+    // so nothing else shows behind them while they slide in or when you overscroll.
+    const cp = app.querySelector('.screen.coll-page');
+    const col = cp ? cp.style.getPropertyValue('--bg').trim() : '';
+    document.documentElement.style.backgroundColor = col;
+    document.body.style.backgroundColor = col;
+    DateFields.enhance(app);
     Bar.setup();
     Lens.place(true);
   }

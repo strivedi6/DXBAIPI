@@ -933,3 +933,24 @@ button.quote-bar { cursor: pointer; }
 .qb-ed { color: var(--muted); opacity: .7; display: flex; margin-top: 2px; }
 .qb-ed svg { width: 16px; height: 16px; }
 html[data-theme="dark"] .quote-bar { background: linear-gradient(135deg, color-mix(in srgb, var(--gold) 18%, var(--card)), var(--card) 70%); color: var(--text-strong); }
+
+/* ===== Version 1.14 ===== */
+/* Date boxes: DD/MM/YY text, centred vertically like every other box. */
+.date-wrap { position: relative; display: block; width: 100%; }
+.date-wrap > input[type="date"] { color: transparent; }
+.date-wrap > input[type="date"]::-webkit-datetime-edit, .date-wrap > input[type="date"]::-webkit-date-and-time-value { opacity: 0; }
+.date-wrap > input[type="date"]:focus { color: transparent; }
+.date-wrap > .date-show { position: absolute; left: 15px; right: 44px; top: 0; height: 100%; margin: 0; padding: 0; display: flex !important; align-items: center; white-space: nowrap; overflow: hidden; pointer-events: none; font-size: 16px; font-weight: 400; line-height: 1; color: var(--ink); text-transform: none; letter-spacing: 0; }
+.date-wrap > input[type="date"]::-webkit-datetime-edit-day-field:focus, .date-wrap > input[type="date"]::-webkit-datetime-edit-month-field:focus, .date-wrap > input[type="date"]::-webkit-datetime-edit-year-field:focus { background: transparent; color: transparent; }
+.date-wrap > .date-show.is-blank { color: var(--muted); opacity: .7; }
+html[data-theme="dark"] .date-show { color: var(--text-strong); }
+input[type="date"].input, input[type="time"].input { display: flex; align-items: center; line-height: normal; }
+input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+input[type="time"]::-webkit-datetime-edit { padding: 0; }
+input[type="date"]::-webkit-calendar-picker-indicator { opacity: .55; cursor: pointer; }
+/* Drop-downs: text in the middle of the box. */
+.select { padding-top: 0; padding-bottom: 0; line-height: 48px; }
+
+/* Coloured pages: the colour is the page itself, also while it slides in. */
+.screen.coll-page.tr-in-forward, .screen.coll-page.tr-in-back, .screen.coll-page.tr-in-tab, .screen.coll-page.tr-in-fade { background: var(--bg); }
+.coll-page .full-hero { background: var(--bg); }
