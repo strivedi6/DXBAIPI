@@ -1820,9 +1820,9 @@
     const color = colorHex(c.color);
     const img = safeUrl(p.image);
     return `
-    <div class="screen"><div class="page">
+    <div class="screen celebrate-screen" ${celebrates(c) ? 'data-fx="confetti-celebrate" data-fx-full' : ''}><div class="page">
       <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button><span class="row" style="gap:8px">${editBtn(p)}</span></div>
-      <div class="person-hero plain-hero" style="--c:${esc(color)}" ${celebrates(c) ? 'data-fx="confetti-celebrate"' : ''}>
+      <div class="person-hero plain-hero" style="--c:${esc(color)}">
         <span class="ph">${img ? `<img src="${esc(img)}" alt="${esc(p.personName || p.title)}">` : `<span class="ini">${esc(initials(p.personName || p.title))}</span>`}</span>
         ${isAward(c) && p.subtitle ? `<span class="ribbon">${I.award}${esc(p.subtitle)}</span>` : ''}
         <h1 class="title-lg">${esc(p.personName || p.title)}</h1>

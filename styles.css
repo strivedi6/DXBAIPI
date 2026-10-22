@@ -1046,3 +1046,6 @@ html[data-theme="dark"] .blk-band { background: rgba(255, 255, 255, .05); }
 .blk-divider span { width: 120px; height: 2px; border-radius: 2px; background: color-mix(in srgb, var(--gold) 55%, transparent); }
 .coll-page .blk-divider span { background: rgba(255, 231, 163, .6); }
 @media (min-width: 960px) { .blk-band .hrow { margin: 0; padding: 4px 0 8px; } }
+
+/* Full-screen confetti on a person's page: the content sits above the confetti layer. */
+.celebrate-screen > .page { position: relative; z-index: 1; }
