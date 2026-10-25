@@ -79,7 +79,7 @@
   const COLORS = { blue: '#1C4E9B', gold: '#A87B3D', red: '#9B2C2C', green: '#1E6B45', purple: '#5B3C88', navy: '#13294B', grey: '#6B717E', teal: '#1F6F72', orange: '#B65417', pink: '#A8325E', burgundy: '#6E1F3A' };
   const COLOR_NAMES = {};
   const GROUPS = { hr: 'HR tab', marketing: 'Offers tab', general: 'Home only' };
-  const ANIMS = { none: 'None', sparkle: 'Sparkle', confetti: 'Confetti', snow: 'Snow', lights: 'Lights', fireworks: 'Fireworks' };
+  const ANIMS = { none: 'None', sparkle: 'Sparkle', confetti: 'Confetti', snow: 'Snow', lights: 'Lights', fireworks: 'Fireworks', bubbles: 'Bubbles', hearts: 'Hearts', petals: 'Petals' };
   const FESTIVE_RED = '#B3202A';
   const colorHex = (c) => COLORS[c] || (/^#[0-9a-f]{6}$/i.test(String(c || '')) ? c : COLORS.grey);
   // DXBAI = Embassy Suites by Hilton Dubai Business Bay, DXBPI = Hilton Garden Inn Dubai Business Bay
@@ -814,10 +814,13 @@
       confetti: ['#E8577E', '#F2B640', '#4C8DDB', '#3FB58A', '#9B6BD6', '#FF8A3D'],
       sparkle: ['#FFE7A3', '#FFFFFF', '#F7D27A'],
       lights: ['#FFD27A', '#FFB36B', '#FFF1C2', '#FF9DB0'],
-      fireworks: ['#FFD54F', '#FF6E6E', '#7FD3FF', '#B9F6CA', '#FFFFFF']
+      fireworks: ['#FFD54F', '#FF6E6E', '#7FD3FF', '#B9F6CA', '#FFFFFF'],
+      bubbles: ['#CFE8FF', '#E6F4FF', '#BFE3F2', '#FFFFFF'],
+      hearts: ['#FF6E8E', '#FF9DB0', '#F26D8B', '#FFC2D1', '#E8577E'],
+      petals: ['#FFC9D6', '#FAD7A0', '#F8BBD0', '#FDE2B8', '#F6A5C0']
     };
     function make(type, w, h, opts) {
-      const n = { confetti: opts.burst ? (opts.once ? 70 : 160) : opts.soft ? 14 : 40, sparkle: 26, snow: 60, lights: 18, fireworks: 0 }[type] || 0;
+      const n = { confetti: opts.burst ? (opts.once ? 70 : 160) : opts.soft ? 14 : 40, sparkle: 26, snow: 60, lights: 18, fireworks: 0, bubbles: 28, hearts: 20, petals: 36 }[type] || 0;
       const ps = [];
       for (let i = 0; i < n; i++) ps.push(spawn(type, w, h, opts, true));
       return ps;
@@ -829,7 +832,17 @@
       if (type === 'snow') return { x: rnd(0, w), y: initial ? rnd(0, h) : -6, r: rnd(1.2, 3.4), vy: rnd(0.4, 1.3), ph: rnd(0, 6.28), c: '#fff' };
       if (type === 'sparkle') return { x: rnd(0, w), y: rnd(0, h), s: rnd(3, 8), ph: rnd(0, 6.28), sp: rnd(0.03, 0.07), c };
       if (type === 'lights') return { x: rnd(0, w), y: initial ? rnd(0, h) : h + 20, r: rnd(10, 26), vy: rnd(0.15, 0.45), ph: rnd(0, 6.28), c };
+      if (type === 'bubbles') return { x: rnd(0, w), y: initial ? rnd(0, h) : h + 20, r: rnd(5, 16), vy: rnd(0.5, 1.4), ph: rnd(0, 6.28), sw: rnd(0.6, 1.4), c };
+      if (type === 'hearts') return { x: rnd(0, w), y: initial ? rnd(0, h) : h + 16, s: rnd(9, 18), vy: rnd(0.5, 1.1), ph: rnd(0, 6.28), sw: rnd(0.5, 1.2), c, a: rnd(0.7, 1) };
+      if (type === 'petals') return { x: rnd(0, w), y: initial ? rnd(-h, h) : rnd(-30, -6), s: rnd(6, 11), vy: rnd(0.6, 1.5), vx: rnd(-0.3, 0.3), r: rnd(0, 6.28), vr: rnd(-0.05, 0.05), ph: rnd(0, 6.28), c };
       return null;
+    }
+    function heart(ctx, x, y, s) {
+      ctx.beginPath();
+      ctx.moveTo(x, y + s * 0.35);
+      ctx.bezierCurveTo(x + s, y - s * 0.6, x + s * 1.1, y + s * 0.3, x, y + s);
+      ctx.bezierCurveTo(x - s * 1.1, y + s * 0.3, x - s, y - s * 0.6, x, y + s * 0.35);
+      ctx.fill();
     }
     function star(ctx, x, y, s) {
       ctx.beginPath();
@@ -884,6 +897,31 @@
             g.addColorStop(0, p.c); g.addColorStop(1, 'rgba(255,255,255,0)');
             ctx.globalAlpha = 0.35 + Math.sin(p.ph) * 0.2; ctx.fillStyle = g;
             ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.28); ctx.fill();
+          });
+          ctx.globalAlpha = 1;
+        } else if (type === 'bubbles') {
+          ps.forEach((p, i) => {
+            p.y -= p.vy; p.x += Math.sin(t / 36 + p.ph) * p.sw;
+            if (p.y < -20) ps[i] = spawn(type, w, h, {}, false);
+            ctx.globalAlpha = 0.5; ctx.strokeStyle = p.c; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.28); ctx.stroke();
+            ctx.globalAlpha = 0.18; ctx.fillStyle = p.c; ctx.fill();
+            ctx.globalAlpha = 0.6; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(p.x - p.r * 0.3, p.y - p.r * 0.3, Math.max(1, p.r * 0.18), 0, 6.28); ctx.fill();
+          });
+          ctx.globalAlpha = 1;
+        } else if (type === 'hearts') {
+          ps.forEach((p, i) => {
+            p.y -= p.vy; p.x += Math.sin(t / 34 + p.ph) * p.sw;
+            if (p.y < -24) ps[i] = spawn(type, w, h, {}, false);
+            ctx.globalAlpha = p.a; ctx.fillStyle = p.c; heart(ctx, p.x, p.y, p.s);
+          });
+          ctx.globalAlpha = 1;
+        } else if (type === 'petals') {
+          ps.forEach((p, i) => {
+            p.y += p.vy; p.x += p.vx + Math.sin(t / 40 + p.ph) * 0.5; p.r += p.vr;
+            if (p.y > h + 20) ps[i] = spawn(type, w, h, {}, false);
+            ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.globalAlpha = 0.85; ctx.fillStyle = p.c;
+            ctx.beginPath(); ctx.ellipse(0, 0, p.s, p.s * 0.55, 0, 0, 6.28); ctx.fill(); ctx.restore();
           });
           ctx.globalAlpha = 1;
         } else if (type === 'fireworks') {
@@ -1176,7 +1214,6 @@
         ${isAward(c) && p.subtitle ? `<span class="ribbon">${I.award}${esc(p.subtitle)}</span>` : ''}
         <span class="nm">${esc(p.personName || p.title)}</span>
         ${p.position ? `<span class="ps">${esc(p.position)}</span>` : ''}
-        <span class="pp">${esc(postProp(p.property))}</span>
       </button>`;
     }
     if (c.type === 'offer') {
@@ -4073,19 +4110,20 @@
     const h = hotelFor(p);
     y += 30;
     if (draw) { ctx.strokeStyle = line; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke(); }
-    y += 64;
+    const GAP = 48;
+    y += GAP;
     const center = (txt, font, color, lh) => {
       ctx.font = font;
       wrapLines(ctx, txt, W - PAD * 2).forEach((ln) => { if (draw) { ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.fillText(ln, W / 2, y); ctx.textAlign = 'left'; } y += lh; });
     };
     if (a.logo) {
-      // Logo only (no name): scaled to a steady height so every hotel's logo looks the same size.
+      // Logo only (no name): scaled to a steady height, with equal space above and below.
       const L = a.logoFit || (a.logoFit = logoTrim(a.logo));
       const s = Math.min(560 / L.w, 150 / L.h);
       const lw = L.w * s, lh = L.h * s;
-      if (draw) ctx.drawImage(L.src, (W - lw) / 2, y - 6, lw, lh);
-      y += lh + 20;
-    } else if (h.name) center(h.name, `34px ${serif}`, navy, 50);
+      if (draw) ctx.drawImage(L.src, (W - lw) / 2, y, lw, lh);
+      y += lh + GAP;
+    } else { y -= 6; if (h.name) center(h.name, `34px ${serif}`, navy, 50); }
     if (h.address) { y += 4; center(h.address, `28px ${sans}`, muted, 40); }
     const contact = [h.phone, h.email].filter(Boolean).join('  ·  ');
     if (contact) center(contact, `28px ${sans}`, muted, 40);
@@ -4536,14 +4574,14 @@
       y += x.h;
     });
 
-    // Footer: hotel logo (or name) centred at the bottom.
+    // Footer: hotel logo (or name), centred in its band with equal space top and bottom.
     const h = hotelFor(p);
     let fy = H - foot + 30;
     if (a.logo) {
       const L = a.logoFit || (a.logoFit = logoTrim(a.logo));
       const s = Math.min(520 / L.w, 150 / L.h);
       const lw = L.w * s, lh = L.h * s;
-      ctx.drawImage(L.src, (W - lw) / 2, fy, lw, lh);
+      ctx.drawImage(L.src, (W - lw) / 2, (H - foot) + (foot - lh) / 2, lw, lh);
     } else if (h.name) {
       ctx.font = `34px ${serif}`;
       wrapLines(ctx, h.name, W - 160).forEach((ln, i) => centerText(ln, `34px ${serif}`, navy, fy + 20 + i * 46));
@@ -5812,6 +5850,7 @@
           const svg = box.querySelector('svg');
           if (svg) svg.remove();
         }
+        if (typeof ComposePreview !== 'undefined') ComposePreview.schedule();
       } catch (e) {
         label.textContent = 'Upload failed · tap to try again';
         showError(e);
@@ -6264,7 +6303,7 @@
     }
   };
   window.addEventListener('scroll', () => Bar.update(), { passive: true });
-  window.addEventListener('resize', () => { Bar.update(); Lens.place(false); });
+  window.addEventListener('resize', () => { Bar.update(); Lens.place(false); if (typeof ComposePreview !== 'undefined') ComposePreview.sync(); });
 
   /*
    * Bottom bar like iOS: a glass lens sits behind the current tab and slides to the next one.
@@ -6387,6 +6426,81 @@
   new MutationObserver(() => DateFields.enhance(app)).observe(app, { childList: true, subtree: true });
 
   /** Runs after every screen is drawn. */
+  /* ---------------- Desktop: live mobile preview while composing ---------------- */
+  /** Builds a preview post object from the current compose form. */
+  function composePreviewObj(form) {
+    const f = Object.fromEntries(new FormData(form));
+    const cat = form.dataset.cat;
+    const type = catOf(cat).type;
+    const u = state.user || {};
+    const p = { id: '__preview', category: cat, created: Date.now(), postedBy: u.name || '', postedById: '__none',
+      property: f.property || 'Cluster', title: (f.title || '').trim(), message: (f.message || '').trim(),
+      image: f.image || '', start: f.start || '', end: f.end || '', priority: f.priority || 'Normal',
+      plainText: form.querySelector('[name="messageBox"]') ? !f.messageBox : false };
+    if (form.querySelector('.blk-editor')) { try { p.blocks = Blocks.read(form); } catch (e) { p.blocks = []; } }
+    if (type === 'offer') Object.assign(p, { outlet: f.outlet || '', price: f.price || '', days: f.days || '', timing: f.timing || '',
+      inclusions: String(f.inclusions || '').split('\n').map((x) => x.trim()).filter(Boolean), serves: f.serves || '',
+      terms: (f.terms || '').trim(), ctaText: f.ctaText || '', ctaLink: f.ctaLink || '' });
+    if (type === 'people') { Object.assign(p, { personName: (f.personName || '').trim(), position: (f.position || '').trim(), subtitle: f.subtitle || '' }); p.title = p.personName || 'Name'; }
+    if (type === 'training') { const t = [f.timeFrom, f.timeTo].filter(Boolean).join('–'); Object.assign(p, { eventDate: f.eventDate || '', timing: t || f.timingRaw || '', location: f.location || '', personName: (f.personName || '').trim(), personPhoto: f.personPhoto || '' }); }
+    if (type === 'monthly') { p.includes = [...new Set((p.blocks || []).filter((b) => b.type === 'posts').reduce((a, b) => a.concat(b.ids), []))];
+      Object.assign(p, { style: f.style || 'Regular', themeColor: f.style === 'Regular' ? '' : (f.themeColor || ''), animation: f.style === 'Regular' ? 'none' : (f.animation || 'none'), shareable: !!f.shareable }); }
+    return p;
+  }
+  function composePreviewHtml(form) {
+    const p = composePreviewObj(form);
+    const type = catOf(p.category).type;
+    if (type === 'offer') return offerDetail(p);
+    if (type === 'people') return personDetail(p);
+    if (type === 'training') return trainingDetail(p);
+    if (type === 'monthly' && (p.style === 'Special' || p.style === 'Festive')) return specialNewsletter(p);
+    return textDetail(p);
+  }
+  const ComposePreview = {
+    form: null, aside: null, frame: null, timer: 0, onEvt: null,
+    wide() { return window.matchMedia('(min-width: 960px)').matches; },
+    sync() {
+      const form = app.querySelector('form[data-form="post"]');
+      if (!this.wide() || !form) { this.teardown(); return; }
+      if (this.form === form && this.aside && this.aside.isConnected) { this.schedule(); return; }
+      this.teardown();
+      const screen = form.closest('.screen');
+      this.form = form; screen.classList.add('cp-on');
+      const aside = document.createElement('aside');
+      aside.className = 'cp-aside';
+      aside.innerHTML = '<div class="cp-inner"><span class="cp-label">Live preview</span><div class="cp-phone"><iframe title="Preview" aria-hidden="true"></iframe></div></div>';
+      screen.appendChild(aside);
+      this.aside = aside; this.frame = aside.querySelector('iframe');
+      const theme = document.documentElement.getAttribute('data-theme') || 'light';
+      const doc = this.frame.contentDocument;
+      doc.open();
+      doc.write('<!doctype html><html data-theme="' + theme + '"><head><meta name="viewport" content="width=device-width,initial-scale=1"><base href="' + esc(location.href) + '"><link rel="stylesheet" href="styles.css"><style>html,body{margin:0;background:var(--cream)}.sticky-actions{display:none!important}</style></head><body></body></html>');
+      doc.close();
+      this.update();
+      this.onEvt = () => this.schedule();
+      form.addEventListener('input', this.onEvt);
+      form.addEventListener('change', this.onEvt);
+      form.addEventListener('click', this.onEvt);
+    },
+    schedule() { clearTimeout(this.timer); this.timer = setTimeout(() => this.update(), 160); },
+    update() {
+      if (!this.frame || !this.form || !this.form.isConnected) return;
+      try {
+        const html = composePreviewHtml(this.form);
+        const doc = this.frame.contentDocument;
+        if (!doc || !doc.body) return;
+        doc.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') || 'light');
+        doc.body.innerHTML = html;
+      } catch (e) { /* half-filled form: keep the last good preview */ }
+    },
+    teardown() {
+      if (this.form && this.onEvt) { this.form.removeEventListener('input', this.onEvt); this.form.removeEventListener('change', this.onEvt); this.form.removeEventListener('click', this.onEvt); }
+      if (this.aside) this.aside.remove();
+      const on = app.querySelector('.screen.cp-on'); if (on) on.classList.remove('cp-on');
+      this.form = null; this.aside = null; this.frame = null;
+    }
+  };
+
   function afterPaint() {
     // Coloured pages (special collections, special newsletters): the whole window takes that colour,
     // so nothing else shows behind them while they slide in or when you overscroll.
@@ -6397,6 +6511,7 @@
     DateFields.enhance(app);
     Bar.setup();
     Lens.place(true);
+    ComposePreview.sync();
   }
 
   /* ---------------- Start ---------------- */
