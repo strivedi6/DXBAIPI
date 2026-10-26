@@ -65,7 +65,7 @@ const POST_PROPERTIES = ['DXBAI', 'DXBPI', 'Cluster'];
 /* Entry points                                                        */
 /* ------------------------------------------------------------------ */
 
-const BACKEND_VERSION = '1.27.0';
+const BACKEND_VERSION = '1.27.1';
 
 function doGet() {
   return out({ ok: true, status: 'running', version: BACKEND_VERSION });
@@ -760,6 +760,7 @@ function actionCreatePost_(req) {
   });
 
   withLock_(function () { appendRow_(table_(SHEET_POSTS), row); });
+  renamePostMedia_(id);
 
   let pushed = false;
   if (row['Send Push'] && row['Status'] === 'Live') {
@@ -772,7 +773,7 @@ function actionCreatePost_(req) {
 function actionUpdatePost_(req) {
   const user = auth_(req).user;
   const p = req.post || {};
-  return withLock_(function () {
+  const res = withLock_(function () {
     const t = table_(SHEET_POSTS);
     const i = findPost_(t, req.postId);
     if (i < 0) fail_('Post not found.');
@@ -795,8 +796,10 @@ function actionUpdatePost_(req) {
       pushed = sendPush_(String(existing['Post ID']), merged);
       if (pushed) setCell_(t, i, 'Push Sent', true);
     }
-    return { pushed: pushed };
+    return { pushed: pushed, id: String(existing['Post ID']) };
   });
+  renamePostMedia_(res.id); // name uploaded media <PostID>_<Title>, outside the lock
+  return { pushed: res.pushed };
 }
 
 function actionMyPosts_(req) {
@@ -875,7 +878,7 @@ function actionSetPhoto_(req) {
     const bytes = Utilities.base64Decode(String(req.data || ''));
     if (!bytes.length) fail_('The photo is empty.');
     if (bytes.length > MAX_PHOTO_BYTES) fail_('The photo is too large (3 MB maximum).');
-    url = saveUpload_(bytes, req.mimeType, 'photo-' + a.user.employeeId);
+    url = saveUpload_(bytes, req.mimeType, photoBase_(a.user));
   }
   return withLock_(function () {
     const t = ensureColumn_(table_(SHEET_STAFF), 'Photo URL');
@@ -906,8 +909,47 @@ function actionGetImage_(req) {
   return { mimeType: blob.getContentType(), data: Utilities.base64Encode(blob.getBytes()) };
 }
 
+/** File extension for an uploaded media type. */
+function extFor_(mime) {
+  return ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf' })[mime] || '';
+}
+
+/** Tidies a name for a Drive file (no slashes or odd characters), keeping spaces and dashes. */
+function cleanFileName_(s) {
+  return String(s || '').replace(/[\/\\:*?"<>|]+/g, ' ').replace(/[^\w.\- ]+/g, '').replace(/\s+/g, ' ').trim().slice(0, 90);
+}
+
+/** The Drive file ID inside an uploaded-file URL (lh3 image link or drive /file/d/ link). */
+function driveIdFromUrl_(url) {
+  const m = /(?:googleusercontent\.com\/d\/|\/d\/|[?&]id=)([\w-]{10,})/.exec(String(url || ''));
+  return m ? m[1] : '';
+}
+
+/**
+ * Renames an already-uploaded file so Drive shows what it is. Only touches files in our uploads
+ * folder, keeps the extension, and never throws — a failed rename must not fail the save.
+ */
+function renameUpload_(url, base) {
+  const id = driveIdFromUrl_(url);
+  const want0 = cleanFileName_(base);
+  if (!id || !want0) return;
+  try {
+    const file = DriveApp.getFileById(id);
+    const folderId = uploadFolder_().getId();
+    let inFolder = false; const ps = file.getParents();
+    while (ps.hasNext()) { if (ps.next().getId() === folderId) { inFolder = true; break; } }
+    if (!inFolder) return; // leave files from an older folder or outside our folder alone
+    const cur = file.getName();
+    const ext = (/\.([A-Za-z0-9]{2,5})$/.exec(cur) || [null, extFor_(file.getMimeType())])[1];
+    const want = want0 + (ext ? '.' + ext : '');
+    if (cur !== want) file.setName(want);
+  } catch (e) { console.log('rename skipped: ' + (e && e.message || e)); }
+}
+
 function saveUpload_(bytes, mimeType, rawName) {
-  const name = String(rawName || 'upload').replace(/[^\w.\- ]+/g, '').slice(0, 80) || 'upload';
+  const base = cleanFileName_(rawName) || 'upload';
+  const ext = extFor_(mimeType);
+  const name = /\.[A-Za-z0-9]{2,5}$/.test(base) || !ext ? base : base + '.' + ext;
   let file;
   try {
     file = uploadFolder_().createFile(Utilities.newBlob(bytes, mimeType, name));
@@ -926,6 +968,58 @@ function saveUpload_(bytes, mimeType, rawName) {
   return mimeType === 'application/pdf'
     ? 'https://drive.google.com/file/d/' + fid + '/view'
     : 'https://lh3.googleusercontent.com/d/' + fid;
+}
+
+/** A profile photo's file name: "<Full Name>_<Hotel Code>" (e.g. "Georges Ghantous_DXBAI"). */
+function photoBase_(u) {
+  const code = String((u && u.property) || '').trim() || 'Staff';
+  const who = String((u && u.name) || '').trim() || String((u && u.employeeId) || 'Member');
+  return who + '_' + code;
+}
+
+/** Every current staff profile-photo URL — so renaming post media never clobbers a shared profile photo. */
+function staffPhotoSet_() {
+  const set = {};
+  try {
+    const t = table_(SHEET_STAFF);
+    t.rows.forEach(function (r, i) { const u = userAt_(t, i); const id = driveIdFromUrl_(u.photo); if (id) set[id] = true; });
+  } catch (e) { /* best effort */ }
+  return set;
+}
+
+/** Renames a post's uploaded media to "<PostID>_<Title>" so each file is identifiable in Drive. */
+function renamePostMedia_(id) {
+  try {
+    const t = table_(SHEET_POSTS);
+    const i = findPost_(t, id);
+    if (i < 0) return;
+    const o = rowObject_(t, t.rows[i]);
+    const blocks = parseBlocks_(o['Blocks']);
+    const anyMedia = [o['Image URL'], o['Menu / PDF URL'], o['Attachment URL']].concat(blocks.map(function (b) { return b && b.url; }))
+      .some(function (u) { return driveIdFromUrl_(u); });
+    if (!anyMedia) return; // nothing we uploaded to rename
+    const title = cleanFileName_(o['Title']) || id;
+    const base = id + '_' + title;
+    const skip = staffPhotoSet_(); // don't rename a shared profile photo used as a person-post image
+    const safe = function (url, nm) { const d = driveIdFromUrl_(url); if (d && !skip[d]) renameUpload_(url, nm); };
+    safe(o['Image URL'], base);
+    safe(o['Menu / PDF URL'], base + '_menu');
+    safe(o['Attachment URL'], base + '_attachment');
+    let n = 0;
+    blocks.forEach(function (b) { if (b && b.type === 'image' && b.url) { n++; safe(b.url, base + '_' + n); } });
+  } catch (e) { console.log('post media rename skipped: ' + (e && e.message || e)); }
+}
+
+/** Renames a collection's uploaded media to "<CollectionID>_<Name>". */
+function renameCollectionMedia_(id, name) {
+  try {
+    const c = collections_().filter(function (x) { return x.id === id; })[0];
+    if (!c) return;
+    const base = id + '_' + (cleanFileName_(name || c.name) || id);
+    renameUpload_(c.banner, base);
+    let n = 0;
+    (c.blocks || []).forEach(function (b) { if (b && b.type === 'image' && b.url) { n++; renameUpload_(b.url, base + '_' + n); } });
+  } catch (e) { console.log('collection media rename skipped: ' + (e && e.message || e)); }
 }
 
 /* ------------------------------------------------------------------ */
@@ -1904,7 +1998,7 @@ function actionSaveCollection_(req) {
     'Blocks': blocksCell_(c.blocks)
   };
   if (row['Start Date'] && row['End Date'] && row['End Date'] < row['Start Date']) fail_('The end date is before the start date.');
-  return withLock_(function () {
+  const res = withLock_(function () {
     const t = table_(SHEET_COLLS);
     if (c.id) {
       let i = -1;
@@ -1916,8 +2010,10 @@ function actionSaveCollection_(req) {
       row['Created By'] = user.name + ' (' + user.employeeId + ')';
       appendRow_(t, row);
     }
-    return { collections: collections_() };
+    return { collections: collections_(), savedId: row['ID'] || c.id };
   });
+  renameCollectionMedia_(res.savedId, name);
+  return { collections: res.collections };
 }
 
 /* ------------------------------------------------------------------ */
@@ -2043,11 +2139,23 @@ function actionDeleteCollection_(req) {
 /* ------------------------------------------------------------------ */
 
 /** Birthdays are stored as day and month only (MM-DD), never the year. */
+/** Normalised full name for matching a birthday row to a staff record when the ID is missing or differs. */
+function nameKey_(v) {
+  return String(v == null ? '' : v).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
 function birthdayRows_() {
   const t = table_(SHEET_BDAYS);
   const staff = table_(SHEET_STAFF);
   const byId = {};
-  staff.rows.forEach(function (r, i) { const u = userAt_(staff, i); if (u.employeeId) byId[normId_(u.employeeId)] = u; });
+  const byName = {};
+  staff.rows.forEach(function (r, i) {
+    const u = userAt_(staff, i);
+    if (!u.employeeId) return;
+    byId[normId_(u.employeeId)] = u;
+    const nk = nameKey_(u.name);
+    if (nk) byName[nk] = byName[nk] === undefined ? u : null; // null marks an ambiguous (duplicate) name — don't guess
+  });
   return t.rows.map(function (r) {
     const o = rowObject_(t, r);
     const id = normId_(String(o['Employee ID'] || '').replace(/^'/, ''));
@@ -2056,13 +2164,17 @@ function birthdayRows_() {
     const okHr = /^\d{2}-\d{2}$/.test(hr), okSelf = /^\d{2}-\d{2}$/.test(self);
     // HR's date wins; a date the colleague added themselves is used until HR has one.
     const md = okHr ? hr : okSelf ? self : '';
-    if (!id || !md) return null;
-    const u = byId[id];
+    if (!md) return null;
+    // Match the live staff record by Employee ID; if that misses, fall back to an unambiguous name match
+    // so an uploaded photo and current details still show even when the birthday list's ID differs.
+    let u = id ? byId[id] : null;
+    if (!u) { const nm = byName[nameKey_(o['Name'])]; if (nm) u = nm; }
+    if (!id && !u) return null;
     if (u && u.status === 'Left') return null; // colleagues who have left are not celebrated any more
     return {
       hr: okHr ? hr : '',
       self: okSelf ? self : '',
-      employeeId: id,
+      employeeId: id || (u && u.employeeId) || '',
       name: (u && u.name) || String(o['Name'] || '').trim(),
       md: md,
       property: (u && u.property) || String(o['Property'] || '').trim() || 'Cluster',
@@ -2568,13 +2680,17 @@ function actionSetMemberPhoto_(req) {
   requireApprover_(req);
   const id = normId_(req.employeeId);
   if (!id) fail_('Staff member not found.');
+  const t0 = table_(SHEET_STAFF);
+  const i0 = findStaff_(t0, id);
+  if (i0 < 0) fail_('Staff member not found.');
+  const member = userAt_(t0, i0);
   let url = '';
   if (!req.remove) {
     if (['image/jpeg', 'image/png', 'image/webp'].indexOf(req.mimeType) < 0) fail_('Please choose a JPG, PNG or WEBP photo.');
     const bytes = Utilities.base64Decode(String(req.data || ''));
     if (!bytes.length) fail_('The photo is empty.');
     if (bytes.length > MAX_PHOTO_BYTES) fail_('The photo is too large (3 MB maximum).');
-    url = saveUpload_(bytes, req.mimeType, 'photo-' + id);
+    url = saveUpload_(bytes, req.mimeType, photoBase_(member));
   }
   return withLock_(function () {
     const t = ensureColumn_(table_(SHEET_STAFF), 'Photo URL');
