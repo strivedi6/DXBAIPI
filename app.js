@@ -2645,6 +2645,8 @@
           right: `<span class="switch"><input type="checkbox" role="switch" aria-label="Haptic feedback" data-change="haptics" ${Haptics.on() ? 'checked' : ''}><span></span></span>` })}
         ${setRow({ tag: 'label', icon: sv('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>', 18), color: '#E07A2E', title: 'Sounds', sub: 'With pop-ups and celebrations',
           right: `<span class="switch"><input type="checkbox" role="switch" aria-label="Sounds" data-change="sounds" ${Sound.on() ? 'checked' : ''}><span></span></span>` })}
+        ${(Bio.supported || Bio.isOn()) ? setRow({ tag: 'label', icon: sv('<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 9h.01M15 9h.01M9 14c.8.8 1.9 1.2 3 1.2s2.2-.4 3-1.2"/>', 18), color: '#2F6FDB', title: 'Face ID / Touch ID', sub: `Unlock the app with ${esc(Bio.label())}`,
+          right: `<span class="switch"><input type="checkbox" role="switch" aria-label="Face ID / Touch ID unlock" data-change="bioToggle" ${Bio.isOn() ? 'checked' : ''}><span></span></span>` }) : ''}
         ${setRow({ attrs: 'data-act="nav" data-to="appearance"', icon: sv('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>', 18), color: '#3B3F4A', title: 'Appearance', right: `<span class="set-val">${{ light: 'Light', dark: 'Dark', auto: 'Automatic' }[appearance()]}</span>${I.chevron}` })}
         ${!isStandalone() ? setRow({ attrs: 'data-act="addHome"', icon: I.addHome, color: '#2F6FDB', title: 'Add to Home Screen' }) : ''}
       </div>
@@ -5917,6 +5919,18 @@
     collPick(el) { const r = document.getElementById('coll-only'); if (r) r.hidden = !el.value; },
     sounds(el) { LS.set('bb_sounds', !!el.checked); if (el.checked) { Sound.unlock(); Sound.play('none'); } toast(el.checked ? 'Sounds on.' : 'Sounds off.'); },
     haptics(el) { LS.set('bb_haptics', !!el.checked); if (el.checked) Haptics.decorate(document.body); else Haptics.strip(); toast(el.checked ? 'Haptic feedback on.' : 'Haptic feedback off.'); render(); },
+    async bioToggle(el) {
+      if (el.checked) {
+        el.disabled = true;
+        try { await Bio.enable(); toast('Face ID / Touch ID unlock is on for this device.'); }
+        catch (e) { el.checked = false; toast((e && e.name === 'NotAllowedError') ? 'Set-up cancelled.' : (e && e.message) || 'Could not set up biometric unlock.'); }
+        el.disabled = false;
+      } else {
+        Bio.disable();
+        toast('Biometric unlock turned off on this device.');
+      }
+      render();
+    },
     customColor(el) {
       const box = el.closest('.field') || el.closest('form');
       box.querySelector(`input[type=hidden][name="${el.dataset.name}"]`).value = el.value.toUpperCase();
@@ -6320,6 +6334,95 @@
       requestAnimationFrame(() => { queued = false; Haptics.decorate(document.body); });
     }).observe(document.body, { childList: true, subtree: true });
   }
+
+  /* ---------------- Face ID / Touch ID unlock ----------------
+   * Uses the phone's native unlock (WebAuthn platform authenticator) as a quick lock over the
+   * app on this device. The colleague signs in once with their Employee ID and PIN; after that,
+   * reopening the app asks for Face ID / Touch ID (or fingerprint) instead of the PIN. It guards
+   * this phone only — it is a convenience lock over the saved sign-in, not a change to the server.
+   */
+  function abToB64url(buf) { const b = new Uint8Array(buf); let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  function b64urlToAb(str) { str = String(str).replace(/-/g, '+').replace(/_/g, '/'); while (str.length % 4) str += '='; const bin = atob(str); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
+  const BIO_ICON = sv('<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 9h.01M15 9h.01M9 14c.8.8 1.9 1.2 3 1.2s2.2-.4 3-1.2"/>', 22);
+
+  const Bio = {
+    supported: false,
+    locked: false,
+    lastHidden: 0,
+    LOCK_AFTER: 2 * 60 * 1000, // re-lock if the app was in the background for 2 minutes or more
+    async probe() {
+      try { this.supported = !!(window.PublicKeyCredential && navigator.credentials && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }
+      catch (e) { this.supported = false; }
+      return this.supported;
+    },
+    isOn() { return LS.get('bb_bio') === '1' && !!LS.get('bb_bio_id'); },
+    label() { return isIOS() ? 'Face ID or Touch ID' : 'fingerprint or face unlock'; },
+    async enable() {
+      const u = state.user;
+      if (!u) throw new Error('Please sign in first.');
+      if (!(window.PublicKeyCredential && navigator.credentials)) throw new Error('This device doesn’t support biometric unlock.');
+      const cred = await navigator.credentials.create({ publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        rp: { name: CONFIG.appName || 'Team App' },
+        user: { id: crypto.getRandomValues(new Uint8Array(16)), name: String(u.employeeId), displayName: u.name || String(u.employeeId) },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' },
+        timeout: 60000, attestation: 'none'
+      } });
+      if (!cred) throw new Error('Could not set up biometric unlock.');
+      LS.set('bb_bio_id', abToB64url(cred.rawId));
+      LS.set('bb_bio', '1');
+      LS.set('bb_bio_user', u.employeeId);
+    },
+    disable() { LS.del('bb_bio'); LS.del('bb_bio_id'); LS.del('bb_bio_user'); },
+    async verify() {
+      const id = LS.get('bb_bio_id');
+      if (!id) throw new Error('Biometric unlock is not set up on this device.');
+      const res = await navigator.credentials.get({ publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ id: b64urlToAb(id), type: 'public-key' }],
+        userVerification: 'required', timeout: 60000
+      } });
+      if (!res) throw new Error('Unlock failed.');
+      return true;
+    },
+    maybeLockOnResume() {
+      if (this.isOn() && state.token && this.lastHidden && Date.now() - this.lastHidden >= this.LOCK_AFTER) this.lock();
+    },
+    lock() {
+      if (this.locked || document.querySelector('.lockscreen')) return;
+      if (!(this.isOn() && state.token)) return;
+      this.locked = true;
+      document.documentElement.classList.add('locked');
+      const el = document.createElement('div');
+      el.className = 'lockscreen';
+      el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Locked');
+      el.innerHTML = `<div class="lock-card">
+          <div class="lock-logo">${safeUrl(state.settings.logo) ? `<img src="${esc(state.settings.logo)}" alt="">` : `<span class="monogram">${esc(CONFIG.monogram || 'BB')}</span>`}</div>
+          <h2>${esc(CONFIG.appShortName || CONFIG.appName || '')}</h2>
+          <p class="small muted" style="margin:0">Locked · unlock with ${esc(this.label())}</p>
+          <button class="btn lock-unlock" type="button">${BIO_ICON} Unlock</button>
+          <div class="error-box lock-err" hidden></div>
+          <button class="link-btn lock-pin" type="button">Use PIN instead</button>
+        </div>`;
+      document.body.appendChild(el);
+      const err = el.querySelector('.lock-err');
+      const tryUnlock = async () => {
+        err.hidden = true;
+        try { await this.verify(); try { Haptics.tap(true); } catch (e) { /* none */ } this.unlock(); }
+        catch (e) { err.textContent = (e && e.name === 'NotAllowedError') ? 'Unlock cancelled. Tap Unlock to try again.' : (e && e.message || 'Unlock failed.'); err.hidden = false; }
+      };
+      el.querySelector('.lock-unlock').addEventListener('click', tryUnlock);
+      el.querySelector('.lock-pin').addEventListener('click', () => { this.unlock(); signOut(); });
+      setTimeout(tryUnlock, 300); // some browsers need a tap instead; the button is there for that
+    },
+    unlock() {
+      this.locked = false; this.lastHidden = 0;
+      document.documentElement.classList.remove('locked');
+      const el = document.querySelector('.lockscreen'); if (el) el.remove();
+    }
+  };
+
   const TAPPABLE = 'button, a[href], [data-act], [data-to], .chip, .swatch, .switch, .set-row, .me-row, .check-row, .choice, .upload, .photo-edit, select, input[type="checkbox"], input[type="radio"], input[type="file"], input[type="date"], input[type="time"], input[type="color"], summary';
   document.addEventListener('click', (e) => {
     // A finger on the invisible switch: the phone has ticked; now pass the tap on to the button itself.
@@ -6399,6 +6502,8 @@
   window.addEventListener('online', () => { if (state.token) loadFeed(true); });
   // Refresh on every sign-in and app open, then every 5 minutes while the app is open.
   document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { Bio.lastHidden = Date.now(); return; }
+    Bio.maybeLockOnResume();
     if (document.visibilityState === 'visible' && state.token && Date.now() - state.lastLoad >= REFRESH_MS) loadFeed(true);
   });
   setInterval(() => {
@@ -6782,5 +6887,7 @@
   }
   history.replaceState({ name: state.route.name, params: state.route.params }, '');
   render();
+  if (state.token && Bio.isOn()) Bio.lock();
+  Bio.probe().then(() => { if (state.route.name === 'profile') render(); });
   if (state.token) loadFeed(true);
 })();
