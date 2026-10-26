@@ -65,7 +65,7 @@ const POST_PROPERTIES = ['DXBAI', 'DXBPI', 'Cluster'];
 /* Entry points                                                        */
 /* ------------------------------------------------------------------ */
 
-const BACKEND_VERSION = '1.27.1';
+const BACKEND_VERSION = '1.29.0';
 
 function doGet() {
   return out({ ok: true, status: 'running', version: BACKEND_VERSION });
@@ -96,12 +96,14 @@ function setup() {
   const folder = uploadFolder_();
   ensureSchema_(true);
   ScriptApp.getProjectTriggers().forEach(function (t) {
-    if (['dailyBirthdayPush', 'trainingWrapUp'].indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t);
+    if (['dailyBirthdayPush', 'trainingWrapUp', 'monthlyCleanup'].indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('dailyBirthdayPush').timeBased().everyDays(1).atHour(BIRTHDAY_HOUR).nearMinute(0).inTimezone(TZ).create();
   // Every 10 minutes: when a training session has ended, tell the trainer the attendance report is ready.
   ScriptApp.newTrigger('trainingWrapUp').timeBased().everyMinutes(10).create();
-  console.log('Setup complete. Birthday and training notifications scheduled daily at ' + BIRTHDAY_HOUR + ':00 (' + TZ + '), and attendance reports after each training. Uploads folder: ' + folder.getUrl());
+  // Once a month: move uploaded files no longer used anywhere in the app to the Drive Trash.
+  ScriptApp.newTrigger('monthlyCleanup').timeBased().onMonthDay(1).atHour(3).inTimezone(TZ).create();
+  console.log('Setup complete. Birthday and training notifications scheduled, attendance reports after each training, and an unused-file cleanup on the 1st of each month. Uploads folder: ' + folder.getUrl());
 }
 
 /**
@@ -254,6 +256,7 @@ const ACTIONS = {
   setMyPosition: actionSetMyPosition_,
   updateMyProfile: actionUpdateMyProfile_,
   setMemberPhoto: actionSetMemberPhoto_,
+  cleanupFiles: actionCleanupFiles_,
   savePopup: actionSavePopup_,
   deletePopup: actionDeletePopup_,
   lookupStaff: actionLookupStaff_,
@@ -968,6 +971,68 @@ function saveUpload_(bytes, mimeType, rawName) {
   return mimeType === 'application/pdf'
     ? 'https://drive.google.com/file/d/' + fid + '/view'
     : 'https://lh3.googleusercontent.com/d/' + fid;
+}
+
+/**
+ * Every Drive file ID the live app still points at — staff photos, every post's media,
+ * collections, pop-ups, the sign-in image, logos and uploaded fonts. Anything in the uploads
+ * folder that is NOT in this set is an orphan the monthly cleanup can remove.
+ */
+function referencedFileIds_() {
+  const ids = {};
+  const add = function (u) { const id = driveIdFromUrl_(u); if (id) ids[id] = true; };
+  try { const st = table_(SHEET_STAFF); st.rows.forEach(function (r, i) { add(userAt_(st, i).photo); }); } catch (e) { /* skip */ }
+  try {
+    const pt = table_(SHEET_POSTS);
+    pt.rows.forEach(function (r) {
+      const o = rowObject_(pt, r); if (!o['Post ID']) return;
+      add(o['Image URL']); add(o['Menu / PDF URL']); add(o['Attachment URL']);
+      parseBlocks_(o['Blocks']).forEach(function (b) { if (b && b.url) add(b.url); });
+    });
+  } catch (e) { /* skip */ }
+  try { collections_().forEach(function (c) { add(c.banner); (c.blocks || []).forEach(function (b) { if (b && b.url) add(b.url); }); }); } catch (e) { /* skip */ }
+  try { const pop = table_(SHEET_POPUPS); pop.rows.forEach(function (r) { add(rowObject_(pop, r)['Image URL']); }); } catch (e) { /* skip */ }
+  try {
+    const s = settings_();
+    add(s.heroImage); add(s.logo); add(s.reportLogo);
+    const ol = outletLogos_(s); Object.keys(ol).forEach(function (k) { add(ol[k]); });
+    const h = hotels_(s); Object.keys(h).forEach(function (k) { if (h[k] && h[k].logo) add(h[k].logo); });
+    const fonts = fontsSetting_(s); Object.keys(fonts).forEach(function (k) { if (fonts[k] && fonts[k].id) ids[fonts[k].id] = true; });
+  } catch (e) { /* skip */ }
+  return ids;
+}
+
+/**
+ * Moves orphaned uploads (files in our uploads folder no longer referenced anywhere in the app)
+ * to the Drive Trash, where they stay recoverable for 30 days before Drive removes them.
+ * Files uploaded in the last two weeks are left alone, so an image uploaded while a post is still
+ * being written is never removed before it is saved. Only our current uploads folder is touched.
+ */
+function cleanupOrphans_(graceDays) {
+  const keep = referencedFileIds_();
+  const folder = uploadFolder_();
+  const grace = (graceDays == null ? 14 : graceDays) * 24 * 3600 * 1000;
+  const now = Date.now();
+  let trashed = 0, kept = 0, recent = 0;
+  const it = folder.getFiles();
+  while (it.hasNext()) {
+    const f = it.next();
+    if (keep[f.getId()]) { kept++; continue; }
+    let created = now; try { created = f.getDateCreated().getTime(); } catch (e) { /* assume new */ }
+    if (now - created < grace) { recent++; continue; }
+    try { f.setTrashed(true); trashed++; } catch (e) { console.log('cleanup skip ' + f.getId() + ': ' + (e && e.message || e)); }
+  }
+  console.log('Cleanup: trashed ' + trashed + ' unused file(s); kept ' + kept + ' in use, ' + recent + ' too recent.');
+  return { trashed: trashed, inUse: kept, recent: recent };
+}
+
+/** Monthly scheduled cleanup (set up by setup()). */
+function monthlyCleanup() { cleanupOrphans_(14); }
+
+/** Admin-only: run the unused-file cleanup now and report what it did. */
+function actionCleanupFiles_(req) {
+  requireAdmin_(req);
+  return cleanupOrphans_(14);
 }
 
 /** A profile photo's file name: "<Full Name>_<Hotel Code>" (e.g. "Georges Ghantous_DXBAI"). */

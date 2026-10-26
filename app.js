@@ -723,12 +723,35 @@
     if (name !== 'checkinHost') Host.stop();
     FX.stop();
     app.innerHTML = view(state.route.params);
+    ensureSidebar();
     if (top) window.scrollTo(0, 0);
     afterPaint();
     FX.start(app);
     const auto = app.querySelector('[data-autofocus]');
     if (auto && !('ontouchstart' in window)) auto.focus();
   }
+  /** Which sidebar tab to highlight on a content/detail screen that has no nav of its own. */
+  function navForName(name) {
+    if (name === 'post') {
+      const id = (state.route.params || {}).id;
+      const p = state.posts.find((x) => x.id === id) || (state.myPosts || []).find((x) => x.id === id);
+      if (p) { const g = catOf(p.category).group; return g === 'marketing' ? 'offers' : g === 'hr' ? 'hr' : 'feed'; }
+      return 'feed';
+    }
+    const m = { collection: 'offers', section: 'offers', share: 'offers', search: 'feed', checkin: 'hr', checkinHost: 'hr', trainingReport: 'hr', attendees: 'hr' };
+    return m[name] || name;
+  }
+
+  /** On desktop the sidebar is permanent on every screen. Views that don't render their own nav
+   *  (post details, newsletters, collections, share, check-in…) get one added here, desktop-only. */
+  function ensureSidebar() {
+    if (!state.user) return;
+    const scr = app.querySelector('.screen');
+    if (!scr || scr.querySelector('.nav')) return;
+    scr.classList.add('det');
+    scr.insertAdjacentHTML('beforeend', nav(navForName(screenName())));
+  }
+
   function render(opts) {
     opts = opts || {};
     const name = screenName();
@@ -3608,6 +3631,7 @@
       </div>
       <div class="set-group">${['logo', 'hotels', 'fonts', 'theme', 'signin'].map(row).join('')}</div>
       <div class="set-group">${['outlets', 'departments', 'categories'].map(row).join('')}</div>
+      <div class="set-group">${setRow({ attrs: 'data-act="cleanupFiles"', icon: sv('<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/>', 18), color: '#6B717E', title: 'Clean up unused files', sub: 'Move photos and files no longer used in the app to Drive Trash', right: ' ' })}</div>
       <div class="set-group">${row('reset')}</div>`;
   }
 
@@ -5304,6 +5328,15 @@
         render(); loadFeed(true);
       } catch (e) { showError(e); el.disabled = false; }
     },
+    async cleanupFiles(el) {
+      if (!confirm('Move photos and files that are no longer used anywhere in the app to the Google Drive Trash?\n\nThey stay recoverable in Trash for 30 days. Files uploaded in the last 2 weeks are kept.')) return;
+      el.classList.add('busy');
+      try {
+        const r = await api('cleanupFiles', {});
+        toast(r.trashed ? `Moved ${r.trashed} unused file${r.trashed === 1 ? '' : 's'} to Trash. ${r.inUse} still in use.` : `Nothing to clean up — all ${r.inUse} files are in use.`);
+      } catch (e) { showError(e); }
+      el.classList.remove('busy');
+    },
     async deleteBday(el) {
       if (!confirm('Remove this birthday?')) return;
       try {
@@ -5958,6 +5991,7 @@
       if (label) label.textContent = 'Uploading…';
       try {
         const payload = await filePayload(file, 1800);
+        payload.name = 'Sign-in image';
         const up = await api('uploadFile', payload);
         const j = await api('saveSettings', { heroImage: up.url });
         setSettings({ heroImage: j.heroImage || '' }, j.brand);
@@ -5972,6 +6006,7 @@
       if (label) label.textContent = 'Uploading…';
       try {
         const payload = await logoPayload(file);
+        payload.name = 'App logo';
         const up = await api('uploadFile', payload);
         const j = await api('saveSettings', { logo: up.url });
         if (!j.brand) throw new Error('The backend needs updating to version 1.9: paste the new Code.gs into Apps Script, then Deploy › Manage deployments › Edit › New version › Deploy.');
@@ -5986,7 +6021,8 @@
       if (!file) return;
       const lab = el.parentElement; lab.firstChild.textContent = 'Uploading…';
       try {
-        const up = await api('uploadFile', await logoPayload(file));
+        const olPayload = await logoPayload(file); olPayload.name = 'Outlet logo - ' + (el.dataset.outlet || '');
+        const up = await api('uploadFile', olPayload);
         const logos = Object.assign({}, state.settings.outletLogos || {}, { [el.dataset.outlet]: up.url });
         const j = await api('saveSettings', { outletLogos: logos });
         if (!j.brand || !j.brand.outletLogos) throw new Error('The backend needs updating: paste the new Code.gs into Apps Script, then Deploy › Manage deployments › Edit › New version › Deploy.');
@@ -6003,6 +6039,7 @@
       if (label) label.textContent = 'Uploading…';
       try {
         const payload = await logoPayload(file);
+        payload.name = 'Attendance sheet logo';
         const up = await api('uploadFile', payload);
         const j = await api('saveSettings', { reportLogo: up.url });
         if (!j.brand || !('reportLogo' in j.brand)) throw new Error('The backend needs updating: paste the new Code.gs into Apps Script, then Deploy › Manage deployments › Edit › New version › Deploy.');
@@ -6044,6 +6081,7 @@
       try {
         // Logos keep their transparent background (PNG); photos are made smaller as JPEG.
         const payload = el.dataset.noun === 'logo' ? await logoPayload(file) : await filePayload(file);
+        if (el.dataset.noun) payload.name = el.dataset.noun.charAt(0).toUpperCase() + el.dataset.noun.slice(1);
         const j = await api('uploadFile', payload);
         hidden.value = j.url;
         label.textContent = el.dataset.noun ? 'Change ' + el.dataset.noun : 'File attached · tap to replace';

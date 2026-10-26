@@ -218,6 +218,8 @@ h1, h2, h3, .title-lg, .mcard .t, .monogram, .price-badge b { letter-spacing: .0
 .avatar-btn { position: relative; }
 .avatar-btn .av-badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; border-radius: 9px; font-size: 11px; border: 2px solid var(--cream); }
 .nav-foot { display: none; }
+/* A sidebar added to a detail/content screen is desktop-only: never show it as a bottom bar on mobile. */
+.screen.det > .nav, .screen.det > .nav-blur { display: none; }
 .fab { position: fixed; right: max(20px, calc(50% - 260px)); bottom: calc(88px + var(--safe-bottom)); width: 58px; height: 58px; border-radius: 50%; border: 0; background: var(--navy); color: #fff; box-shadow: 0 8px 22px rgba(19, 41, 75, .3); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 11; }
 
 /* ---------- Misc ---------- */
@@ -754,6 +756,9 @@ html.in-transit body { overflow-x: hidden; }
   .nav-foot-btn { display: flex; flex-direction: row; align-items: center; gap: 12px; justify-content: flex-start; padding: 0 14px; min-height: 44px; border: 0; background: none; color: var(--muted); font: inherit; font-size: 14px; font-weight: 600; border-radius: 12px; cursor: pointer; text-align: left; }
   .nav-foot-btn svg { width: 20px; height: 20px; }
   .nav-foot-btn:hover { background: #F7F2EA; color: var(--navy); }
+  /* Sidebar added to detail/content screens (post, newsletter, collection, share…): offset the content for it. */
+  .screen.det { padding-left: 236px; }
+  .screen.det > .nav { display: flex !important; }
   .page.with-nav { margin-left: 236px; padding: 32px max(40px, calc((100vw - 236px - 1120px) / 2)) 56px; }
   .screen > .page:not(.with-nav), .screen > form.page { width: 100%; max-width: 820px; margin: 0 auto; padding-top: 32px; }
   .coll-page > .page { max-width: 1120px !important; }

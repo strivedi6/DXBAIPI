@@ -111,3 +111,24 @@ Then upload the folder as above. Phones that already installed the app may keep 
 - **HR & Admin can set a colleague's photo:** in Team access, open a staff member and tap **Add photo / Change photo** to upload one for them. It shows everywhere for everyone on the next refresh.
 - **Desktop sidebar:** stays on permanently, and now has **Refresh** and **Log out** buttons at the bottom-left.
 - **Footer** shows just the version number.
+
+## Version 1.28.0
+**Install:** upload this folder to Netlify/GitHub, then paste the new `Code.gs` into Apps Script and deploy a new version (Deploy › Manage deployments › Edit › New version). No setup step; existing files keep their current names until they're next changed.
+- **Readable file names in Google Drive.** Uploaded media is now named by what it is, so you can see at a glance which "Team App Uploads" folder is live and which file is which:
+  - **Profile photos:** `Full Name_Hotel Code` — e.g. `Georges Ghantous_DXBAI`.
+  - **Post images & files:** renamed when the post is saved to `PostID_Post Name` (e.g. `PMVP4…_Taco Tuesday`), with `_menu` / `_attachment` for a post's menu or attached file and `_1`, `_2`… for extra images inside a newsletter or offer body.
+  - **Special collections:** `CollectionID_Name` (banner and body images).
+  - **Settings images:** `Sign-in image`, `App logo`, `Outlet logo - <outlet>`, `Attendance sheet logo`.
+  - A colleague's profile photo reused on an Employee-of-the-Month / New Joiner post is **never** renamed — it keeps its `Name_Hotel Code` name.
+- Only files in your current uploads folder are renamed; nothing already posted breaks. Existing files are renamed the next time that photo/post is saved.
+
+## Version 1.29.0
+**Install:** upload this folder, paste the new `Code.gs`, then in Apps Script choose **setup** in the function list and press **Run** once (this adds the monthly cleanup schedule), then Deploy › Manage deployments › Edit › New version.
+- **No more photo pile-up.** Removing or replacing a photo (or deleting a post) leaves its old file in Drive, so unused files used to build up. Now a cleanup runs **on the 1st of each month at 3am** and moves any file in the uploads folder that is **no longer used anywhere in the app** to the Drive **Trash** (recoverable there for 30 days before Drive removes it).
+  - "In use" means still linked from a staff photo, any post (image, menu, attachment or body image), a special collection, a pop-up, the sign-in image, a logo or an uploaded font.
+  - Files uploaded in the **last 2 weeks are always kept**, so an image uploaded while a post is still being written is never removed before it's saved.
+  - Only your **current** uploads folder is touched; files in an older/duplicate folder are left alone, and nothing already shown in the app breaks.
+- **Run it on demand:** Admin › App setup › **Clean up unused files** does the same sweep immediately and tells you how many were moved.
+
+## Version 1.29.1
+- **Desktop sidebar now stays on every screen.** Opening a post, offer, newsletter, collection, training, the share screen or check-in used to hide the left sidebar on desktop — it now stays permanently, with the content sitting neatly beside it and the right section highlighted. (Front-end only; no Code.gs change — just upload the folder.)
