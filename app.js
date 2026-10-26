@@ -335,6 +335,24 @@
   const safeUrl = (u) => (/^https:\/\/[^\s"'<>]+$/i.test(String(u || '')) ? String(u) : '');
   const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
   const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
+  const lastName = (name) => { const p = String(name || '').trim().split(/\s+/); return p.length > 1 ? p.slice(1).join(' ') : ''; };
+
+  /** The profile fields a person still needs to fill in — drives the reminder badge and highlights. */
+  function profileGaps(u) {
+    u = u || state.user || {};
+    const info = state.myBdayInfo || {};
+    const hasDob = !!(info.hr || info.self);
+    const gaps = [];
+    if (!safeUrl(u.photo)) gaps.push({ key: 'photo', label: 'Profile photo' });
+    if (!hasDob) gaps.push({ key: 'dob', label: 'Date of birth' });
+    if (!firstName(u.name)) gaps.push({ key: 'firstName', label: 'First name' });
+    if (!lastName(u.name)) gaps.push({ key: 'lastName', label: 'Last name' });
+    if (!String(u.department || '').trim()) gaps.push({ key: 'department', label: 'Department' });
+    if (!String(u.position || '').trim()) gaps.push({ key: 'position', label: 'Job role' });
+    return gaps;
+  }
+  const hasGap = (k) => profileGaps().some((g) => g.key === k);
+
   const isPublisher = () => state.canPublish && state.canPublish.length > 0;
   const isAdmin = () => state.user && state.user.role === 'Admin';
   const canCollect = () => state.user && (state.user.role === 'Admin' || state.user.role === 'Marketing');
@@ -503,6 +521,7 @@
       state.farewell = j.farewell || null;
       state.quote = j.quote || null;
       maybeFarewell();
+      maybeSetupPrompt();
     } catch (e) {
       if (!e.handled) {
         state.offline = true;
@@ -791,10 +810,12 @@
     active = map[active] || active;
     const items = [['feed', 'Home', I.home], ['hr', 'HR', I.users], ['today', 'Today', I.star], ['offers', 'Offers', I.tag], ['profile', 'Profile', I.user]];
     const pending = canApprove() && state.staff ? state.staff.filter((s) => s.status === 'Pending').length : 0;
+    const profileN = (state.user ? profileGaps().length : 0) + pending;
     return `<div class="nav-blur" aria-hidden="true"></div><nav class="nav" aria-label="Main"><span class="nav-lens" aria-hidden="true"></span>
       <div class="nav-brand" aria-hidden="true">${safeUrl(state.settings.logo) ? logoImg('nav-logo', false) : `<span class="monogram">${esc(CONFIG.monogram || 'BB')}</span><b>${esc(CONFIG.appShortName || CONFIG.appName)}</b>`}</div>
       ${items.map(([k, label, ic]) => `
-      <button type="button" class="${k === 'today' ? 'nav-today' : ''}" data-act="nav" data-to="${k}" ${active === k ? 'aria-current="page"' : ''}><span class="ic">${active === k && IF[k] ? IF[k] : ic}</span><span class="lb">${k === 'today' ? '<span class="lb-m">Today</span><span class="lb-d">Today’s Special</span>' : label}</span>${k === 'profile' && pending ? `<span class="badge">${pending}</span>` : ''}</button>`).join('')}</nav>`;
+      <button type="button" class="${k === 'today' ? 'nav-today' : ''}" data-act="nav" data-to="${k}" ${active === k ? 'aria-current="page"' : ''}><span class="ic">${active === k && IF[k] ? IF[k] : ic}</span><span class="lb">${k === 'today' ? '<span class="lb-m">Today</span><span class="lb-d">Today’s Special</span>' : label}</span>${k === 'profile' && profileN ? `<span class="badge">${profileN}</span>` : ''}</button>`).join('')}
+      <div class="nav-foot" aria-hidden="false"><button type="button" class="nav-foot-btn" data-act="refresh" aria-label="Refresh">${I.refresh}<span>Refresh</span></button><button type="button" class="nav-foot-btn" data-act="signOut" aria-label="Log out">${I.logout}<span>Log out</span></button></div></nav>`;
   }
 
   function catTag(c, text) {
@@ -1529,6 +1550,62 @@
     celebrate();
   }
 
+  /** First time a new colleague signs in: offer to add their photo and birthday (they can skip). */
+  function maybeSetupPrompt(tries) {
+    if (!state.user) return;
+    if (LS.get('bb_setup_done')) return;
+    if (!hasGap('photo') && !hasGap('dob')) { LS.set('bb_setup_done', '1'); return; }
+    tries = tries || 0;
+    if (tries > 8) return;
+    // Don't stack over the birthday wish or a pop-up; wait for it to close.
+    if (document.querySelector('.celebrate, .ovl, .setup-sheet')) { setTimeout(() => maybeSetupPrompt(tries + 1), 1600); return; }
+    setTimeout(() => { if (!document.querySelector('.celebrate, .ovl, .setup-sheet') && !LS.get('bb_setup_done')) showSetup(); }, tries ? 200 : 1000);
+  }
+
+  function showSetup() {
+    if (document.querySelector('.setup-sheet')) return;
+    const u = state.user || {};
+    const days = []; for (let d = 1; d <= 31; d++) days.push(d);
+    const el = document.createElement('div');
+    el.className = 'ovl setup-sheet';
+    el.innerHTML = `<div class="ovl-card" role="dialog" aria-modal="true" aria-label="Complete your profile">
+      <span class="wp-ey">${I.sparkles} Welcome${firstName(u.name) ? ', ' + esc(firstName(u.name)) : ''}</span>
+      <h3>Add your photo &amp; birthday</h3>
+      <p class="small muted" style="margin:-8px 0 4px">So colleagues recognise you and we can celebrate your day. You can skip and do it later from your profile.</p>
+      <label class="photo-edit setup-photo" aria-label="Add profile photo" style="align-self:center">
+        ${avatarHtml(u, 96)}
+        <span class="cam" aria-hidden="true">${sv('<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>', 16)}</span>
+        <input type="file" accept="image/*" data-change="setupPhoto">
+      </label>
+      <span class="small center" id="setup-photo-tx" style="color:var(--gold-text);font-weight:600">${safeUrl(u.photo) ? 'Looking good! Tap to change.' : 'Tap to add your photo'}</span>
+      <div class="grid-2" style="margin-top:6px">
+        <div class="field"><label for="su-d">Birthday — day</label><select class="select" id="su-d"><option value="">Day</option>${days.map((d) => `<option>${d}</option>`).join('')}</select></div>
+        <div class="field"><label for="su-m">Month</label><select class="select" id="su-m"><option value="">Month</option>${MONTHS_LONG.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('')}</select></div>
+      </div>
+      <p class="hint" style="margin:-4px 0 0">Day and month only, never the year.</p>
+      <div class="error-box" id="setup-error" hidden></div>
+      <button type="button" class="btn" id="su-save" style="margin-top:8px">Save and continue</button>
+      <button type="button" class="link-btn" id="su-skip" style="margin-top:2px">Skip for now</button>
+    </div>`;
+    app.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('in'));
+    const done = () => { LS.set('bb_setup_done', '1'); el.classList.remove('in'); setTimeout(() => { el.remove(); render(); }, 220); };
+    el.querySelector('#su-skip').addEventListener('click', done);
+    el.querySelector('#su-save').addEventListener('click', async () => {
+      const d = Number(el.querySelector('#su-d').value), m = Number(el.querySelector('#su-m').value);
+      const btn = el.querySelector('#su-save'); const err = el.querySelector('#setup-error');
+      if ((d && !m) || (m && !d)) { err.textContent = 'Please choose both a day and a month, or leave both blank.'; err.hidden = false; return; }
+      if (d && m) {
+        btn.disabled = true; btn.textContent = 'Saving…';
+        try {
+          const j = await api('setMyBirthday', { day: d, month: m });
+          if (j.myBirthdayInfo) { state.myBdayInfo = j.myBirthdayInfo; LS.set('bb_my_bday', j.myBirthdayInfo); }
+        } catch (e) { btn.disabled = false; btn.textContent = 'Save and continue'; err.textContent = e.message; err.hidden = false; return; }
+      }
+      done();
+    });
+  }
+
   function celebrate() {
     if (document.querySelector('.celebrate')) return;
     const el = document.createElement('div');
@@ -1561,7 +1638,7 @@
         <div class="greet"><span class="small muted">${eyebrow || greeting()}</span><h1>${esc(title || firstName(u.name))}</h1></div>
         <div class="row" style="gap:8px">
           <button class="icon-btn" type="button" data-act="nav" data-to="search" aria-label="Search">${I.search}</button>
-          <button class="icon-btn avatar-btn" type="button" data-act="nav" data-to="profile" aria-label="Your profile">${avatarHtml(u, 40)}${showBellDot ? '<span class="dot" style="top:0;right:0"></span>' : ''}</button>
+          <button class="icon-btn avatar-btn" type="button" data-act="nav" data-to="profile" aria-label="Your profile">${avatarHtml(u, 40)}${(() => { const n = profileGaps().length; return n ? `<span class="badge av-badge">${n}</span>` : showBellDot ? '<span class="dot" style="top:0;right:0"></span>' : ''; })()}</button>
         </div>
       </div>
       ${state.offline ? '<div class="offline">You’re offline. Showing the last updates you loaded.</div>' : ''}
@@ -2526,14 +2603,15 @@
     const pushDisabled = !CONFIG.oneSignalAppId || perm === 'unsupported' || perm === 'denied';
     const info = state.myBdayInfo || {};
     const bd = info.hr || info.self;
+    const gaps = profileGaps(u);
     return `
     <div class="screen"><div class="page with-nav">
       <div class="topbar"><div class="greet"><h1>Profile</h1></div></div>
       <div class="set-group">
-        <button type="button" class="me-row" data-act="nav" data-to="me">
+        <button type="button" class="me-row${gaps.length ? ' needs' : ''}" data-act="nav" data-to="me">
           ${avatarHtml(u, 64)}
-          <span class="set-tx"><b style="font-size:19px">${esc(u.name)}</b><span>${esc([u.department, PROP_LABEL[u.property] || u.property].filter(Boolean).join(' · '))}</span><span>Photo, birthday, PIN and details</span></span>
-          ${I.chevron}
+          <span class="set-tx"><b style="font-size:19px">${esc(u.name)}</b><span>${esc([u.department, PROP_LABEL[u.property] || u.property].filter(Boolean).join(' · '))}</span><span>${gaps.length ? `<span class="needs-tx">${gaps.length} ${gaps.length === 1 ? 'thing' : 'things'} to complete: ${esc(gaps.map((g) => g.label).join(', '))}</span>` : 'Photo, birthday, PIN and details'}</span></span>
+          ${gaps.length ? `<span class="badge">${gaps.length}</span>` : I.chevron}
         </button>
       </div>
       <div class="set-group">
@@ -2551,7 +2629,7 @@
       <div class="set-group">
         ${setRow({ attrs: 'data-act="signOut"', icon: I.logout, color: '#9B2C2C', title: 'Sign out', danger: true, right: ' ' })}
       </div>
-      <p class="small muted center">${esc(CONFIG.appName)} · version ${esc(CONFIG.appVersion || '1.0.0')}</p>
+      <p class="small muted center">version ${esc(CONFIG.appVersion || '1.0.0')}</p>
     </div>${nav('profile')}</div>`;
   };
 
@@ -2578,33 +2656,46 @@
   /** My profile: photo, details, birthday and PIN. */
   VIEWS.me = () => {
     const u = state.user || {};
+    const lists = state.lists || { departments: [] };
+    if (!state.lists) getLists().then(() => { if (state.route.name === 'me') render(); });
+    const gaps = profileGaps(u);
+    const miss = (k) => gaps.some((g) => g.key === k);
+    const depList = lists.departments.slice();
+    if (u.department && depList.indexOf(u.department) < 0) depList.unshift(u.department);
     return `
     <div class="screen"><div class="page with-nav">
       <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button><h1 style="flex:1">My profile</h1><span style="width:44px"></span></div>
-      <div class="me-hero">
+      ${gaps.length ? `<div class="complete-banner">${I.sparkles}<div><b>Complete your profile</b><span>Still to add: ${esc(gaps.map((g) => g.label).join(', '))}. The highlighted sections below are missing.</span></div></div>` : ''}
+      <div class="me-hero${miss('photo') ? ' needs' : ''}">
         <label class="photo-edit" aria-label="Change profile photo">
           ${avatarHtml(u, 104)}
           <span class="cam" aria-hidden="true">${state.photoBusy ? '<span class="spinner" style="width:14px;height:14px;border-width:2px;margin:0;border-color:rgba(255,255,255,.4);border-top-color:#fff"></span>' : sv('<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>', 16)}</span>
           <input type="file" accept="image/*" data-change="photo" ${state.photoBusy ? 'disabled' : ''}>
         </label>
-        <h2 style="font-size:24px">${esc(u.name)}</h2>
+        <h2 style="font-size:24px">${esc(u.name) || 'Your name'}</h2>
         ${safeUrl(u.photo) ? `<button class="link-btn" type="button" data-act="removePhoto" style="min-height:32px">Remove photo</button>` : `<span class="small" style="color:var(--gold-text);font-weight:600">Tap the photo to add yours</span>`}
       </div>
+      <form class="card" data-form="myProfile" novalidate>
+        <span class="section-title" style="margin:0">Your details</span>
+        <div class="grid-2">
+          <div class="field${miss('firstName') ? ' needs' : ''}"><label for="m-first">First name</label><input class="input" id="m-first" name="firstName" maxlength="60" autocomplete="given-name" value="${esc(firstName(u.name))}" placeholder="First name"></div>
+          <div class="field${miss('lastName') ? ' needs' : ''}"><label for="m-last">Last name</label><input class="input" id="m-last" name="lastName" maxlength="60" autocomplete="family-name" value="${esc(lastName(u.name))}" placeholder="Last name"></div>
+        </div>
+        <div class="field${miss('department') ? ' needs' : ''}"><label for="m-dept">Department</label>
+          <select class="select" id="m-dept" name="department"><option value="">Select department</option>${depList.map((d) => `<option ${u.department === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></div>
+        <div class="field${miss('position') ? ' needs' : ''}"><label for="m-pos">Job role</label>
+          <input class="input" id="m-pos" name="position" maxlength="80" autocomplete="organization-title" value="${esc(u.position || '')}" placeholder="e.g. Guest Service Agent">
+          <span class="hint" style="margin:0">Shown on training attendance sheets.</span></div>
+        <div class="error-box" id="form-error" hidden></div>
+        <button class="btn" type="submit">Save details</button>
+      </form>
       <div class="card" style="gap:0;padding:6px 16px">
         <div class="kv"><span>Employee ID</span><b>${esc(u.employeeId)}</b></div>
-        <div class="kv"><span>Department</span><b>${esc(u.department || '—')}</b></div>
         <div class="kv"><span>Property</span><b>${esc(PROP_LABEL[u.property] || u.property || '—')}</b></div>
         <div class="kv"><span>Role</span><b>${esc(u.role)}</b></div>
       </div>
-      <form class="card" data-form="myPosition" novalidate>
-        <div class="field"><label for="m-pos">Job title</label>
-          <div class="row" style="gap:8px"><input class="input" id="m-pos" name="position" maxlength="80" value="${esc(u.position || '')}" placeholder="e.g. Guest Service Agent" style="flex:1">
-          <button class="btn btn-sm" type="submit" style="width:auto;padding:0 18px">Save</button></div>
-          <span class="hint" style="margin:0">Shown on training attendance sheets.</span></div>
-        <div class="error-box" id="form-error" hidden></div>
-      </form>
-      <p class="hint" style="margin-top:-8px">To change your name, department or hotel, please ask HR or your Admin.</p>
-      ${myBirthdayCard()}
+      <p class="hint" style="margin-top:-8px">To change your hotel, please ask HR or your Admin.</p>
+      <div${miss('dob') ? ' class="needs-wrap"' : ''}>${myBirthdayCard()}</div>
       <form class="card" data-form="changePin" novalidate>
         <span class="section-title" style="margin:0">Change PIN</span>
         <div class="grid-2">
@@ -3858,6 +3949,7 @@
               <div class="spacer"><div class="n">${esc(s.name)}</div><div class="d">${esc(s.role)} · ${esc(s.department)} · ${esc(s.property)}${s.lastDay && s.status === 'Approved' ? ' · <b style="color:var(--notice)">leaving ' + esc(fmtDate(s.lastDay)) + '</b>' : ''}</div></div>
               <span class="tag ${st}">${esc(s.status)}</span></summary>
             ${self ? '<p class="small muted">This is you.</p>' : `
+            <label class="member-photo" ${safeUrl(s.photo) ? '' : 'data-empty'}>${avatarHtml(s, 44)}<span class="mp-tx">${safeUrl(s.photo) ? 'Change photo' : 'Add photo'}</span><input type="file" accept="image/*" data-change="memberPhoto" data-id="${esc(s.employeeId)}"></label>
             <div class="field"><label class="label">Role</label>${roleSelect(s)}</div>
             <div class="grid-2">
               <button class="btn btn-sm btn-ghost" style="border:1px solid var(--field-line)" type="button" data-act="saveRole" data-id="${esc(s.employeeId)}">Save role</button>
@@ -5441,6 +5533,18 @@
         render();
       } catch (e) { busy(form, false); formError(form, e.message); }
     },
+    async myProfile(form) {
+      const f = Object.fromEntries(new FormData(form));
+      const first = (f.firstName || '').trim(), last = (f.lastName || '').trim();
+      if (!first) return formError(form, 'Please enter your first name.');
+      busy(form, true);
+      try {
+        const j = await api('updateMyProfile', { firstName: first, lastName: last, department: (f.department || '').trim(), position: (f.position || '').trim() });
+        if (j.user) { state.user = Object.assign({}, state.user, { name: j.user.name, department: j.user.department, position: j.user.position }); LS.set('bb_user', state.user); }
+        toast('Profile updated.');
+        render(); loadFeed(true);
+      } catch (e) { busy(form, false); formError(form, e.message); }
+    },
     async signup(form) {
       const f = Object.fromEntries(new FormData(form));
       if (!String(f.employeeId || '').trim()) return formError(form, 'Please enter your Employee ID.');
@@ -5811,6 +5915,41 @@
       } catch (e) { showError(e); }
       state.photoBusy = false;
       render();
+    },
+    /** Photo picked inside the first-run setup sheet — update it in place, without closing the sheet. */
+    async setupPhoto(el) {
+      const file = el.files && el.files[0];
+      if (!file) return;
+      const sheet = el.closest('.setup-sheet');
+      const tx = sheet && sheet.querySelector('#setup-photo-tx');
+      const cam = el.closest('.photo-edit').querySelector('.cam');
+      const camHtml = cam ? cam.innerHTML : '';
+      if (cam) cam.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;margin:0;border-color:rgba(255,255,255,.4);border-top-color:#fff"></span>';
+      try {
+        const payload = await filePayload(file, 600);
+        const j = await api('setPhoto', payload);
+        saveSession({ user: j.user, canPublish: state.canPublish });
+        // Replace the avatar markup inside the sheet with the new photo.
+        const holder = el.closest('.photo-edit');
+        if (holder) { const old = holder.querySelector('.avatar, img'); if (old) old.outerHTML = avatarHtml(state.user, 96); }
+        if (tx) tx.textContent = 'Looking good! Tap to change.';
+        if (cam) cam.innerHTML = camHtml;
+      } catch (e) { if (cam) cam.innerHTML = camHtml; showError(e); }
+    },
+    /** HR/Admin picks a photo for a team member in Team access. */
+    async memberPhoto(el) {
+      const file = el.files && el.files[0];
+      const id = el.dataset.id;
+      if (!file || !id) return;
+      const lab = el.closest('.member-photo'); if (lab) lab.classList.add('busy');
+      try {
+        const payload = await filePayload(file, 600);
+        payload.employeeId = id;
+        const j = await api('setMemberPhoto', payload);
+        if (j.user && state.staff) { const i = state.staff.findIndex((s) => s.employeeId === id); if (i >= 0) state.staff[i] = Object.assign({}, state.staff[i], { photo: j.user.photo }); }
+        toast('Photo updated.');
+      } catch (e) { showError(e); }
+      render(); loadFeed(true);
     },
     async hero(el) {
       const file = el.files && el.files[0];

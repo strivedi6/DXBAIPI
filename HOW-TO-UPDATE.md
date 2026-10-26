@@ -102,3 +102,12 @@ Then upload the folder as above. Phones that already installed the app may keep 
 - **Only the day and month** of birthdays are ever stored — never the year. Wishes reset each day.
 - **Birthday tile** now shows the person's **position** (e.g. "Commercial Director") instead of the hotel code.
 - **Profile photos:** when a colleague updates their photo it now shows everywhere for everyone — including on announcement posts (Employee of the Month, New Joiners, Promotions) — the next time the feed loads.
+
+## Version 1.27.0
+**Install:** upload this folder to Netlify/GitHub, then paste the new `Code.gs` into Apps Script and deploy a new version (Deploy › Manage deployments › Edit › New version). No new tab or setup step — all existing data stays as it is.
+- **First-time setup:** the first time a colleague signs in, a welcome sheet invites them to add their **photo** and **birthday**. They can **Skip for now** and do it later.
+- **"Complete your profile" reminder:** the Profile button shows a small number badge (on the bottom bar, the sidebar, and the top-right photo) counting what's still missing — photo, date of birth, first name, last name, department and job role. On the profile page the missing sections are highlighted in gold, and a banner lists what's left. The badge goes away once everything is filled in.
+- **Edit your own details:** colleagues can now update their **first name, last name, department and job role** themselves on My profile. (Hotel/property is still changed by HR or Admin.)
+- **HR & Admin can set a colleague's photo:** in Team access, open a staff member and tap **Add photo / Change photo** to upload one for them. It shows everywhere for everyone on the next refresh.
+- **Desktop sidebar:** stays on permanently, and now has **Refresh** and **Log out** buttons at the bottom-left.
+- **Footer** shows just the version number.

@@ -65,7 +65,7 @@ const POST_PROPERTIES = ['DXBAI', 'DXBPI', 'Cluster'];
 /* Entry points                                                        */
 /* ------------------------------------------------------------------ */
 
-const BACKEND_VERSION = '1.26.0';
+const BACKEND_VERSION = '1.27.0';
 
 function doGet() {
   return out({ ok: true, status: 'running', version: BACKEND_VERSION });
@@ -252,6 +252,8 @@ const ACTIONS = {
   saveQuote: actionSaveQuote_,
   deleteQuote: actionDeleteQuote_,
   setMyPosition: actionSetMyPosition_,
+  updateMyProfile: actionUpdateMyProfile_,
+  setMemberPhoto: actionSetMemberPhoto_,
   savePopup: actionSavePopup_,
   deletePopup: actionDeletePopup_,
   lookupStaff: actionLookupStaff_,
@@ -2537,6 +2539,48 @@ function actionSetMyPosition_(req) {
     const i = findStaff_(t, user.employeeId);
     if (i < 0) fail_('Staff member not found.');
     setCell_(t, i, 'Position', asText_(pos));
+    return { user: userAt_(table_(SHEET_STAFF), i) };
+  });
+}
+
+/** Any signed-in person can update their own name, department and job role. */
+function actionUpdateMyProfile_(req) {
+  const user = auth_(req).user;
+  const first = String(req.firstName || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+  const last = String(req.lastName || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+  const dept = String(req.department || '').trim().slice(0, 80);
+  const pos = String(req.position || '').trim().slice(0, 80);
+  const name = (first + ' ' + last).trim();
+  if (!name) fail_('Please enter your name.');
+  return withLock_(function () {
+    const t = table_(SHEET_STAFF);
+    const i = findStaff_(t, user.employeeId);
+    if (i < 0) fail_('Staff member not found.');
+    setCell_(t, i, 'Full Name', clean_(name));
+    if ('department' in req) setCell_(t, i, 'Department', clean_(dept));
+    if ('position' in req) setCell_(t, i, 'Position', asText_(pos));
+    return { user: userAt_(table_(SHEET_STAFF), i) };
+  });
+}
+
+/** HR or Admin can set (or remove) another team member's profile photo. */
+function actionSetMemberPhoto_(req) {
+  requireApprover_(req);
+  const id = normId_(req.employeeId);
+  if (!id) fail_('Staff member not found.');
+  let url = '';
+  if (!req.remove) {
+    if (['image/jpeg', 'image/png', 'image/webp'].indexOf(req.mimeType) < 0) fail_('Please choose a JPG, PNG or WEBP photo.');
+    const bytes = Utilities.base64Decode(String(req.data || ''));
+    if (!bytes.length) fail_('The photo is empty.');
+    if (bytes.length > MAX_PHOTO_BYTES) fail_('The photo is too large (3 MB maximum).');
+    url = saveUpload_(bytes, req.mimeType, 'photo-' + id);
+  }
+  return withLock_(function () {
+    const t = ensureColumn_(table_(SHEET_STAFF), 'Photo URL');
+    const i = findStaff_(t, id);
+    if (i < 0) fail_('Staff member not found.');
+    setCell_(t, i, 'Photo URL', url);
     return { user: userAt_(table_(SHEET_STAFF), i) };
   });
 }
