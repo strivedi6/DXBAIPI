@@ -5336,16 +5336,16 @@
       overlay(`
         <div class="bio-help">
           <span class="wp-ey">${sv('<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 9h.01M15 9h.01M9 14c.8.8 1.9 1.2 3 1.2s2.2-.4 3-1.2"/>', 16)} Open with Face ID</span>
-          <h3>Two ways to use Face ID</h3>
+          <h3>Unlock with Face ID / Touch ID</h3>
           <div class="bio-opt">
-            <b>1. Your phone’s own lock${ios ? ' — recommended' : ''}</b>
-            <p class="small muted">${ios
-              ? 'Touch and hold the app icon on your Home Screen, tap <b>Require Face ID</b>, then <b>Require Face ID</b> again. The app then opens straight into Face ID — no extra steps. (iPhone/iPad, iOS 18 or later.)'
-              : 'Many Android phones can lock a single app with your fingerprint or face from <b>Settings › Security › App lock</b> (the exact name varies by phone). This opens the app straight into your phone’s unlock.'}</p>
+            <b>Turn on the lock above</b>
+            <p class="small muted">Switch on <b>Face ID / Touch ID</b> in this Profile page. After that, opening the app asks for your face or fingerprint instead of your PIN. It’s optional and set on this phone only — each colleague turns it on for their own device.</p>
           </div>
           <div class="bio-opt">
-            <b>2. In-app lock</b>
-            <p class="small muted">Turn on <b>Face ID / Touch ID</b> in this Profile page.${ios ? ' On iPhone the first time asks to save a passkey, and later unlocks show a “Use Passkey” step before Face ID.' : ''} It’s optional and only affects this phone.</p>
+            <b>What to expect${ios ? ' on iPhone' : ''}</b>
+            <p class="small muted">${ios
+              ? 'The first time you’ll tap <b>Use Passkey</b> once, which runs Face ID; later it’s the same quick step. (iPhone’s Home-Screen lock — “Require Face ID” — is only for App Store apps, not a Home-Screen web app like this one, so this in-app lock is the way to use Face ID here.)'
+              : 'Your phone runs its fingerprint or face check to open the app. Some phones can also lock a single app from <b>Settings › Security › App lock</b> — that works too, alongside this.'}</p>
           </div>
           <button type="button" class="btn btn-outline" data-close style="margin-top:4px">Got it</button>
         </div>`, 'ovl-wish');
