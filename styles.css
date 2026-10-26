@@ -466,7 +466,9 @@ h1, h2, h3, .title-lg, .mcard .t, .monogram, .price-badge b { letter-spacing: .0
 .pop-card .pop-close { background: transparent; color: #fff; border: 1.5px solid rgba(255, 255, 255, .55); min-height: 46px; }
 
 /* ===== Version 1.8: full-width post images, newsletter contents ===== */
-.full-hero { position: relative; z-index: 1; width: 100%; background: var(--navy-2); }
+/* The hero fills the width, but its image starts just below the iOS status bar so the
+   title is never hidden behind the status-bar scrim. The page colour fills the strip above. */
+.full-hero { position: relative; z-index: 1; width: 100%; background: var(--bg, var(--cream)); padding-top: var(--safe-top); }
 .full-hero img { width: 100%; max-height: 78vh; object-fit: cover; display: block; }
 .full-hero .fh-bar { position: absolute; top: calc(16px + var(--safe-top)); left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .full-hero .fh-bar .icon-btn { background: rgba(255, 255, 255, .92); }
@@ -672,7 +674,7 @@ html[data-theme="dark"] .spinner { border-color: var(--line); border-top-color: 
 html[data-theme="dark"] #toast { background: #E8EAEE; color: #000000; }
 html[data-theme="dark"] .look-opt { border-color: transparent; }
 html[data-theme="dark"] .look-opt[aria-pressed="true"] { border-color: var(--gold); }
-html[data-theme="dark"] .full-hero, html[data-theme="dark"] .detail-hero, html[data-theme="dark"] .hc-offer .im, html[data-theme="dark"] .ocard .thumb { background: #222A3A; }
+html[data-theme="dark"] .detail-hero, html[data-theme="dark"] .hc-offer .im, html[data-theme="dark"] .ocard .thumb { background: #222A3A; }
 html[data-theme="dark"] .select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23E0BD86' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); }
 html[data-theme="dark"] .look-prev { border-color: #48484A; }
 

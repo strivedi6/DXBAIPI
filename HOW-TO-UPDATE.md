@@ -152,3 +152,6 @@ Then upload the folder as above. Phones that already installed the app may keep 
 - **Dark mode = iOS native.** The dark theme now uses Apple's neutral system grays (true-black background, #1C1C1E cards) instead of the blue tint.
 - **Toggles match iOS.** Switches are now the exact iOS size (51×31) with the standard knob and off-state colour.
 - Front-end only; no Code.gs change — just upload the folder.
+
+## Version 1.31.1
+- **Fixed the blurred/cut strip at the top of full-image pages (newsletters, notices, festive pages).** The hero image used to run under the iPhone status bar, so iOS blurred the top of it (hiding part of the title). The image now starts just below the status bar, with the page colour filling the strip above it — so the status bar sits over a solid colour, edge-to-edge, and the whole image stays sharp and fully visible. Front-end only; no Code.gs change.
