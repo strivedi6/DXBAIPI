@@ -26,7 +26,7 @@ const SHEET_COLLS = 'Collections';
 const SHEET_POPUPS = 'Popups';
 const SHEET_ATTEND = 'Attendance';
 const SHEET_QUOTES = 'Quotes';
-const SCHEMA_VERSION = 15;
+const SCHEMA_VERSION = 17;
 const BIRTHDAY_HOUR = 9;
 
 const SESSION_DAYS = 30;
@@ -48,7 +48,7 @@ const TZ = 'Asia/Dubai';
 const CAT_TYPES = ['update', 'offer', 'monthly', 'people', 'training'];
 const CAT_GROUPS = ['hr', 'marketing', 'general'];
 const CAT_COLORS = ['blue', 'gold', 'red', 'green', 'purple', 'navy', 'grey', 'teal', 'orange', 'pink', 'burgundy'];
-const ANIMATIONS = ['none', 'sparkle', 'confetti', 'snow', 'lights', 'fireworks'];
+const ANIMATIONS = ['none', 'sparkle', 'confetti', 'snow', 'lights', 'fireworks', 'bubbles', 'hearts', 'petals'];
 const NEWSLETTER_STYLES = ['Regular', 'Special', 'Festive'];
 
 const ROLES = ['Viewer', 'HR', 'Marketing', 'Admin'];
@@ -64,7 +64,7 @@ const POST_PROPERTIES = ['DXBAI', 'DXBPI', 'Cluster'];
 /* Entry points                                                        */
 /* ------------------------------------------------------------------ */
 
-const BACKEND_VERSION = '1.16.1';
+const BACKEND_VERSION = '1.25.1';
 
 function doGet() {
   return out({ ok: true, status: 'running', version: BACKEND_VERSION });
@@ -152,7 +152,7 @@ function ensureSchema_(force) {
     }
     let posts = table_(SHEET_POSTS);
     ['Days', 'CTA Text', 'CTA Link', 'Collection', 'Style', 'Theme Color', 'Animation', 'Person Name', 'Person ID', 'Position', 'Subtitle',
-      'Event Date', 'Today Special', 'Person Photo', 'Special Date', 'Terms', 'Includes', 'Checkin Secret', 'Report Sent', 'Collection Only', 'Blocks', 'Shareable']
+      'Event Date', 'Today Special', 'Person Photo', 'Special Date', 'Terms', 'Includes', 'Checkin Secret', 'Report Sent', 'Collection Only', 'Blocks', 'Shareable', 'Special Repeat', 'Plain Text']
       .forEach(function (h) { posts = ensureColumn_(posts, h); });
     tab(SHEET_BDAYS, ['Employee ID', 'Name', 'Birthday', 'Property', 'Department', 'Updated', 'Self Birthday']);
     tab(SHEET_COLLS, ['ID', 'Name', 'Color', 'Animation', 'Banner URL', 'Start Date', 'End Date', 'Active', 'Created By', 'Blocks']);
@@ -243,6 +243,7 @@ const ACTIONS = {
   deleteBirthday: actionDeleteBirthday_,
   setMyBirthday: actionSetMyBirthday_,
   popups: actionPopups_,
+  wishBirthday: actionWishBirthday_,
   quotes: actionQuotes_,
   saveQuote: actionSaveQuote_,
   deleteQuote: actionDeleteQuote_,
@@ -410,6 +411,7 @@ function actionFeed_(req) {
       return c;
     });
   addAttendance_(posts, user, activeCats);
+  applyLivePhotos_(posts, activeCats);
 
   posts.sort(function (a, b) {
     return (Number(b.pinned) - Number(a.pinned)) || (b.created - a.created);
@@ -946,7 +948,7 @@ function brand_(s) {
   const fonts = fontsSetting_(s);
   const pub = {};
   Object.keys(fonts).forEach(function (k) { pub[k] = { id: fonts[k].id, name: fonts[k].name }; });
-  return { logo: safeUrl_(s.logo), logoTone: String(s.logoTone) === 'light' ? 'light' : 'dark', reportLogo: safeUrl_(s.reportLogo), hotels: hotels_(s), fonts: pub };
+  return { logo: safeUrl_(s.logo), logoTone: String(s.logoTone) === 'light' ? 'light' : 'dark', reportLogo: safeUrl_(s.reportLogo), hotels: hotels_(s), outletLogos: outletLogos_(s), fonts: pub };
 }
 
 /** Admin: upload a font file for one slot. Replaces (and bins) the previous file. */
@@ -1106,6 +1108,14 @@ function actionSaveSettings_(req) {
     const url = safeUrl_(req.logo);
     if (req.logo && !url) fail_('That logo link is not valid.');
     withLock_(function () { setSetting_('logo', url); });
+  }
+  if (req.outletLogos && typeof req.outletLogos === 'object') {
+    const o = {};
+    Object.keys(req.outletLogos).slice(0, 80).forEach(function (k) {
+      const name = String(k).trim().slice(0, 60), url = safeUrl_(req.outletLogos[k]);
+      if (name && url) o[name] = url;
+    });
+    withLock_(function () { setSetting_('outletLogos', JSON.stringify(o)); });
   }
   if (req.hotels && typeof req.hotels === 'object') {
     const h = cleanHotels_(req.hotels);
@@ -1543,10 +1553,16 @@ function postFields_(p, isNew) {
   if (has('eventDate')) f['Event Date'] = parseDate_(p.eventDate);
   if (has('todaySpecial')) f['Today Special'] = !!p.todaySpecial;
   if (has('specialDate')) f['Special Date'] = parseDate_(p.specialDate);
+  // How often it shows in Today's Special: off, date (Special Date), daily, weekly:1,3 (0 = Sunday), monthly:15.
+  if (has('specialRepeat')) {
+    const r = String(p.specialRepeat || '');
+    f['Special Repeat'] = /^(off|date|daily|weekly:[0-6](,[0-6]){0,6}|monthly:([1-9]|[12]\d|3[01]))$/.test(r) ? "'" + r : '';
+  }
   if (has('includes')) f['Includes'] = (Array.isArray(p.includes) ? p.includes : []).map(String)
     .filter(function (x) { return /^P[A-Z0-9]+$/.test(x); }).slice(0, 60).join(',');
   if (has('blocks')) f['Blocks'] = blocksCell_(p.blocks);
   if (has('shareable')) f['Shareable'] = !!p.shareable;
+  if (has('plainText')) f['Plain Text'] = !!p.plainText;
   if (has('terms')) f['Terms'] = clean_(String(p.terms || '').slice(0, 2000));
   if (f['Start Date'] && f['End Date'] && f['End Date'] < f['Start Date']) {
     fail_('The end date is before the start date.');
@@ -1592,9 +1608,11 @@ function clientPost_(p) {
     eventDate: dateString_(p['Event Date']),
     todaySpecial: isTrue_(p['Today Special']),
     specialDate: dateString_(p['Special Date']),
+    specialRepeat: String(p['Special Repeat'] || '').replace(/^'/, ''),
     terms: String(p['Terms'] || '').replace(/^'/, ''),
     blocks: parseBlocks_(p['Blocks']),
     shareable: isTrue_(p['Shareable']),
+    plainText: isTrue_(p['Plain Text']),
     includes: String(p['Includes'] || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean),
     postedById: (/\(([^)]*)\)\s*$/.exec(String(p['Posted By'] || '')) || [])[1] || '',
     personPhoto: safeUrl_(p['Person Photo'])
@@ -2042,6 +2060,7 @@ function birthdayRows_() {
       md: md,
       property: (u && u.property) || String(o['Property'] || '').trim() || 'Cluster',
       department: (u && u.department) || String(o['Department'] || '').trim(),
+      position: (u && u.position) || '',
       photo: (u && u.photo) || '',
       registered: !!(u && u.status === 'Approved')
     };
@@ -2057,7 +2076,7 @@ function birthdaysFor_(user) {
   birthdayRows_().forEach(function (b) {
     if (b.employeeId === me && b.md === todayMd) out.mine = true;
     if (!seesProperty_(user.property, b.property)) return;
-    const item = { employeeId: b.employeeId, name: b.name, department: b.department, property: b.property, photo: b.photo, day: Number(b.md.slice(3)), month: Number(b.md.slice(0, 2)) };
+    const item = { employeeId: b.employeeId, name: b.name, department: b.department, position: b.position, property: b.property, photo: b.photo, day: Number(b.md.slice(3)), month: Number(b.md.slice(0, 2)) };
     if (b.md === todayMd) out.today.push(Object.assign({ isMe: b.employeeId === me }, item));
     if (b.md.slice(0, 2) === month) out.month.push(item);
   });
@@ -2534,13 +2553,15 @@ function cleanBlocks_(list) {
     if (!b || typeof b !== 'object') return;
     if (b.type === 'text') {
       const heading = String(b.heading || '').trim().slice(0, 120), text = String(b.text || '').trim().slice(0, 4000);
-      if (heading || text) out.push({ type: 'text', heading: heading, text: text });
+      if (heading || text) { const t = { type: 'text', heading: heading, text: text }; if (b.plain) t.plain = true; if (b.highlight) t.highlight = true; out.push(t); }
     } else if (b.type === 'image') {
       const url = safeUrl_(b.url);
       if (url) out.push({ type: 'image', url: url });
     } else if (b.type === 'posts') {
       const ids = (Array.isArray(b.ids) ? b.ids : []).map(String).filter(function (x) { return /^P[A-Z0-9]+$/.test(x); }).slice(0, 40);
       if (ids.length) out.push({ type: 'posts', title: String(b.title || '').trim().slice(0, 80), ids: ids });
+    } else if (b.type === 'divider') {
+      out.push({ type: 'divider' });
     } else if (b.type === 'auto') {
       if (!out.some(function (x) { return x.type === 'auto'; })) out.push({ type: 'auto' });
     }
@@ -2588,4 +2609,61 @@ function hotels_(s) {
   const c = cleanHotels_(h);
   HOTEL_KEYS.forEach(function (k) { if (!c[k].name) c[k].name = HOTEL_DEFAULTS[k].name; });
   return c;
+}
+
+/** Outlet name -> logo picture, printed in place of the outlet name on offers shared with guests. */
+function outletLogos_(s) {
+  try {
+    const o = JSON.parse(String((s || settings_()).outletLogos || '{}')) || {};
+    const out = {};
+    Object.keys(o).forEach(function (k) { const u = safeUrl_(o[k]); if (u) out[k] = u; });
+    return out;
+  } catch (e) { return {}; }
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Live profile photos on people posts, and birthday wishes            */
+/* ------------------------------------------------------------------ */
+
+/** People posts (Employee of the Month, New Joiners, Promotions) show the colleague's current
+ *  profile photo, so when someone updates their photo it refreshes everywhere, for everyone. */
+function applyLivePhotos_(posts, activeCats) {
+  var peopleTypes = {};
+  (activeCats || activeCategories_()).forEach(function (c) { if (c.type === 'people') peopleTypes[c.id] = true; });
+  if (!posts.some(function (p) { return peopleTypes[p.category] && p.personId; })) return;
+  var staff = table_(SHEET_STAFF);
+  var photoById = {};
+  staff.rows.forEach(function (r, i) { var u = userAt_(staff, i); if (u.employeeId) photoById[normId_(u.employeeId)] = u.photo || ''; });
+  posts.forEach(function (p) {
+    if (!peopleTypes[p.category] || !p.personId) return;
+    var live = photoById[normId_(p.personId)];
+    if (live) p.image = live;
+  });
+}
+
+/** Anyone: send a birthday wish (a push notification) to a colleague whose birthday is today.
+ *  No custom message. One wish per colleague per day, to avoid repeats. */
+function actionWishBirthday_(req) {
+  const user = auth_(req).user;
+  const target = normId_(req.employeeId);
+  if (!target) fail_('Who would you like to wish?');
+  if (target === normId_(user.employeeId)) fail_('That is your own birthday.');
+  const today = Utilities.formatDate(new Date(), TZ, 'MM-dd');
+  const isBirthday = birthdayRows_().some(function (b) { return b.employeeId === target && b.md === today; });
+  if (!isBirthday) fail_('It is not their birthday today.');
+  // One push per wisher -> target per day.
+  const cache = CacheService.getScriptCache();
+  const key = 'wish_' + normId_(user.employeeId) + '_' + target + '_' + today;
+  if (cache.get(key)) return { ok: true, already: true };
+  cache.put(key, '1', 24 * 3600);
+  const first = String(user.name || 'A colleague').trim().split(/\s+/)[0];
+  try {
+    oneSignal_({
+      include_aliases: { external_id: [target] },
+      headings: { en: '🎉 Happy Birthday!' },
+      contents: { en: first + ' wished you a happy birthday!' }
+    });
+  } catch (e) { /* the wish is still recorded */ }
+  return { ok: true };
 }

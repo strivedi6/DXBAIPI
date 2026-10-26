@@ -115,6 +115,7 @@
     eye: sv('<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>', 18),
     users: sv('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.6-5.5 6.5-5.5s5.5 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14.7c1.8.7 3 2.5 3.5 5.3"/>'),
     chevron: sv('<path d="M9 6l6 6-6 6"/>', 18),
+    heart: sv('<path d="M12 20s-7-4.6-9.2-8.3C1.2 8.9 2.6 5.5 6 5.5c2 0 3.2 1.2 4 2.3.8-1.1 2-2.3 4-2.3 3.4 0 4.8 3.4 3.2 6.2C19 15.4 12 20 12 20z"/>', 20),
     cake: sv('<path d="M4 21h16v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2z"/><path d="M4 16c1.5 1 3 1 4 0s2.5-1 4 0 2.5 1 4 0 2.5-1 4 0"/><path d="M12 11V8"/><path d="M12 5.5c.8-.8.8-1.7 0-2.5-.8.8-.8 1.7 0 2.5z"/>', 22),
     award: sv('<circle cx="12" cy="9" r="5"/><path d="M8.5 13.2L7 21l5-2.5 5 2.5-1.5-7.8"/>', 16),
     sparkles: sv('<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8z"/>', 20),
@@ -1451,6 +1452,15 @@
     <ellipse cx="24" cy="40" rx="4" ry="7" fill="#fff" opacity=".35"/><ellipse cx="56" cy="25" rx="4.5" ry="8" fill="#fff" opacity=".35"/><ellipse cx="89" cy="42" rx="4" ry="7" fill="#fff" opacity=".35"/>
   </svg>`;
 
+  function wishedToday(id) {
+    try { const w = LS.get('bb_wished') || {}; return (w[todayIso()] || []).indexOf(id) >= 0; } catch (e) { return false; }
+  }
+  /** A small "Wish" button for a colleague whose birthday is today (no custom message). */
+  function wishBtn(b) {
+    if (!b || b.isMe || !b.employeeId) return '';
+    const done = wishedToday(b.employeeId);
+    return `<button type="button" class="wish-btn${done ? ' done' : ''}" data-act="wishBday" data-id="${esc(b.employeeId)}" ${done ? 'disabled' : ''} aria-label="Wish ${esc(firstName(b.name))} a happy birthday">${done ? I.check + ' Wished' : I.heart + ' Wish'}</button>`;
+  }
   function birthdayTiles() {
     const list = state.birthdaysToday || [];
     if (!list.length) return '';
@@ -1463,10 +1473,11 @@
             <span class="bd-ph">${safeUrl(b.photo) ? `<img src="${esc(b.photo)}" alt="">` : esc(initials(b.name))}</span>
             <div class="stack" style="gap:2px;min-width:0">
               <span class="bd-nm">${esc(b.isMe ? 'Happy birthday, ' + firstName(b.name) + '!' : b.name)}</span>
-              <span class="bd-sub">${esc([b.department, b.property].filter(Boolean).join(' · '))}</span>
+              <span class="bd-sub">${esc(b.position || b.department || '')}</span>
             </div>
           </div>
           <p class="bd-note">${b.isMe ? 'Wishing you a wonderful year ahead from all of us at DXBAI &amp; DXBPI.' : `Don’t forget to wish <b>${esc(firstName(b.name))}</b> a happy birthday today!`}</p>
+          ${wishBtn(b)}
         </div>
       </div>`;
     return list.length === 1 ? tile(list[0]) : `<div class="hrow bday-row">${list.map(tile).join('')}</div>`;
@@ -1484,7 +1495,8 @@
           <span class="d"><b>${b.day}</b><small>${esc(monthName.slice(0, 3))}</small></span>
           <span class="avatar" style="width:52px;height:52px">${safeUrl(b.photo) ? `<img src="${esc(b.photo)}" alt="">` : esc(initials(b.name))}</span>
           <span class="nm">${esc(b.name)}</span>
-          <span class="ps">${esc(b.department || b.property || '')}</span>
+          <span class="ps">${esc(b.position || b.department || '')}</span>
+          ${b.day === today ? wishBtn(Object.assign({}, b, { isMe: state.user && b.employeeId === state.user.employeeId })) : ''}
         </div>`).join('')}</div>` : `<p class="small muted">No birthdays listed for ${esc(monthName)} yet.${canBirthdays() ? ' Upload the list from Manage.' : ''}</p>`}
     </section>`;
   }
@@ -4775,6 +4787,19 @@
     refresh() { PTR.run(); },
     open(el) { go('post', { id: el.dataset.id }); },
     enablePush() { Push.enable(); },
+    async wishBday(el) {
+      const id = el.dataset.id;
+      if (!id || el.disabled) return;
+      el.disabled = true;
+      try {
+        await api('wishBirthday', { employeeId: id });
+        const w = LS.get('bb_wished') || {}; const day = todayIso();
+        const set = new Set(w[day] || []); set.add(id); w[day] = [...set]; LS.set('bb_wished', w);
+        el.classList.add('done'); el.innerHTML = I.check + ' Wished';
+        try { Haptics.tap(true); } catch (e) { /* none */ }
+        toast('Birthday wish sent 💐');
+      } catch (e) { el.disabled = false; showError(e); }
+    },
     installApp: async () => {
       if (!state.installEvt) return;
       state.installEvt.prompt();
