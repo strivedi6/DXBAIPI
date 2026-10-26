@@ -94,3 +94,11 @@ Then upload the folder as above. Phones that already installed the app may keep 
 ## Version 1.11
 **Install:** paste the new Code.gs and deploy a new version (Deploy › Manage deployments › Edit › New version). If you have not yet run **setup** for version 1.10, run it once: the same 10-minute check also ends leavers' access on time.
 - **Leavers** (Profile › Leavers, for HR and Admin): find a colleague by name or Employee ID and set their **last working day**. Their access ends at **6:00 pm** that day (status becomes "Left" in the Staff tab and they are signed out). On their last day they see a thank-you message with sparkles, naming their hotel (both hotels for Cluster colleagues). HR can't set a date for themselves or for an Admin. "Give access back" (or Remove date) undoes it. Colleagues who have left no longer appear in birthdays.
+
+## Version 1.26.0
+**Install:** upload this folder to Netlify/GitHub, then paste the new `Code.gs` into Apps Script and deploy a new version (Deploy › Manage deployments › Edit › New version). The first time the app talks to it, the backend adds a new **Wishes** tab by itself — nothing to set up by hand. All existing data stays as it is.
+- **Birthday wishes:** on a colleague's birthday tile there is now a small round button in the bottom-right corner with a 🎉. Tap it to pick 🎉, 🎊 or 🥳 and send the wish — no typing. The button then shows the emoji you sent, and changing it just updates your wish (the person is only notified the first time).
+- **Your own birthday:** on your birthday your tile shows a round button with the **number of wishes** you've received. Tap it to see the list of who wished you and with which emoji. (HR and Admin can also see a person's list.)
+- **Only the day and month** of birthdays are ever stored — never the year. Wishes reset each day.
+- **Birthday tile** now shows the person's **position** (e.g. "Commercial Director") instead of the hotel code.
+- **Profile photos:** when a colleague updates their photo it now shows everywhere for everyone — including on announcement posts (Employee of the Month, New Joiners, Promotions) — the next time the feed loads.

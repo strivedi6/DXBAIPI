@@ -26,7 +26,8 @@ const SHEET_COLLS = 'Collections';
 const SHEET_POPUPS = 'Popups';
 const SHEET_ATTEND = 'Attendance';
 const SHEET_QUOTES = 'Quotes';
-const SCHEMA_VERSION = 17;
+const SHEET_WISHES = 'Wishes';
+const SCHEMA_VERSION = 18;
 const BIRTHDAY_HOUR = 9;
 
 const SESSION_DAYS = 30;
@@ -64,7 +65,7 @@ const POST_PROPERTIES = ['DXBAI', 'DXBPI', 'Cluster'];
 /* Entry points                                                        */
 /* ------------------------------------------------------------------ */
 
-const BACKEND_VERSION = '1.25.1';
+const BACKEND_VERSION = '1.26.0';
 
 function doGet() {
   return out({ ok: true, status: 'running', version: BACKEND_VERSION });
@@ -161,6 +162,8 @@ function ensureSchema_(force) {
     tab(SHEET_ATTEND, ['Timestamp', 'Post ID', 'Employee ID', 'Full Name', 'Checked In', 'Check-in Method']);
     tab(SHEET_QUOTES, ['Date', 'Quote', 'Author', 'Created By', 'Updated']);
     ss.getSheetByName(SHEET_QUOTES).getRange('A:A').setNumberFormat('@');
+    tab(SHEET_WISHES, ['Date', 'Target ID', 'Wisher ID', 'Wisher Name', 'Emoji', 'Updated']);
+    ss.getSheetByName(SHEET_WISHES).getRange('A:C').setNumberFormat('@');
     ss.getSheetByName(SHEET_ATTEND).getRange('C:C').setNumberFormat('@');
     ss.getSheetByName(SHEET_BDAYS).getRange('A:A').setNumberFormat('@');
     ss.getSheetByName(SHEET_BDAYS).getRange('C:C').setNumberFormat('@');
@@ -244,6 +247,7 @@ const ACTIONS = {
   setMyBirthday: actionSetMyBirthday_,
   popups: actionPopups_,
   wishBirthday: actionWishBirthday_,
+  wishes: actionWishes_,
   quotes: actionQuotes_,
   saveQuote: actionSaveQuote_,
   deleteQuote: actionDeleteQuote_,
@@ -417,6 +421,7 @@ function actionFeed_(req) {
     return (Number(b.pinned) - Number(a.pinned)) || (b.created - a.created);
   });
   const bd = birthdaysFor_(user);
+  addWishInfo_(bd, user);
   return {
     user: user,
     canPublish: publishableFor_(user),
@@ -2642,28 +2647,74 @@ function applyLivePhotos_(posts, activeCats) {
   });
 }
 
-/** Anyone: send a birthday wish (a push notification) to a colleague whose birthday is today.
- *  No custom message. One wish per colleague per day, to avoid repeats. */
+/** Birthday wishes stored today: map "wisher>target" -> {emoji,name}, and counts/my-wishes for a user. */
+const WISH_EMOJI = ['\uD83C\uDF89', '\uD83C\uDF8A', '\uD83E\uDD73']; // 🎉 🎊 🥳
+function wishesToday_() {
+  const ss = SpreadsheetApp.getActive();
+  if (!ss.getSheetByName(SHEET_WISHES)) return [];
+  const t = table_(SHEET_WISHES);
+  const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  return t.rows.map(function (r) { return rowObject_(t, r); })
+    .filter(function (o) { return dateString_(o['Date']) === today; })
+    .map(function (o) {
+      return { target: normId_(String(o['Target ID'] || '').replace(/^'/, '')), wisher: normId_(String(o['Wisher ID'] || '').replace(/^'/, '')),
+        name: cellText_(o['Wisher Name']), emoji: String(o['Emoji'] || ''), at: o['Updated'] ? new Date(o['Updated']).getTime() : 0 };
+    });
+}
+/** Adds this user's wish summary onto today's birthday items (count received, my chosen emoji). */
+function addWishInfo_(bd, user) {
+  var all;
+  try { all = wishesToday_(); } catch (e) { return; }
+  const me = normId_(user.employeeId);
+  const countBy = {}, mySent = {};
+  all.forEach(function (w) { countBy[w.target] = (countBy[w.target] || 0) + 1; if (w.wisher === me) mySent[w.target] = w.emoji; });
+  (bd.today || []).forEach(function (it) {
+    if (it.employeeId === me) it.wishCount = countBy[me] || 0;
+    else it.myWish = mySent[it.employeeId] || '';
+  });
+}
+
+/** Anyone: send a birthday wish to a colleague whose birthday is today, with a chosen emoji.
+ *  One wish per colleague per day (changing the emoji updates it); a push is sent on the first wish. */
 function actionWishBirthday_(req) {
   const user = auth_(req).user;
   const target = normId_(req.employeeId);
   if (!target) fail_('Who would you like to wish?');
   if (target === normId_(user.employeeId)) fail_('That is your own birthday.');
   const today = Utilities.formatDate(new Date(), TZ, 'MM-dd');
-  const isBirthday = birthdayRows_().some(function (b) { return b.employeeId === target && b.md === today; });
-  if (!isBirthday) fail_('It is not their birthday today.');
-  // One push per wisher -> target per day.
-  const cache = CacheService.getScriptCache();
-  const key = 'wish_' + normId_(user.employeeId) + '_' + target + '_' + today;
-  if (cache.get(key)) return { ok: true, already: true };
-  cache.put(key, '1', 24 * 3600);
-  const first = String(user.name || 'A colleague').trim().split(/\s+/)[0];
-  try {
-    oneSignal_({
-      include_aliases: { external_id: [target] },
-      headings: { en: '🎉 Happy Birthday!' },
-      contents: { en: first + ' wished you a happy birthday!' }
-    });
-  } catch (e) { /* the wish is still recorded */ }
-  return { ok: true };
+  if (!birthdayRows_().some(function (b) { return b.employeeId === target && b.md === today; })) fail_('It is not their birthday today.');
+  const emoji = WISH_EMOJI.indexOf(String(req.emoji)) >= 0 ? String(req.emoji) : WISH_EMOJI[0];
+  const me = normId_(user.employeeId);
+  const dayIso = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  const first = String(user.name || 'A colleague').trim();
+  const isNew = withLock_(function () {
+    const t = table_(SHEET_WISHES);
+    var row = -1;
+    for (var k = 0; k < t.rows.length; k++) {
+      var o = rowObject_(t, t.rows[k]);
+      if (dateString_(o['Date']) === dayIso && normId_(String(o['Target ID']).replace(/^'/, '')) === target && normId_(String(o['Wisher ID']).replace(/^'/, '')) === me) { row = k; break; }
+    }
+    if (row >= 0) { setCell_(t, row, 'Emoji', emoji); setCell_(t, row, 'Updated', new Date()); return false; }
+    appendRow_(t, { 'Date': "'" + dayIso, 'Target ID': "'" + target, 'Wisher ID': "'" + me, 'Wisher Name': asText_(first), 'Emoji': emoji, 'Updated': new Date() });
+    return true;
+  });
+  if (isNew) {
+    try {
+      oneSignal_({ include_aliases: { external_id: [target] }, headings: { en: emoji + ' Happy Birthday!' },
+        contents: { en: first.split(/\s+/)[0] + ' sent you a birthday wish ' + emoji } });
+    } catch (e) { /* recorded anyway */ }
+  }
+  const count = wishesToday_().filter(function (w) { return w.target === target; }).length;
+  return { ok: true, count: count };
+}
+
+/** The birthday person (or HR/Admin) sees who wished them today, and with which emoji. */
+function actionWishes_(req) {
+  const user = auth_(req).user;
+  const target = normId_(req.employeeId) || normId_(user.employeeId);
+  if (target !== normId_(user.employeeId) && !canBirthdays_(user)) fail_('Not allowed.');
+  const list = wishesToday_().filter(function (w) { return w.target === target; })
+    .sort(function (a, b) { return b.at - a.at; })
+    .map(function (w) { return { name: w.name, emoji: w.emoji }; });
+  return { wishes: list, count: list.length };
 }

@@ -1076,3 +1076,49 @@ html[data-theme="dark"] .blk-band { background: rgba(255, 255, 255, .05); }
 @media (min-width: 1500px) {
   .screen.cp-on > form.page { margin-left: max(40px, calc(50% - 620px)); }
 }
+
+/* ===== Version 1.25: birthday wish button ===== */
+/* Birthday wish — bottom-right circle (same design language as .icon-btn) */
+.bday { position: relative; }
+.bday-circle { position: absolute; right: 14px; bottom: 14px; width: 46px; height: 46px; border-radius: 50%;
+  background: #fff; box-shadow: 0 6px 18px rgba(0, 0, 0, .14), inset 0 0 0 1px rgba(0, 0, 0, .04);
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer; border: 0; padding: 0;
+  transition: transform .14s ease, box-shadow .2s; z-index: 2; }
+.bday-circle .em { font-size: 22px; line-height: 1; filter: saturate(1.05); }
+.bday-circle:active { transform: scale(.9); }
+.bday-circle.sent { background: linear-gradient(135deg, #FFF4D9, #FFE7B3); box-shadow: 0 6px 18px rgba(214, 158, 46, .3), inset 0 0 0 1px rgba(214, 158, 46, .25); }
+.bday-circle.recv { background: linear-gradient(135deg, #FDEBF1, #F7D6E2); box-shadow: 0 6px 18px rgba(194, 65, 107, .26), inset 0 0 0 1px rgba(194, 65, 107, .18); }
+.bday-circle .wc-badge { position: absolute; top: -4px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px;
+  border-radius: 999px; background: linear-gradient(135deg, #E8577E, #C2416B); color: #fff; font-size: 11px; font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(194, 65, 107, .4); border: 2px solid #fff; }
+.bday .bd-note { padding-right: 56px; }
+html[data-theme="dark"] .bday-circle { background: #262C3A; box-shadow: 0 6px 18px rgba(0, 0, 0, .4), inset 0 0 0 1px rgba(255, 255, 255, .06); }
+html[data-theme="dark"] .bday-circle.sent { background: linear-gradient(135deg, #3A3420, #46401F); }
+html[data-theme="dark"] .bday-circle.recv { background: linear-gradient(135deg, #3A2630, #45202E); }
+
+/* Centred overlay for the emoji picker / wishes list */
+.ovl { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: flex-end; justify-content: center;
+  background: rgba(16, 20, 30, 0); backdrop-filter: blur(0px); transition: background .24s, backdrop-filter .24s;
+  padding: 0 14px calc(18px + var(--safe-bottom)); }
+.ovl.in { background: rgba(16, 20, 30, .42); backdrop-filter: blur(6px); }
+.ovl-card { width: 100%; max-width: 420px; background: var(--card, #fff); border-radius: 26px; padding: 20px 20px 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .28); transform: translateY(26px); opacity: 0; transition: transform .26s cubic-bezier(.22,1,.36,1), opacity .22s; }
+.ovl.in .ovl-card { transform: translateY(0); opacity: 1; }
+@media (min-width: 640px) { .ovl { align-items: center; padding-bottom: 14px; } }
+.wp-ey { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.wp-ey svg { width: 15px; height: 15px; }
+.ovl-card h3 { margin: 6px 0 16px; font-size: 19px; font-weight: 800; color: var(--navy); }
+.wp-row { display: flex; gap: 12px; justify-content: center; margin-bottom: 12px; }
+.wp-em { flex: 1; aspect-ratio: 1; max-width: 92px; border: 0; cursor: pointer; border-radius: 20px; background: var(--cream, #F6F1EE);
+  font-size: 40px; display: inline-flex; align-items: center; justify-content: center; transition: transform .14s, background .18s, box-shadow .18s; }
+.wp-em:hover { background: #FBEFD6; }
+.wp-em:active, .wp-em.chosen { transform: scale(1.12); background: #FCE9C6; box-shadow: 0 8px 22px rgba(214, 158, 46, .32); }
+.wl-items { display: flex; flex-direction: column; gap: 2px; max-height: 50vh; overflow: auto; margin: 4px 0 14px; }
+.wl-row { display: flex; align-items: center; gap: 12px; padding: 10px 6px; border-bottom: 1px solid var(--line); }
+.wl-row:last-child { border-bottom: 0; }
+.wl-em { font-size: 24px; line-height: 1; }
+.wl-nm { font-size: 15px; font-weight: 600; color: var(--ink, var(--navy)); }
+html[data-theme="dark"] .ovl-card { background: #1C2230; }
+html[data-theme="dark"] .ovl-card h3 { color: #EAF0FF; }
+html[data-theme="dark"] .wp-em { background: #262C3A; }
+html[data-theme="dark"] .wp-em:hover { background: #2E3444; }

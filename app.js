@@ -1455,11 +1455,30 @@
   function wishedToday(id) {
     try { const w = LS.get('bb_wished') || {}; return (w[todayIso()] || []).indexOf(id) >= 0; } catch (e) { return false; }
   }
-  /** A small "Wish" button for a colleague whose birthday is today (no custom message). */
-  function wishBtn(b) {
-    if (!b || b.isMe || !b.employeeId) return '';
-    const done = wishedToday(b.employeeId);
-    return `<button type="button" class="wish-btn${done ? ' done' : ''}" data-act="wishBday" data-id="${esc(b.employeeId)}" ${done ? 'disabled' : ''} aria-label="Wish ${esc(firstName(b.name))} a happy birthday">${done ? I.check + ' Wished' : I.heart + ' Wish'}</button>`;
+  const WISH_EMOJI = ['🎉', '🎊', '🥳'];
+  /** Bottom-right circle to send a wish (shows the emoji you sent), or — on your own tile — your wish count. */
+  function wishSendCircle(b) {
+    if (!b || !b.employeeId) return '';
+    const sent = b.myWish || (wishedToday(b.employeeId) ? '🎉' : '');
+    return `<button type="button" class="icon-btn bday-circle${sent ? ' sent' : ''}" data-act="openWish" data-id="${esc(b.employeeId)}" data-name="${esc(firstName(b.name))}" aria-label="Wish ${esc(firstName(b.name))} a happy birthday"><span class="em">${sent || '🎉'}</span></button>`;
+  }
+  function wishRecvCircle(count) {
+    return `<button type="button" class="icon-btn bday-circle recv" data-act="openWishes" aria-label="See your birthday wishes"><span class="em">🎉</span>${count ? `<span class="wc-badge">${count}</span>` : ''}</button>`;
+  }
+  function wishCircle(b) { return b.isMe ? wishRecvCircle(b.wishCount || 0) : wishSendCircle(b); }
+
+  /** A small centred overlay (emoji picker / wishes list). Returns the element. */
+  function overlay(inner, cls) {
+    const el = document.createElement('div');
+    el.className = 'ovl' + (cls ? ' ' + cls : '');
+    el.innerHTML = `<div class="ovl-card" role="dialog" aria-modal="true">${inner}</div>`;
+    app.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('in'));
+    const close = () => { el.classList.remove('in'); setTimeout(() => el.remove(), 220); };
+    el.addEventListener('click', (e) => { if (e.target === el || (e.target.closest && e.target.closest('[data-close]'))) close(); });
+    el.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    el.close = close;
+    return el;
   }
   function birthdayTiles() {
     const list = state.birthdaysToday || [];
@@ -1477,8 +1496,8 @@
             </div>
           </div>
           <p class="bd-note">${b.isMe ? 'Wishing you a wonderful year ahead from all of us at DXBAI &amp; DXBPI.' : `Don’t forget to wish <b>${esc(firstName(b.name))}</b> a happy birthday today!`}</p>
-          ${wishBtn(b)}
         </div>
+        ${wishCircle(b)}
       </div>`;
     return list.length === 1 ? tile(list[0]) : `<div class="hrow bday-row">${list.map(tile).join('')}</div>`;
   }
@@ -1496,7 +1515,6 @@
           <span class="avatar" style="width:52px;height:52px">${safeUrl(b.photo) ? `<img src="${esc(b.photo)}" alt="">` : esc(initials(b.name))}</span>
           <span class="nm">${esc(b.name)}</span>
           <span class="ps">${esc(b.position || b.department || '')}</span>
-          ${b.day === today ? wishBtn(Object.assign({}, b, { isMe: state.user && b.employeeId === state.user.employeeId })) : ''}
         </div>`).join('')}</div>` : `<p class="small muted">No birthdays listed for ${esc(monthName)} yet.${canBirthdays() ? ' Upload the list from Manage.' : ''}</p>`}
     </section>`;
   }
@@ -4787,18 +4805,43 @@
     refresh() { PTR.run(); },
     open(el) { go('post', { id: el.dataset.id }); },
     enablePush() { Push.enable(); },
-    async wishBday(el) {
-      const id = el.dataset.id;
-      if (!id || el.disabled) return;
-      el.disabled = true;
+    openWish(el) {
+      const id = el.dataset.id, name = el.dataset.name || 'them';
+      const ov = overlay(`
+        <div class="wish-pick">
+          <span class="wp-ey">${I.cake} Send a wish</span>
+          <h3>Wish ${esc(name)} a happy birthday</h3>
+          <div class="wp-row">${WISH_EMOJI.map((e) => `<button type="button" class="wp-em" data-act="sendWish" data-id="${esc(id)}" data-emoji="${e}" aria-label="Send ${e}">${e}</button>`).join('')}</div>
+          <button type="button" class="link-btn" data-close style="margin-top:4px">Cancel</button>
+        </div>`, 'ovl-wish');
+    },
+    async sendWish(el) {
+      const id = el.dataset.id, emoji = el.dataset.emoji;
+      const ov = el.closest('.ovl');
+      el.parentElement.querySelectorAll('.wp-em').forEach((b) => { b.disabled = true; });
+      el.classList.add('chosen');
       try {
-        await api('wishBirthday', { employeeId: id });
+        await api('wishBirthday', { employeeId: id, emoji });
         const w = LS.get('bb_wished') || {}; const day = todayIso();
         const set = new Set(w[day] || []); set.add(id); w[day] = [...set]; LS.set('bb_wished', w);
-        el.classList.add('done'); el.innerHTML = I.check + ' Wished';
         try { Haptics.tap(true); } catch (e) { /* none */ }
-        toast('Birthday wish sent 💐');
-      } catch (e) { el.disabled = false; showError(e); }
+        // reflect the chosen emoji on the tile's circle
+        document.querySelectorAll(`[data-act="openWish"][data-id="${id}"] .em`).forEach((n) => { n.textContent = emoji; n.closest('.bday-circle').classList.add('sent'); });
+        setTimeout(() => { if (ov && ov.close) ov.close(); }, 420);
+        toast('Birthday wish sent ' + emoji);
+      } catch (e) { if (ov && ov.close) ov.close(); showError(e); }
+    },
+    async openWishes(el) {
+      const ov = overlay('<div class="wish-list"><div class="spinner"></div></div>', 'ovl-wish');
+      try {
+        const j = await api('wishes', {});
+        const list = j.wishes || [];
+        ov.querySelector('.wish-list').innerHTML = `
+          <span class="wp-ey">${I.cake} Your birthday wishes</span>
+          <h3>${list.length} ${list.length === 1 ? 'wish' : 'wishes'} today</h3>
+          <div class="wl-items">${list.length ? list.map((w) => `<div class="wl-row"><span class="wl-em">${esc(w.emoji || '🎉')}</span><span class="wl-nm">${esc(w.name)}</span></div>`).join('') : '<p class="small muted center" style="padding:16px">No wishes yet — the day is young! 🎂</p>'}</div>
+          <button type="button" class="btn btn-outline" data-close style="margin-top:6px">Close</button>`;
+      } catch (e) { if (ov && ov.close) ov.close(); showError(e); }
     },
     installApp: async () => {
       if (!state.installEvt) return;
