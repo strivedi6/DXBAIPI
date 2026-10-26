@@ -132,3 +132,23 @@ Then upload the folder as above. Phones that already installed the app may keep 
 
 ## Version 1.29.1
 - **Desktop sidebar now stays on every screen.** Opening a post, offer, newsletter, collection, training, the share screen or check-in used to hide the left sidebar on desktop — it now stays permanently, with the content sitting neatly beside it and the right section highlighted. (Front-end only; no Code.gs change — just upload the folder.)
+
+## Version 1.30.0
+- **Face ID / Touch ID unlock.** Profile › **Face ID / Touch ID** (shown only on phones that support it) lets a colleague unlock the app with the phone's own Face ID, Touch ID or fingerprint instead of typing their PIN each time. After they sign in once with Employee ID + PIN, reopening the app (or returning to it after 2 minutes away) shows a lock screen asking for the phone's native unlock. "Use PIN instead" always works as a fallback. It's a quick lock on that one phone over the saved sign-in — it doesn't change anything on the server, and it's set per device, so each colleague turns it on for their own phone.
+- Front-end only; no Code.gs change — just upload the folder. Works on the installed app over HTTPS (it won't appear on browsers or devices without a fingerprint/face sensor).
+
+## Version 1.30.1
+- **Face ID options explained in the app.** The in-app Face ID / Touch ID toggle stays optional (off by default). A new tappable tip under the settings — "Want the app to open with Face ID?" — explains the two ways to unlock:
+  1. **The phone's own lock (recommended on iPhone):** touch and hold the app icon on the Home Screen › **Require Face ID**. This opens the app straight into Face ID with no passkey and no extra step (iOS 18+). On Android, use the phone's per-app lock in Settings.
+  2. **The in-app toggle:** quick, but on iPhone it saves a passkey and shows a "Use Passkey" step before Face ID.
+- Front-end only; no Code.gs change.
+
+## Version 1.30.2
+- **Correction to the Face ID guidance.** iPhone's "Require Face ID" app lock is only available for App Store apps, not for a Home-Screen web app (web clip) like this one — so that route isn't available. The in-app **Face ID / Touch ID** toggle is the only way to use Face ID on the installed app; on iPhone it runs through a one-tap "Use Passkey" step and then Face ID. The in-app help tip now explains this accurately. (A true system-style Face ID lock would require shipping the app as a native app — a separate project.)
+
+## Version 1.31.0
+- **Biometric login removed.** The Face ID / Touch ID in-app lock and its settings are gone. Signing in with Employee ID + PIN keeps you **logged in until you sign out** (Profile › Sign out), as before.
+- **Birthday tile gets attention.** The wish button now **pulses** and its emoji **cycles** (🎉 🎊 🥳) to catch the eye, and the **whole tile is tappable** — tap anywhere on a colleague's birthday card to pick an emoji and send your wish (tap your own card to see who wished you).
+- **Dark mode = iOS native.** The dark theme now uses Apple's neutral system grays (true-black background, #1C1C1E cards) instead of the blue tint.
+- **Toggles match iOS.** Switches are now the exact iOS size (51×31) with the standard knob and off-state colour.
+- Front-end only; no Code.gs change — just upload the folder.
