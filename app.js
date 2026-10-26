@@ -2650,6 +2650,7 @@
         ${setRow({ attrs: 'data-act="nav" data-to="appearance"', icon: sv('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>', 18), color: '#3B3F4A', title: 'Appearance', right: `<span class="set-val">${{ light: 'Light', dark: 'Dark', auto: 'Automatic' }[appearance()]}</span>${I.chevron}` })}
         ${!isStandalone() ? setRow({ attrs: 'data-act="addHome"', icon: I.addHome, color: '#2F6FDB', title: 'Add to Home Screen' }) : ''}
       </div>
+      <button type="button" class="info-hint" data-act="bioHelp">${sv('<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>', 18)}<span>Want the app to open with Face ID or Touch ID? Tap to see your options.</span></button>
       ${profileTools()}
       <div class="set-group">
         ${setRow({ attrs: 'data-act="signOut"', icon: I.logout, color: '#9B2C2C', title: 'Sign out', danger: true, right: ' ' })}
@@ -5329,6 +5330,25 @@
         state.bdayImport = null; state.bdayList = null; state.lastLoad = 0;
         render(); loadFeed(true);
       } catch (e) { showError(e); el.disabled = false; }
+    },
+    bioHelp() {
+      const ios = isIOS();
+      overlay(`
+        <div class="bio-help">
+          <span class="wp-ey">${sv('<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 9h.01M15 9h.01M9 14c.8.8 1.9 1.2 3 1.2s2.2-.4 3-1.2"/>', 16)} Open with Face ID</span>
+          <h3>Two ways to use Face ID</h3>
+          <div class="bio-opt">
+            <b>1. Your phone’s own lock${ios ? ' — recommended' : ''}</b>
+            <p class="small muted">${ios
+              ? 'Touch and hold the app icon on your Home Screen, tap <b>Require Face ID</b>, then <b>Require Face ID</b> again. The app then opens straight into Face ID — no extra steps. (iPhone/iPad, iOS 18 or later.)'
+              : 'Many Android phones can lock a single app with your fingerprint or face from <b>Settings › Security › App lock</b> (the exact name varies by phone). This opens the app straight into your phone’s unlock.'}</p>
+          </div>
+          <div class="bio-opt">
+            <b>2. In-app lock</b>
+            <p class="small muted">Turn on <b>Face ID / Touch ID</b> in this Profile page.${ios ? ' On iPhone the first time asks to save a passkey, and later unlocks show a “Use Passkey” step before Face ID.' : ''} It’s optional and only affects this phone.</p>
+          </div>
+          <button type="button" class="btn btn-outline" data-close style="margin-top:4px">Got it</button>
+        </div>`, 'ovl-wish');
     },
     async cleanupFiles(el) {
       if (!confirm('Move photos and files that are no longer used anywhere in the app to the Google Drive Trash?\n\nThey stay recoverable in Trash for 30 days. Files uploaded in the last 2 weeks are kept.')) return;
