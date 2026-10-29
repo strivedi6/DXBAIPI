@@ -1367,7 +1367,6 @@
         <span class="t">${esc(p.title)}</span>
         ${meta ? `<span class="s">${esc(meta)}</span>` : ''}
         ${presenterHtml(p, 24)}
-        ${p.attendees && p.attendees.length ? `<span class="s">${p.attending ? 'You and ' + (p.attendees.length - 1) + ' more attending' : p.attendees.length + ' attending'}</span>` : ''}
       </span>
     </button>`;
   }
@@ -2030,11 +2029,8 @@
       </div>
       ${p.message ? `<div class="prose${p.plainText ? ' plain' : ''}">${esc(p.message)}</div>` : ''}
       ${attachments(p)}
-      ${checkinBlock(p)}
-      ${attendeesBlock(p)}
       <p class="small muted center">${p.postedBy ? `Shared by ${esc(p.postedBy)} · ` : ''}${esc(fmtStamp(p.created))}</p>
       <div class="spacer"></div>
-      ${trainingActions(p)}
     </div></div>`;
   }
 
