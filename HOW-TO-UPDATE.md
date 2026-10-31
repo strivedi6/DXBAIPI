@@ -171,3 +171,21 @@ The whole app has a new look, built from the ground up around frosted glass over
 - **Seasonal themes still work** (Admin › App setup › App theme): the season's main, accent and background colours now tint the atmosphere, buttons and glows.
 - **Guest share images are unchanged** — they keep the Hilton look guests already receive.
 - Where the design lives: `glass.css` (loaded after `styles.css`). To go back to the 1.x look, remove the `glass.css` line from `index.html`.
+
+## Version 2.0.1
+Front-end only; no Code.gs change — just upload the folder.
+- **Smooth page changes:** opening a post no longer shows the old page through the new one; the new page slides in cleanly over it.
+- **No gap at the bottom:** pulling past the end of a page no longer shows a different-coloured band.
+- **Home is simpler:** the "things happening today" line and the large featured slider are gone. Urgent and pinned notices show at the top as before.
+- **Menu button (☰) at the top left** of Home, HR, Today's Special and Offers, in place of the logo. It opens a glass side menu with the logo, your profile, every section that has something in it (with counts: Birthdays today, HR Updates, Employee of the Month, F&B Offers…), quick links (Today's Special, All updates, Special collections, Profile), and Refresh / Sign out. Close it by tapping outside, ×, or swiping it to the left.
+
+## Version 2.0.2
+Front-end only; no Code.gs change — just upload the folder.
+- **Matching corners everywhere:** every button, picture, icon circle and field now sits the same distance from each edge of its card, and the card's corner is exactly the inner corner plus that distance. Pills follow the curve of the card around them: forms, the sign-in panel, pop-ups, the birthday wish card, profile and settings groups, the side menu, the bottom bar, offer tiles and training cards.
+- All buttons are one height (52 px), so their rounded ends always match.
+
+## Version 2.0.3
+Front-end only; no Code.gs change — just upload the folder.
+- **Special collections and special newsletters:** the animation (snow, sparkle, confetti…) shows again, over the whole page. The red fade under the picture is gone; the page opens like every other page (picture on top, glass sheet below).
+- **Offer tiles are white on every background** (light mode, dark mode and coloured collection pages) for better reading. Tiles are square, with the picture in 16:9 running edge to edge across the top. The price sits on the picture.
+- **Offer lists** (See all, All updates) use the same white card, with the picture flush to the left edge.

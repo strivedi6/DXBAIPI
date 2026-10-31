@@ -126,6 +126,8 @@
     mapPin: sv('<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>', 16),
     left: sv('<path d="M15 18l-6-6 6-6"/>', 18),
     right: sv('<path d="M9 6l6 6-6 6"/>', 18),
+    menu: sv('<path d="M4 7h16M4 12h16M4 17h10"/>', 22),
+    close: sv('<path d="M6 6l12 12M18 6L6 18"/>', 20),
     news: sv('<rect x="3" y="4" width="15" height="16" rx="2"/><path d="M18 8h2a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H6"/><path d="M7 8h7M7 12h7M7 16h4"/>'),
     cap: sv('<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/><path d="M22 9v6"/>'),
     megaphone: sv('<path d="M3 10v4a1 1 0 0 0 1 1h3l6 4V5L7 9H4a1 1 0 0 0-1 1z"/><path d="M17 8.5a5 5 0 0 1 0 7"/>'),
@@ -1663,9 +1665,8 @@
   function feedHeader(title, eyebrow, sub) {
     const u = state.user || {};
     const showBellDot = !!CONFIG.oneSignalAppId && Push.ready && !Push.isOn() && !(isIOS() && !isStandalone());
-    const mark = safeUrl(state.settings.logo) ? logoImg('', false) : `<span class="bm-mono">${esc(CONFIG.monogram || 'BB')}</span>`;
     return `<div class="topbar">
-        <span class="brand-mark" aria-hidden="true">${mark}</span>
+        <button class="icon-btn menu-btn" type="button" data-act="menu" aria-label="Open menu" aria-haspopup="dialog">${I.menu}</button>
         <div class="greet"><span class="small muted">${eyebrow || greeting()}</span><h1>${esc(title || firstName(u.name))}</h1>${sub ? `<p class="hello-sub">${sub}</p>` : ''}</div>
         <div class="tb-right">
           <button class="icon-btn" type="button" data-act="nav" data-to="search" aria-label="Search">${I.search}</button>
@@ -1720,21 +1721,72 @@
       ${list.length > 1 ? `<div class="feat-dots" aria-hidden="true">${list.map((x, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>` : ''}
     </section>`;
   }
-  /** Round glass shortcuts to every section that has something in it. */
-  function exploreRow(posts) {
-    const items = cats().filter((c) => c.active !== false).map((c) => {
+  /** Side menu (the ☰ button at the top left): logo, every section with something in it, quick links. */
+  function menuHtml() {
+    const posts = visiblePosts();
+    const u = state.user || {};
+    const dark = document.documentElement.dataset.theme === 'dark';
+    const logo = safeUrl(state.settings.logo) ? logoImg('dr-logo', dark)
+      : `<span class="dr-mono">${esc(CONFIG.monogram || 'BB')}</span><span class="dr-name">${esc(CONFIG.appName || '')}</span>`;
+    const row = (attrs, icon, label, n, color) => `<button type="button" class="dr-row" data-act="nav" ${attrs} style="--c:${esc(color || 'var(--navy)')}">
+        <span class="dr-ic">${icon}</span><span class="dr-lb">${esc(label)}</span>${n ? `<span class="dr-n">${n}</span>` : ''}${I.chevron}</button>`;
+    const sections = cats().filter((c) => c.active !== false).map((c) => {
       const n = (c.type === 'training' ? upcomingTraining(posts.filter((p) => p.category === c.id), 45) : posts.filter((p) => p.category === c.id)).length;
       if (!n) return '';
-      const to = c.type === 'training' ? 'data-to="hr"' : `data-to="section" data-id="${esc(c.id)}"`;
-      return `<button type="button" class="ex-btn" data-act="nav" ${to} style="--c:${esc(colorHex(c.color))}">
-        <span class="ex-ic">${I[TYPE_ICON[c.type]] || I.bell}${n > 1 ? `<span class="ex-n">${n}</span>` : ''}</span><span class="ex-lb">${esc(c.label)}</span></button>`;
+      return row(c.type === 'training' ? 'data-to="hr"' : `data-to="section" data-id="${esc(c.id)}"`, I[TYPE_ICON[c.type]] || I.bell, c.label, n, colorHex(c.color));
     }).join('');
-    const bd = (state.birthdaysToday || []).length ? `<button type="button" class="ex-btn" data-act="nav" data-to="hr" style="--c:#C2416B">
-        <span class="ex-ic">${I.cake}<span class="ex-n">${state.birthdaysToday.length}</span></span><span class="ex-lb">Birthdays</span></button>` : '';
-    if (!items && !bd) return '';
-    return `<nav class="explore" aria-label="Sections">${bd}${items}
-      <button type="button" class="ex-btn" data-act="nav" data-to="search"><span class="ex-ic">${I.search}</span><span class="ex-lb">All updates</span></button></nav>`;
+    const bd = (state.birthdaysToday || []).length ? row('data-to="hr"', I.cake, 'Birthdays today', state.birthdaysToday.length, '#C2416B') : '';
+    return `<aside class="drawer" role="dialog" aria-modal="true" aria-label="Menu">
+      <div class="dr-head"><span class="dr-brand">${logo}</span>
+        <button class="icon-btn" type="button" data-close aria-label="Close menu">${I.close}</button></div>
+      <button type="button" class="dr-me" data-act="nav" data-to="profile">${avatarHtml(u, 46)}
+        <span class="set-tx"><b>${esc(u.name || '')}</b><span>${esc([u.position || u.department, postProp(u.property)].filter(Boolean).join(' · '))}</span></span></button>
+      <div class="dr-scroll">
+        ${bd || sections ? `<span class="dr-label">Sections</span><div class="dr-group">${bd}${sections}</div>` : ''}
+        <span class="dr-label">Quick links</span>
+        <div class="dr-group">
+          ${row('data-to="today"', I.star, 'Today’s Special', 0, COLORS.gold)}
+          ${row('data-to="search"', I.search, 'All updates', 0, COLORS.grey)}
+          ${state.collections && state.collections.length ? row('data-to="offers"', I.sparkles, 'Special collections', state.collections.length, COLORS.burgundy) : ''}
+          ${row('data-to="profile"', I.user, 'Profile & settings', 0, COLORS.teal)}
+        </div>
+      </div>
+      <div class="dr-foot">
+        <button type="button" class="dr-foot-btn" data-act="refresh">${I.refresh}<span>Refresh</span></button>
+        <button type="button" class="dr-foot-btn" data-act="signOut">${I.logout}<span>Sign out</span></button>
+      </div>
+    </aside>`;
   }
+  function openMenu() {
+    if (document.querySelector('.drawer-ov')) return;
+    const el = document.createElement('div');
+    el.className = 'drawer-ov';
+    el.innerHTML = menuHtml();
+    document.body.appendChild(el);
+    document.documentElement.classList.add('menu-open');
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('in')));
+    const close = () => {
+      if (!el.isConnected) return;
+      el.classList.remove('in');
+      document.documentElement.classList.remove('menu-open');
+      setTimeout(() => el.remove(), 380);
+      window.removeEventListener('popstate', close);
+    };
+    // Tapping outside, ×, Escape, or any link in the menu closes it (the link's own action still runs).
+    el.addEventListener('click', (e) => {
+      if (e.target === el || (e.target.closest && e.target.closest('[data-close], [data-act]'))) close();
+    });
+    el.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    window.addEventListener('popstate', close);
+    // Swipe left to close.
+    const dr = el.querySelector('.drawer');
+    let x0 = null, dx = 0;
+    dr.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; dx = 0; dr.style.transition = 'none'; }, { passive: true });
+    dr.addEventListener('touchmove', (e) => { if (x0 === null) return; dx = Math.min(0, e.touches[0].clientX - x0); dr.style.transform = `translate3d(${dx}px,0,0)`; }, { passive: true });
+    dr.addEventListener('touchend', () => { dr.style.transition = ''; dr.style.transform = ''; if (dx < -70) close(); x0 = null; });
+    setTimeout(() => { const b = el.querySelector('[data-close]'); if (b) b.focus({ preventScroll: true }); }, 60);
+  }
+
   /** Moves the little dots under the featured cards as they are swiped. */
   function railDots() {
     app.querySelectorAll('[data-rail]').forEach((rail) => {
@@ -1758,14 +1810,12 @@
     const pinned = posts.filter((p) => p.pinned || p.priority === 'Urgent').filter((p) => catOf(p.category).type === 'update');
     const rest = posts.filter((p) => pinned.indexOf(p) < 0);
     const body = sectionsFor(['general', 'hr', 'marketing'], rest);
-    const t = todayItems();
     return `
     <div class="screen"><div class="page with-nav">
-      ${feedHeader('', '', t.count ? `${t.count} thing${t.count > 1 ? 's' : ''} happening today at ${HOTELS.indexOf((state.user || {}).property) >= 0 ? esc(state.user.property) : 'DXBAI &amp; DXBPI'}.` : 'Here’s what’s new for the team.')}
+      ${feedHeader()}
       ${pushBanner()}
       ${propFilter()}
-      ${featured(posts, pinned)}
-      ${exploreRow(posts)}
+      ${pinned.length ? `<div class="list">${pinned.map(postCard).join('')}</div>` : ''}
       ${collectionTiles()}
       ${state.loadingFeed && !state.posts.length ? '<div class="spinner"></div>' : (body || (!pinned.length ? emptyState('New HR updates, offers and notices will appear here.') : ''))}
     </div>${nav('feed')}${fab(['general', 'hr', 'marketing'])}</div>`;
@@ -5003,6 +5053,7 @@
     setCat(el) { state.filter.cat = el.dataset.v; render(); },
     setProp(el) { state.filter.prop = el.dataset.v; render(); },
     refresh() { PTR.run(); },
+    menu() { openMenu(); },
     open(el) { go('post', { id: el.dataset.id }); },
     enablePush() { Push.enable(); },
     openWish(el) {
