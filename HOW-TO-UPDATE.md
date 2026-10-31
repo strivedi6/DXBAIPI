@@ -189,3 +189,13 @@ Front-end only; no Code.gs change — just upload the folder.
 - **Special collections and special newsletters:** the animation (snow, sparkle, confetti…) shows again, over the whole page. The red fade under the picture is gone; the page opens like every other page (picture on top, glass sheet below).
 - **Offer tiles are white on every background** (light mode, dark mode and coloured collection pages) for better reading. Tiles are square, with the picture in 16:9 running edge to edge across the top. The price sits on the picture.
 - **Offer lists** (See all, All updates) use the same white card, with the picture flush to the left edge.
+
+## Version 2.0.4
+Front-end only; no Code.gs change — just upload the folder.
+- **Side menu links work** (sections, quick links, profile, Refresh, Sign out).
+- **Back / Edit buttons on pictures** are near-white with dark icons, visible on any photo.
+- **Bottom action bar** (Share with guest, Acknowledge, Share this achievement, Publish and other form buttons) is now fixed to the bottom of the screen on phones with a frosted background; the page scrolls underneath it.
+- **Offer tile shadows** are no longer cut off in the swipe rows.
+- **Special collections / special newsletters:** the animation runs behind the content again; the section below the picture is a clean solid block with rounded corners (no fade).
+- **Daily inspiration** is smaller and sits straight on the page (no card).
+- **Offers:** the hotel name/code pill under the offer name is removed (offer page and offer lists).

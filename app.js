@@ -1185,7 +1185,6 @@
       return `<button type="button" class="ocard" data-act="open" data-id="${esc(p.id)}">
         <div class="thumb">${img ? `<img src="${esc(img)}" alt="">` : esc(p.outlet || 'Offer')}</div>
         <div class="body">
-          ${tagFor(p)}
           <span class="t">${esc(p.title)}</span>
           ${p.outlet ? `<span class="s">${esc(p.outlet)}</span>` : ''}
           ${sub ? `<span class="s">${esc(sub)}</span>` : ''}
@@ -2096,7 +2095,6 @@
         <div class="os-head">
           ${p.outlet ? `<span class="eyebrow">${esc(p.outlet)}</span>` : ''}
           <h1 class="title-lg">${esc(p.title)}</h1>
-          <span class="os-meta">${tagFor(p)}</span>
         </div>
         ${p.message ? `<div class="prose plain">${esc(p.message)}</div>` : ''}
         ${specs.length ? `<div class="spec">${specs.map(([ic, k, v]) => `<div>${ic}<b>${k}</b><span>${esc(v)}</span></div>`).join('')}</div>` : ''}
@@ -6480,7 +6478,7 @@
   /* ---------------- Event wiring ---------------- */
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-act]');
-    if (!el || !(app.contains(el) || el.closest('.tr-fixed'))) return;
+    if (!el || !(app.contains(el) || el.closest('.tr-fixed') || el.closest('.drawer-ov'))) return;
     const fn = ACT[el.dataset.act];
     if (fn) { e.preventDefault(); fn(el, e); }
   });

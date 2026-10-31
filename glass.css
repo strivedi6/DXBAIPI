@@ -741,7 +741,7 @@ form.card, .card:has(> .btn) { border-radius: var(--r-box); }
    ===================================================================== */
 /* Special collections and special newsletters: the animation (snow, sparkle, confetti…) runs over the whole page,
    in front of the picture and the glass sheet, so it is always visible. It never blocks a tap. */
-.coll-page > .fx-layer.fx-full, .celebrate-screen > .fx-layer.fx-full { z-index: 20; }
+/* (2.0.4: animation sits behind the content again — see below) */
 
 /* Offer tiles: solid white cards on every background, square, picture 16:9 edge to edge on top. */
 .hc-offer { width: 220px; aspect-ratio: 1 / 1; padding: 0; gap: 0; background: #FFFFFF; color: #1F241B;
@@ -764,3 +764,54 @@ html[data-theme="dark"] .ocard, .coll-page .ocard { background: #FFFFFF; color: 
 .ocard .s { color: #6A6A60; }
 .ocard .price { color: #1F241B; }
 .ocard .tag[data-c], html[data-theme="dark"] .ocard .tag[data-c] { background: #F3EFE7; color: color-mix(in srgb, var(--c) 72%, #1F241B); box-shadow: none; }
+
+/* =====================================================================
+   2.0.4
+   ===================================================================== */
+/* Buttons on top of a picture: near-white glass with dark icons, readable on any photo. */
+.full-hero .fh-bar .icon-btn, .detail-hero .icon-btn,
+html[data-theme="dark"] .full-hero .fh-bar .icon-btn, html[data-theme="dark"] .detail-hero .icon-btn {
+  background: rgba(255, 255, 255, .84); color: #1F241B;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .9), 0 6px 18px rgba(0, 0, 0, .22); }
+.full-hero .fh-bar .icon-btn svg, .detail-hero .icon-btn svg { stroke-width: 2.4; }
+
+/* Bottom action bar (Share with guest, Acknowledge, Publish…): fixed to the bottom of the screen on phones,
+   frosted glass, never scrolls with the page. The page leaves room for it. */
+@media (max-width: 959px) {
+  .page:not(.with-nav) > .sticky-actions, form.page > .sticky-actions {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; max-width: 560px; margin: 0 auto;
+    padding: 14px 20px calc(14px + var(--safe-bottom));
+    background: color-mix(in srgb, var(--cream) 74%, transparent);
+    -webkit-backdrop-filter: blur(26px) saturate(170%); backdrop-filter: blur(26px) saturate(170%);
+    box-shadow: inset 0 1px 0 var(--glass-hi), 0 -1px 0 var(--hairline), 0 -10px 30px rgba(30, 26, 16, .10); }
+  .page:not(.with-nav) > .sticky-actions::before, form.page > .sticky-actions::before { content: none; }
+  html[data-theme="dark"] .page:not(.with-nav) > .sticky-actions, html[data-theme="dark"] form.page > .sticky-actions {
+    background: rgba(18, 28, 22, .78); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 -10px 30px rgba(0, 0, 0, .35); }
+  .page:not(.with-nav):has(> .sticky-actions), form.page:has(> .sticky-actions) { padding-bottom: calc(118px + var(--safe-bottom)); }
+  .page:not(.with-nav):has(> .sticky-actions .acked-box + *, > .sticky-actions .btn + span, > .sticky-actions .btn + .btn) { padding-bottom: calc(160px + var(--safe-bottom)); }
+  .coll-page .page > .sticky-actions { background: color-mix(in srgb, var(--bg) 80%, transparent); }
+}
+
+/* Offer and other tiles in swipe rows: room around them so their shadows are never cut. */
+.hrow { padding: 10px 20px 36px; margin-top: -10px; margin-bottom: -24px; }
+@media (min-width: 960px) { .hrow { padding: 10px 0 36px; margin: -10px 0 -24px; } }
+
+/* Special collections and special newsletters: the animation runs behind the content,
+   and the content starts in a clean, solid section with rounded top corners. */
+.coll-page > .fx-layer.fx-full { z-index: 0; }
+.coll-page .full-hero { z-index: 1; }
+.coll-page .full-hero + .page { z-index: 2; background: linear-gradient(var(--bg) 0 44px, transparent 44px);
+  -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+
+/* Daily inspiration: smaller, straight on the page (no card). */
+.quote-bar, html[data-theme="dark"] .quote-bar { background: none; box-shadow: none; padding: 2px 44px 2px 2px; gap: 6px; border-radius: 0; }
+.qb-q { font-size: 17px; line-height: 1.35; font-style: italic; }
+.qb-ey { font-size: 10.5px; }
+.qb-ed { top: 0; right: 0; width: 32px; height: 32px; }
+/* The sheet under a picture can't use a backdrop blur: that would pin the fixed bottom bar to the sheet
+   instead of the screen. A near-solid top edge gives the same clean look. */
+.full-hero + .page, .detail-hero + .page.sheet { -webkit-backdrop-filter: none; backdrop-filter: none;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cream) 94%, transparent) 0, color-mix(in srgb, var(--cream) 70%, transparent) 220px, transparent 520px); }
+html[data-theme="dark"] .full-hero + .page, html[data-theme="dark"] .detail-hero + .page.sheet {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cream) 92%, #2c4233) 0, color-mix(in srgb, var(--cream) 60%, transparent) 220px, transparent 520px); }
+.coll-page .full-hero + .page { background: linear-gradient(var(--bg) 0 44px, transparent 44px); }
