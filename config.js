@@ -6,7 +6,7 @@ window.APP_CONFIG = {
   subtitle: 'Embassy Suites · Hilton Garden Inn',
 
   // Raise this each time you upload a new version (shown on the Profile screen).
-  appVersion: '2.0.4',
+  appVersion: '2.0.5',
 
   // Training check-in & "Attend" option. Set to true to switch it back on, then re-upload.
   trainingCheckin: false,

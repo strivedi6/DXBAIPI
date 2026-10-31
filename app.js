@@ -697,10 +697,24 @@
     if (replace) history.replaceState(st, ''); else history.pushState(st, '');
     render({ dir: replace ? 'fade' : 'forward', top: true });
   }
+  /* iPhone swipe-from-the-left-edge (and Android back gestures) already animate the page themselves.
+     Running our own slide after that makes the screen flicker, so then the new page just appears. */
+  const Edge = { start: null, at: 0 };
+  window.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    Edge.start = t && (t.clientX < 28 || t.clientX > window.innerWidth - 28) ? t.clientX : null;
+  }, { passive: true, capture: true });
+  window.addEventListener('touchmove', (e) => {
+    if (Edge.start === null) return;
+    const t = e.touches[0];
+    if (t && Math.abs(t.clientX - Edge.start) > 30) Edge.at = Date.now();
+  }, { passive: true, capture: true });
   window.addEventListener('popstate', (e) => {
     const st = e.state || { name: state.token ? 'feed' : 'login', params: {} };
     state.route = { name: st.name, params: st.params || {} };
-    render({ dir: 'back' });
+    const native = e.hasUAVisualTransition || Date.now() - Edge.at < 1200;
+    Edge.at = 0;
+    render({ dir: native ? 'none' : 'back' });
   });
   function back(fallback) {
     if (history.state && history.length > 1) history.back();
@@ -768,7 +782,7 @@
     state.lastScreen = key;
     state.lastName = name;
     Transit.finish();
-    if (!changed || !prev || reduceMotion()) { paint(opts.top); return; }
+    if (!changed || !prev || reduceMotion() || opts.dir === 'none') { paint(opts.top); return; }
     let dir = opts.dir || 'fade';
     if (TABS.indexOf(name) >= 0 && TABS.indexOf(prev) >= 0) dir = 'tab';
     Transit.run(dir, () => paint(opts.top));
@@ -1909,9 +1923,8 @@
     const q = quoteToday();
     const edit = canPopups();
     return `<${edit ? 'button type="button" data-act="nav" data-to="quotes"' : 'div'} class="quote-bar">
-      <span class="qb-ey">${I.sparkles} Daily inspiration</span>
       <span class="qb-mark" aria-hidden="true">“</span>
-      <span class="qb-tx"><span class="qb-q">${esc(q.text)}</span>${q.author ? `<span class="qb-a">${esc(q.author)}</span>` : ''}</span>
+      <span class="qb-tx"><span class="qb-q">“${esc(q.text.replace(/^["“”]+|["“”]+$/g, ''))}”</span>${q.author ? `<span class="qb-a">${esc(q.author)}</span>` : ''}</span>
       ${edit ? `<span class="qb-ed" aria-label="Set quotes">${I.edit}</span>` : ''}
     </${edit ? 'button' : 'div'}>`;
   }

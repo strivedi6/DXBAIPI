@@ -199,3 +199,9 @@ Front-end only; no Code.gs change — just upload the folder.
 - **Special collections / special newsletters:** the animation runs behind the content again; the section below the picture is a clean solid block with rounded corners (no fade).
 - **Daily inspiration** is smaller and sits straight on the page (no card).
 - **Offers:** the hotel name/code pill under the offer name is removed (offer page and offer lists).
+
+## Version 2.0.5
+Front-end only; no Code.gs change — just upload the folder.
+- **Profile cards** (Profile page and side menu) use the same rounded corners as every other card.
+- **Daily quote** shows just the quote, in quotation marks, small and in italic (no "Daily inspiration" label).
+- **Swipe back from the left edge** on iPhone (and Android's back gesture): the phone's own swipe animation is used, and the app no longer plays a second slide afterwards, so there is no flicker. The back button still slides as before.

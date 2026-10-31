@@ -815,3 +815,17 @@ html[data-theme="dark"] .full-hero .fh-bar .icon-btn, html[data-theme="dark"] .d
 html[data-theme="dark"] .full-hero + .page, html[data-theme="dark"] .detail-hero + .page.sheet {
   background: linear-gradient(180deg, color-mix(in srgb, var(--cream) 92%, #2c4233) 0, color-mix(in srgb, var(--cream) 60%, transparent) 220px, transparent 520px); }
 .coll-page .full-hero + .page { background: linear-gradient(var(--bg) 0 44px, transparent 44px); }
+
+/* =====================================================================
+   2.0.5
+   ===================================================================== */
+/* Profile cards use the same corner as every other card. */
+.set-group:has(> .me-row) { border-radius: 29px; }
+.dr-me { border-radius: 27px; }
+
+/* Daily quote: just the quote, small italic, same size as the small labels. */
+.quote-bar, html[data-theme="dark"] .quote-bar { flex-direction: row; align-items: center; min-height: 32px; padding: 0 40px 0 2px; }
+.qb-q { font-family: var(--serif); font-size: 15px; line-height: 1.4; font-style: italic; color: var(--muted-2); }
+.qb-a { font-size: 10.5px; margin-top: 2px; }
+.qb-ed { top: 50%; right: 0; width: 30px; height: 30px; transform: translateY(-50%); }
+.qb-ed svg { width: 14px; height: 14px; }
