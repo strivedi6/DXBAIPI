@@ -5,11 +5,12 @@ try {
   // Push stays off if the OneSignal worker can't load; the app still works.
 }
 
-const CACHE = 'bbteam-v48';
+const CACHE = 'bbteam-v50';
 const SHELL = [
   './',
   './index.html',
   './styles.css',
+  './glass.css',
   './app.js',
   './config.js',
   './manifest.webmanifest',

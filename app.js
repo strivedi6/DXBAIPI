@@ -87,8 +87,8 @@
   const PROP_LABEL = { DXBAI: 'DXBAI · Embassy Suites', DXBPI: 'DXBPI · Hilton Garden Inn', Cluster: 'Cluster' };
   const postProp = (v) => (HOTELS.indexOf(v) >= 0 ? v : 'Cluster');
   const APP_NAME = CONFIG.appName || 'Business Bay Team';
-  const MAIN = '#13294B'; // Hilton navy
-  const DARK_BAR = '#0F131A'; // status bar in dark mode
+  const MAIN = '#E6E0D5'; // status bar: top of the Sand atmosphere
+  const DARK_BAR = '#16211B'; // status bar: top of the Forest atmosphere
 
   /* ---------------- Icons ---------------- */
   const sv = (d, w) => `<svg width="${w || 22}" height="${w || 22}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -126,6 +126,11 @@
     mapPin: sv('<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>', 16),
     left: sv('<path d="M15 18l-6-6 6-6"/>', 18),
     right: sv('<path d="M9 6l6 6-6 6"/>', 18),
+    news: sv('<rect x="3" y="4" width="15" height="16" rx="2"/><path d="M18 8h2a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H6"/><path d="M7 8h7M7 12h7M7 16h4"/>'),
+    cap: sv('<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/><path d="M22 9v6"/>'),
+    megaphone: sv('<path d="M3 10v4a1 1 0 0 0 1 1h3l6 4V5L7 9H4a1 1 0 0 0-1 1z"/><path d="M17 8.5a5 5 0 0 1 0 7"/>'),
+    arrowRight: sv('<path d="M5 12h14M13 6l6 6-6 6"/>', 20),
+    leaf: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M24 40V18"/><path d="M24 40c0-9 6-15 15-16-1 9-7 15-15 16z"/><path d="M24 40c0-9-6-15-15-16 1 9 7 15 15 16z"/><path d="M24 30c-4-5-4-13 0-20 4 7 4 15 0 20z"/></svg>',
     gear: sv('<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/>', 20)
   };
 
@@ -180,7 +185,7 @@
       root.setProperty('--gold-bg', `color-mix(in srgb, ${t.accent} 16%, #fff)`);
       root.setProperty('--cream', t.background);
     }
-    setThemeColor(dark ? DARK_BAR : t.primary);
+    setThemeColor(dark ? DARK_BAR : t.background);
   }
   function setThemeColor(c) { const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute('content', c); }
   function setTheme(t) {
@@ -1019,22 +1024,19 @@
     if (!state.settingsLoaded) { state.settingsLoaded = true; setTimeout(loadSettings, 0); }
     state.renderedLogin = loginKey();
     const logo = safeUrl(state.settings.logo);
+    const photo = safeUrl(state.settings.heroImage);
     return `
-    <div class="screen">
-      ${safeUrl(state.settings.heroImage) ? `
-      <div class="hero-photo ${logo ? 'has-logo' : ''}"><img src="${esc(state.settings.heroImage)}" alt="">${logo ? `<div class="hero-photo-logo">${logoImg('', true)}</div>` : ''}</div>` : logo ? `
-      <div class="hero">
-        ${logoImg('hero-logo', true)}
-      </div>` : `
-      <div class="hero">
-        <div class="monogram" aria-hidden="true">${esc(CONFIG.monogram || 'BB')}</div>
-        <h1>${esc(CONFIG.appName)}</h1>
-        <p>${esc(CONFIG.subtitle || '')}</p>
-      </div>`}
-      <form class="card auth-card" data-form="login" novalidate>
+    <div class="screen"><div class="splash">
+      <div class="splash-bg">${photo ? `<img src="${esc(photo)}" alt="">` : ''}</div>
+      <div class="splash-mark">
+        ${logo ? logoImg('hero-logo', true) : `<span class="leaf">${I.leaf}</span><h1>${esc(CONFIG.appName)}</h1>`}
+        ${CONFIG.subtitle ? `<span class="tagline">${esc(CONFIG.subtitle)}</span>` : ''}
+        <span class="props">DXBAI · DXBPI · Cluster</span>
+      </div>
+      <form class="glass-panel" data-form="login" novalidate>
         <div class="stack" style="gap:4px">
-          <h2 style="font-size:24px">Welcome back</h2>
-          <p class="muted small">Sign in with your Employee ID and PIN.</p>
+          <h2>Welcome back</h2>
+          <p class="small">Sign in with your Employee ID and PIN.</p>
         </div>
         <div class="field">
           <label for="l-id">Employee ID</label>
@@ -1045,14 +1047,11 @@
           <input class="input pin-input" id="l-pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="current-password" required>
         </div>
         <div class="error-box" id="form-error" hidden></div>
-        <button class="btn" type="submit">Sign in</button>
-        <p class="small muted center">Forgot your PIN? Ask your Admin to reset it.</p>
+        <button class="btn btn-split" type="submit">Sign in<span class="arrow">${I.arrowRight}</span></button>
+        <p class="small center">Forgot your PIN? Ask your Admin to reset it.</p>
       </form>
-      <div class="auth-foot">
-        <p class="muted small">New to the team?</p>
-        <button class="btn btn-outline" type="button" data-act="nav" data-to="signup">Create an account</button>
-      </div>
-    </div>`;
+      <div class="splash-foot">New to the team?<button class="link-btn" type="button" data-act="nav" data-to="signup">Create an account</button></div>
+    </div></div>`;
   };
 
   VIEWS.signup = () => {
@@ -1294,9 +1293,9 @@
 
   function newsletterCard(p, compact) {
     const special = p.style === 'Special' || p.style === 'Festive';
-    const bg = special ? colorHex(p.themeColor || (p.style === 'Festive' ? FESTIVE_RED : 'navy')) : COLORS.navy;
+    const bg = special ? colorHex(p.themeColor || (p.style === 'Festive' ? FESTIVE_RED : 'navy')) : '';
     const fx = special && p.animation && p.animation !== 'none' ? p.animation : '';
-    return `<button type="button" class="${compact ? 'hc hc-news' : 'mcard'}" data-act="open" data-id="${esc(p.id)}" style="background:${esc(bg)}" ${fx ? `data-fx="${esc(fx)}"` : ''}>
+    return `<button type="button" class="${compact ? 'hc hc-news' : 'mcard'}${special ? '' : ' nl-regular'}" data-act="open" data-id="${esc(p.id)}" ${bg ? `style="background:${esc(bg)}"` : ''} ${fx ? `data-fx="${esc(fx)}"` : ''}>
       <span class="tag tag-monthly">${esc(tileDate(p))}</span>
       <span class="t">${esc(p.title)}</span>
       ${p.message ? `<span class="m">${esc(p.message)}</span>` : ''}
@@ -1367,6 +1366,7 @@
         <span class="t">${esc(p.title)}</span>
         ${meta ? `<span class="s">${esc(meta)}</span>` : ''}
         ${presenterHtml(p, 24)}
+        ${CONFIG.trainingCheckin && p.attendees && p.attendees.length ? `<span class="s">${p.attending ? 'You and ' + (p.attendees.length - 1) + ' more attending' : p.attendees.length + ' attending'}</span>` : ''}
       </span>
     </button>`;
   }
@@ -1660,12 +1660,14 @@
   }
 
   /* ---------------- Home / HR / Offers ---------------- */
-  function feedHeader(title, eyebrow) {
+  function feedHeader(title, eyebrow, sub) {
     const u = state.user || {};
     const showBellDot = !!CONFIG.oneSignalAppId && Push.ready && !Push.isOn() && !(isIOS() && !isStandalone());
+    const mark = safeUrl(state.settings.logo) ? logoImg('', false) : `<span class="bm-mono">${esc(CONFIG.monogram || 'BB')}</span>`;
     return `<div class="topbar">
-        <div class="greet"><span class="small muted">${eyebrow || greeting()}</span><h1>${esc(title || firstName(u.name))}</h1></div>
-        <div class="row" style="gap:8px">
+        <span class="brand-mark" aria-hidden="true">${mark}</span>
+        <div class="greet"><span class="small muted">${eyebrow || greeting()}</span><h1>${esc(title || firstName(u.name))}</h1>${sub ? `<p class="hello-sub">${sub}</p>` : ''}</div>
+        <div class="tb-right">
           <button class="icon-btn" type="button" data-act="nav" data-to="search" aria-label="Search">${I.search}</button>
           <button class="icon-btn avatar-btn" type="button" data-act="nav" data-to="profile" aria-label="Your profile">${avatarHtml(u, 40)}${(() => { const n = profileGaps().length; return n ? `<span class="badge av-badge">${n}</span>` : showBellDot ? '<span class="dot" style="top:0;right:0"></span>' : ''; })()}</button>
         </div>
@@ -1683,18 +1685,87 @@
     return can ? `<button class="fab" type="button" data-act="compose" data-groups="${esc(groups.join(','))}" aria-label="New post">${I.plus}</button>` : '';
   }
 
+  /* ---------------- Home: featured cards and quick links ---------------- */
+  const TYPE_ICON = { update: 'bell', offer: 'tag', monthly: 'news', people: 'award', training: 'cap' };
+  /** One large glass card: urgent notices first, then the newest posts with a picture. */
+  function featCard(p) {
+    const c = catOf(p.category);
+    const img = safeUrl(p.image);
+    const urgent = c.type === 'update' && (p.pinned || p.priority === 'Urgent');
+    const cta = { offer: 'View offer', monthly: 'Read', people: 'Celebrate', training: 'Details' }[c.type]
+      || (c.ack && !p.acknowledged ? 'Read & acknowledge' : 'Read');
+    const title = c.type === 'people' ? (p.personName || p.title) : p.title;
+    const sub = c.type === 'offer' ? [p.outlet, p.days || p.timing].filter(Boolean).join(' · ')
+      : c.type === 'people' ? [p.subtitle, p.position].filter(Boolean).join(' · ')
+      : c.type === 'training' ? [p.eventDate ? dayParts(p.eventDate).long : '', fmtTiming(p.timing)].filter(Boolean).join(' · ')
+      : (p.message || '');
+    const ey = urgent ? (p.priority === 'Urgent' ? 'Urgent · ' : 'Pinned · ') + c.label : c.label + ' · ' + postProp(p.property);
+    return `<button type="button" class="feat-card${img ? '' : ' no-img'}${urgent ? ' urgent' : ''}" data-act="open" data-id="${esc(p.id)}" style="--c:${esc(colorHex(c.color))}">
+      ${img ? `<span class="fc-img"><img src="${esc(img)}" alt=""></span>` : ''}
+      <span class="fc-tx">
+        <span class="fc-ey">${esc(ey)}</span>
+        <span class="fc-t">${esc(title)}</span>
+        ${sub ? `<span class="fc-s">${esc(sub)}</span>` : ''}
+      </span>
+      <span class="fc-cta">${esc(cta)} ${I.arrowRight}</span>
+    </button>`;
+  }
+  function featured(posts, pinned) {
+    const withImg = posts.filter((p) => pinned.indexOf(p) < 0 && safeUrl(p.image) && catOf(p.category).type !== 'training')
+      .sort((a, b) => (b.created || 0) - (a.created || 0));
+    const list = pinned.concat(withImg.slice(0, Math.max(1, 4 - pinned.length))).slice(0, 6);
+    if (!list.length) return '';
+    return `<section class="feat" aria-label="Featured">
+      <div class="feat-rail" data-rail>${list.map(featCard).join('')}</div>
+      ${list.length > 1 ? `<div class="feat-dots" aria-hidden="true">${list.map((x, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>` : ''}
+    </section>`;
+  }
+  /** Round glass shortcuts to every section that has something in it. */
+  function exploreRow(posts) {
+    const items = cats().filter((c) => c.active !== false).map((c) => {
+      const n = (c.type === 'training' ? upcomingTraining(posts.filter((p) => p.category === c.id), 45) : posts.filter((p) => p.category === c.id)).length;
+      if (!n) return '';
+      const to = c.type === 'training' ? 'data-to="hr"' : `data-to="section" data-id="${esc(c.id)}"`;
+      return `<button type="button" class="ex-btn" data-act="nav" ${to} style="--c:${esc(colorHex(c.color))}">
+        <span class="ex-ic">${I[TYPE_ICON[c.type]] || I.bell}${n > 1 ? `<span class="ex-n">${n}</span>` : ''}</span><span class="ex-lb">${esc(c.label)}</span></button>`;
+    }).join('');
+    const bd = (state.birthdaysToday || []).length ? `<button type="button" class="ex-btn" data-act="nav" data-to="hr" style="--c:#C2416B">
+        <span class="ex-ic">${I.cake}<span class="ex-n">${state.birthdaysToday.length}</span></span><span class="ex-lb">Birthdays</span></button>` : '';
+    if (!items && !bd) return '';
+    return `<nav class="explore" aria-label="Sections">${bd}${items}
+      <button type="button" class="ex-btn" data-act="nav" data-to="search"><span class="ex-ic">${I.search}</span><span class="ex-lb">All updates</span></button></nav>`;
+  }
+  /** Moves the little dots under the featured cards as they are swiped. */
+  function railDots() {
+    app.querySelectorAll('[data-rail]').forEach((rail) => {
+      const dots = rail.parentElement.querySelectorAll('.feat-dots i');
+      if (!dots.length) return;
+      let raf = 0;
+      rail.addEventListener('scroll', () => {
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => {
+          const w = rail.firstElementChild ? rail.firstElementChild.getBoundingClientRect().width + 20 : 1;
+          const i = Math.min(dots.length - 1, Math.round(rail.scrollLeft / w));
+          dots.forEach((d, k) => d.classList.toggle('on', k === i));
+        });
+      }, { passive: true });
+    });
+  }
+
   VIEWS.feed = () => {
     if (!state.lastLoad && !state.loadingFeed) setTimeout(() => loadFeed(), 0);
     const posts = visiblePosts();
     const pinned = posts.filter((p) => p.pinned || p.priority === 'Urgent').filter((p) => catOf(p.category).type === 'update');
     const rest = posts.filter((p) => pinned.indexOf(p) < 0);
     const body = sectionsFor(['general', 'hr', 'marketing'], rest);
+    const t = todayItems();
     return `
     <div class="screen"><div class="page with-nav">
-      ${feedHeader()}
+      ${feedHeader('', '', t.count ? `${t.count} thing${t.count > 1 ? 's' : ''} happening today at ${HOTELS.indexOf((state.user || {}).property) >= 0 ? esc(state.user.property) : 'DXBAI &amp; DXBPI'}.` : 'Here’s what’s new for the team.')}
       ${pushBanner()}
       ${propFilter()}
-      ${pinned.length ? `<div class="list">${pinned.map(postCard).join('')}</div>` : ''}
+      ${featured(posts, pinned)}
+      ${exploreRow(posts)}
       ${collectionTiles()}
       ${state.loadingFeed && !state.posts.length ? '<div class="spinner"></div>' : (body || (!pinned.length ? emptyState('New HR updates, offers and notices will appear here.') : ''))}
     </div>${nav('feed')}${fab(['general', 'hr', 'marketing'])}</div>`;
@@ -1789,6 +1860,7 @@
     const q = quoteToday();
     const edit = canPopups();
     return `<${edit ? 'button type="button" data-act="nav" data-to="quotes"' : 'div'} class="quote-bar">
+      <span class="qb-ey">${I.sparkles} Daily inspiration</span>
       <span class="qb-mark" aria-hidden="true">“</span>
       <span class="qb-tx"><span class="qb-q">${esc(q.text)}</span>${q.author ? `<span class="qb-a">${esc(q.author)}</span>` : ''}</span>
       ${edit ? `<span class="qb-ed" aria-label="Set quotes">${I.edit}</span>` : ''}
@@ -1957,33 +2029,39 @@
   function offerDetail(p) {
     const img = safeUrl(p.image);
     const hasPrice = p.price !== '' && p.price != null;
+    const specs = [
+      offerDate(p) ? [I.cal, 'Date', offerDate(p)] : null,
+      p.timing ? [I.clock, 'Time', p.timing] : null,
+      p.location ? [I.mapPin, 'Where', p.location] : null,
+      p.serves && !(p.inclusions && p.inclusions.length) ? [I.users, 'Serves', p.serves] : null
+    ].filter(Boolean);
     return `
     <div class="screen">
       <div class="detail-hero">
         ${img ? `<img src="${esc(img)}" alt="${esc(p.title)}">` : esc(p.outlet || 'Offer')}
         <button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
         ${editBtn(p, 'hero-edit')}
-        ${hasPrice ? `<div class="price-badge"><small>AED</small><b>${esc(money(p.price))}</b></div>` : ''}
       </div>
-      <div class="page" style="padding-top:22px">
-        <div class="stack" style="gap:6px;${hasPrice ? 'padding-right:96px' : ''}">
+      <div class="page sheet">
+        <div class="os-head">
           ${p.outlet ? `<span class="eyebrow">${esc(p.outlet)}</span>` : ''}
           <h1 class="title-lg">${esc(p.title)}</h1>
+          <span class="os-meta">${tagFor(p)}</span>
         </div>
-        ${(offerDate(p) || p.timing) ? `<div class="grid-2">
-          ${offerDate(p) ? `<div class="fact"><span>${I.cal} Date</span><b>${esc(offerDate(p))}</b></div>` : ''}
-          ${p.timing ? `<div class="fact"><span>${I.clock} Time</span><b>${esc(p.timing)}</b></div>` : ''}
+        ${p.message ? `<div class="prose plain">${esc(p.message)}</div>` : ''}
+        ${specs.length ? `<div class="spec">${specs.map(([ic, k, v]) => `<div>${ic}<b>${k}</b><span>${esc(v)}</span></div>`).join('')}</div>` : ''}
+        ${(p.inclusions && p.inclusions.length) ? `<div class="card">
+          <span class="section-title" style="margin:0">Includes</span><ul class="inclusions">${p.inclusions.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>
+          ${p.serves ? `<span class="small muted" style="border-top:1px solid var(--hairline);padding-top:10px">${esc(p.serves)}</span>` : ''}
         </div>` : ''}
-        ${(p.inclusions && p.inclusions.length) || p.serves ? `<div class="card">
-          ${p.inclusions && p.inclusions.length ? `<span class="section-title" style="margin:0">Includes</span><ul class="inclusions">${p.inclusions.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}
-          ${p.serves ? `<span class="small muted" style="${p.inclusions && p.inclusions.length ? 'border-top:1px solid #EEE7DA;padding-top:10px' : ''}">${esc(p.serves)}</span>` : ''}
-        </div>` : ''}
-        ${p.message ? `<div class="prose${p.plainText ? ' plain' : ''}">${esc(p.message)}</div>` : ''}
         ${Blocks.render(p.blocks)}
         ${attachments(p)}
         ${p.terms ? `<details class="terms"><summary>Terms &amp; Conditions</summary><div class="terms-body">${esc(p.terms)}</div></details>` : ''}
         <div class="spacer"></div>
-        <div class="sticky-actions"><button class="btn" type="button" data-act="nav" data-to="share" data-id="${esc(p.id)}">${I.share} Share with guest</button></div>
+        <div class="sticky-actions"><div class="buybar">
+          ${hasPrice ? `<span class="bb-price"><small>AED</small><b>${esc(money(p.price))}</b></span>` : ''}
+          <button class="btn" type="button" data-act="nav" data-to="share" data-id="${esc(p.id)}">${I.share} Share with guest</button>
+        </div></div>
       </div>
     </div>`;
   }
@@ -2029,8 +2107,11 @@
       </div>
       ${p.message ? `<div class="prose${p.plainText ? ' plain' : ''}">${esc(p.message)}</div>` : ''}
       ${attachments(p)}
+      ${CONFIG.trainingCheckin ? checkinBlock(p) : ''}
+      ${CONFIG.trainingCheckin ? attendeesBlock(p) : ''}
       <p class="small muted center">${p.postedBy ? `Shared by ${esc(p.postedBy)} · ` : ''}${esc(fmtStamp(p.created))}</p>
       <div class="spacer"></div>
+      ${CONFIG.trainingCheckin ? trainingActions(p) : ''}
     </div></div>`;
   }
 
@@ -2591,7 +2672,7 @@
 
   /** Settings-style row with a coloured icon tile. */
   function setRow(o) {
-    const inner = `<span class="set-ic" style="background:${o.color}">${o.icon}</span>
+    const inner = `<span class="set-ic" style="--ic:${o.color}">${o.icon}</span>
       <span class="set-tx"><b>${o.title}</b>${o.sub ? `<span>${o.sub}</span>` : ''}</span>
       ${o.badge ? `<span class="tag tag-red">${o.badge}</span>` : ''}${o.right || I.chevron}`;
     return o.tag === 'label' ? `<label class="set-row">${inner}</label>`
@@ -6762,6 +6843,7 @@
     document.documentElement.style.backgroundColor = col;
     document.body.style.backgroundColor = col;
     DateFields.enhance(app);
+    railDots();
     Bar.setup();
     Lens.place(true);
     ComposePreview.sync();

@@ -155,3 +155,19 @@ Then upload the folder as above. Phones that already installed the app may keep 
 
 ## Version 1.31.1
 - **Fixed the blurred/cut strip at the top of full-image pages (newsletters, notices, festive pages).** The hero image used to run under the iPhone status bar, so iOS blurred the top of it (hiding part of the title). The image now starts just below the status bar, with the page colour filling the strip above it — so the status bar sits over a solid colour, edge-to-edge, and the whole image stays sharp and fully visible. Front-end only; no Code.gs change.
+
+## Version 2.0.0 — new design ("Glasshouse")
+**Install:** upload this whole folder to GitHub (it has one new file, `glass.css`). No Code.gs change, no setup step — all data, posts and settings stay as they are.
+
+The whole app has a new look, built from the ground up around frosted glass over a soft, atmospheric background:
+- **Light mode = Sand:** warm stone background with soft daylight, a diagonal light beam and low sage and brass glows. **Dark mode = Forest:** deep sage-green night with the same glass.
+- **Glass everywhere:** cards, tiles, settings, fields, the top bar and the floating bottom bar are frosted glass with a fine light edge. Buttons are rounded pills (deep olive in light mode, soft sage in dark mode).
+- **Sign in:** the sign-in image now fills the whole screen, with the app name (or the logo from App setup) in the middle and a glass sign-in panel at the bottom.
+- **Home:** a large greeting with a one-line summary of what's happening today, a swipeable **featured** row (urgent notices first, then the newest posts with a picture) and a row of round **shortcuts** to every section that has something in it (Birthdays, HR Updates, Employee of the Month, Learning & Development, F&B Offers…) plus All updates.
+- **Today's Special:** the quote of the day is now a "Daily inspiration" card.
+- **Offers:** the picture fills the top of the screen and the details rise over it as a glass sheet, with Date / Time / Where in one row and the price next to "Share with guest" at the bottom.
+- **Other posts** (HR updates, notices, newsletters, training) open the same way: picture on top, glass sheet below.
+- **Tags** are glass pills with a coloured dot in the category colour; profile and settings icons are soft tinted circles.
+- **Seasonal themes still work** (Admin › App setup › App theme): the season's main, accent and background colours now tint the atmosphere, buttons and glows.
+- **Guest share images are unchanged** — they keep the Hilton look guests already receive.
+- Where the design lives: `glass.css` (loaded after `styles.css`). To go back to the 1.x look, remove the `glass.css` line from `index.html`.
