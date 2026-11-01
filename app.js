@@ -161,8 +161,11 @@
   const appearance = () => LS.get('bb_appearance') || 'auto';
   const isDark = () => appearance() === 'dark' || (appearance() === 'auto' && !!(darkQuery && darkQuery.matches));
   function applyAppearance() {
-    document.documentElement.dataset.theme = isDark() ? 'dark' : 'light';
+    const t = isDark() ? 'dark' : 'light';
+    const changed = document.documentElement.dataset.theme && document.documentElement.dataset.theme !== t;
+    document.documentElement.dataset.theme = t;
     applyTheme();
+    if (changed && typeof freshHistory === 'function') freshHistory();
   }
   if (darkQuery) {
     const onScheme = () => { if (appearance() === 'auto') { applyAppearance(); } };
@@ -693,7 +696,8 @@
   /* ---------------- Router ---------------- */
   function go(name, params, replace) {
     state.route = { name, params: params || {} };
-    const st = { name, params: state.route.params };
+    const depth = (history.state && history.state.depth) || 0;
+    const st = { name, params: state.route.params, depth: replace ? depth : depth + 1 };
     if (replace) history.replaceState(st, ''); else history.pushState(st, '');
     render({ dir: replace ? 'fade' : 'forward', top: true });
   }
@@ -709,7 +713,21 @@
     const t = e.touches[0];
     if (t && Math.abs(t.clientX - Edge.start) > 30) Edge.at = Date.now();
   }, { passive: true, capture: true });
+  const Hist = { resetTo: null };
+  /** After switching light/dark: step back to the first page silently, then return to this page. */
+  function freshHistory() {
+    const d = (history.state && history.state.depth) || 0;
+    if (d < 1) return;
+    Hist.resetTo = { name: state.route.name, params: state.route.params || {} };
+    history.go(-d);
+  }
   window.addEventListener('popstate', (e) => {
+    if (Hist.resetTo) {
+      const r = Hist.resetTo; Hist.resetTo = null;
+      history.pushState({ name: r.name, params: r.params, depth: 1 }, '');
+      state.route = r;
+      return;
+    }
     const st = e.state || { name: state.token ? 'feed' : 'login', params: {} };
     state.route = { name: st.name, params: st.params || {} };
     const native = e.hasUAVisualTransition || Date.now() - Edge.at < 1200;
@@ -837,7 +855,7 @@
         const fixed = [...scr.children].filter((n) => n.matches('.nav, .fab, .nav-blur'));
         if (fixed.length) {
           const holder = document.createElement('div');
-          holder.className = 'tr-fixed';
+          holder.className = 'tr-fixed' + (scr.classList.contains('det') ? ' det' : '');
           fixed.forEach((n) => holder.appendChild(n));
           document.body.appendChild(holder);
           this.holder = holder;
@@ -6586,7 +6604,7 @@
         if (this.y0 === null) return;
         const dy = e.touches[0].clientY - this.y0, dx = Math.abs(e.touches[0].clientX - this.x0);
         if (!this.pulling) {
-          if (dy > 10 && dy > dx * 1.5 && window.scrollY <= 0) { this.pulling = true; this.page = app.querySelector('.screen > .page, .screen > form.page'); }
+          if (dy > 10 && dy > dx * 1.5 && window.scrollY <= 0) { this.pulling = true; this.page = this.movers(); }
           else if (dx > 12 || dy < -4) { this.y0 = null; return; }
         }
         if (this.pulling) { this.dist = Math.min(this.MAX, (dy - 10) * 0.6); this.show(); }
@@ -6598,13 +6616,16 @@
       window.addEventListener('touchend', end, { passive: true });
       window.addEventListener('touchcancel', end, { passive: true });
     },
-    /** Moves only the page; the bottom bar and + button are outside it and stay fixed. */
+    /** Everything on the screen that should move down together (picture and page); bars and animations stay put. */
+    movers() {
+      const scr = app.querySelector('.screen');
+      return scr ? [...scr.children].filter((n) => !n.matches('.nav, .nav-blur, .fab, .fx-layer, canvas')) : [];
+    },
     shift(px, animate) {
-      const pg = this.page;
-      if (pg) {
+      (this.page || []).forEach((pg) => {
         pg.style.transition = animate ? 'transform .35s cubic-bezier(.2, .9, .3, 1)' : 'none';
         pg.style.transform = px ? `translate3d(0, ${px}px, 0)` : '';
-      }
+      });
       this.el.style.transition = animate ? 'transform .35s cubic-bezier(.2, .9, .3, 1), opacity .2s' : 'opacity .15s';
       this.el.style.transform = `translate(-50%, ${Math.max(0, px / 2 - 15)}px)`;
     },
@@ -6622,8 +6643,8 @@
       this.el.classList.remove('spin');
       this.el.style.opacity = '0';
       this.shift(0, true);
-      const pg = this.page;
-      setTimeout(() => { if (pg) { pg.style.transition = ''; pg.style.transform = ''; } }, 380);
+      const list = this.page || [];
+      setTimeout(() => { list.forEach((pg) => { pg.style.transition = ''; pg.style.transform = ''; }); }, 380);
     },
     /** Loads again what this screen shows, keeping the old content on screen until the new arrives. */
     reloadScreen() {
@@ -6648,13 +6669,14 @@
       this.el.style.opacity = '1';
       this.shift(this.HOLD, true);
       const started = Date.now();
-      try { await this.reloadScreen(); } catch (e) { /* each screen shows its own message */ }
+      // Never leave the page stuck: give up waiting after 12 seconds.
+      try { await Promise.race([this.reloadScreen(), new Promise((res) => setTimeout(res, 12000))]); } catch (e) { /* each screen shows its own message */ }
       await new Promise((res) => setTimeout(res, Math.max(0, 800 - (Date.now() - started))));
       this.busy = false;
       this.page = null;
       render();
       // The page was drawn again: slide the new one back up from where the old one was.
-      this.page = app.querySelector('.screen > .page, .screen > form.page');
+      this.page = this.movers();
       this.shift(this.HOLD, false);
       requestAnimationFrame(() => requestAnimationFrame(() => this.hide()));
       if (state.offline) toast('You’re offline. Showing what you loaded last.');

@@ -205,3 +205,11 @@ Front-end only; no Code.gs change — just upload the folder.
 - **Profile cards** (Profile page and side menu) use the same rounded corners as every other card.
 - **Daily quote** shows just the quote, in quotation marks, small and in italic (no "Daily inspiration" label).
 - **Swipe back from the left edge** on iPhone (and Android's back gesture): the phone's own swipe animation is used, and the app no longer plays a second slide afterwards, so there is no flicker. The back button still slides as before.
+
+## Version 2.0.6
+Front-end only; no Code.gs change — just upload the folder.
+- **No bottom bar flash** when a post opens: the bar no longer appears for a moment on detail pages.
+- **Light/dark switch everywhere:** after changing the look (in Appearance, or when the phone switches by itself), swiping back no longer shows earlier pages in the old colours. The back history is quietly rebuilt, so back now goes to the first page you opened.
+- **Solid text panel** under the picture on offers, posts, newsletters and special collections; the picture no longer shows through.
+- **Special collections:** the animation runs over the picture and the coloured panel, behind the text and cards.
+- **Pull down to refresh** moves the whole page (picture and text together) and always lets go: if the connection is slow, it stops waiting after 12 seconds.
