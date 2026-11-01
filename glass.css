@@ -949,3 +949,30 @@ html[data-theme="dark"] .ptr rect { fill: #fff; }
 
 /* Hotel filter with a fourth option (Cluster). */
 .seg button { font-size: 12.5px; }
+
+/* =====================================================================
+   2.0.12
+   ===================================================================== */
+/* Top bar like iPhone Settings: once you scroll, the bar turns to frosted glass with a fine line under it,
+   and the page title sits small and centred between the buttons. */
+.topbar.tb::before { -webkit-mask-image: none; mask-image: none; inset: 0;
+  background: color-mix(in srgb, var(--cream) 72%, transparent);
+  -webkit-backdrop-filter: blur(28px) saturate(180%); backdrop-filter: blur(28px) saturate(180%);
+  box-shadow: 0 .5px 0 var(--hairline), 0 1px 0 rgba(0, 0, 0, .04); }
+html[data-theme="dark"] .topbar.tb::before { background: color-mix(in srgb, var(--cream) 74%, transparent); box-shadow: 0 .5px 0 rgba(255, 255, 255, .12); }
+.coll-page .topbar.tb::before { background: color-mix(in srgb, var(--bg) 70%, transparent); }
+.topbar.tb { position: sticky; }
+.topbar.tb .tb-title { position: absolute; left: 50%; bottom: 12px; transform: translate(-50%, 6px); width: max-content; max-width: calc(100% - 200px);
+  align-items: center; text-align: center; flex: none; }
+.topbar.tb.is-tucked .tb-title { transform: translate(-50%, 0); }
+.tb-title b { font-family: var(--sans); font-weight: 600; font-size: 17px; letter-spacing: -.01em; }
+.tb-title span { display: none; }
+/* Pages whose title sits in the bar itself (Appearance, F&B Offers…): small and centred, like iPhone. */
+.topbar.tb > h1 { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); max-width: calc(100% - 140px);
+  font-family: var(--sans); font-weight: 600; font-size: 17px; line-height: 44px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.topbar.tb > h1 + span[style*="width:44px"] { margin-left: auto; }
+
+/* Section notes: a short line under each heading saying what's inside. */
+.sec-desc { margin: -6px 2px 0; font-size: 13px; line-height: 1.45; color: var(--muted); max-width: 46ch; }
+.coll-page .sec-desc { color: rgba(255, 255, 255, .78); }
+.set-note { margin: -8px 18px 4px; font-size: 13px; line-height: 1.45; color: var(--muted); }

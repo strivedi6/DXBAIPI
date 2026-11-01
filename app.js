@@ -1363,12 +1363,30 @@
   }
 
   /** One titled section with a swipeable row of cards. */
+  /** A short line under each section heading saying what it holds (like the notes under iPhone Settings groups). */
+  function catDesc(c) {
+    const l = String(c.label || c.id || '').toLowerCase();
+    if (/join/.test(l)) return 'Say hello to the newest members of the team.';
+    if (/promot/.test(l)) return 'Colleagues stepping up into new roles.';
+    if (/notice/.test(l)) return 'Important notices for everyone. Please read and acknowledge.';
+    if (c.type === 'people') return isAward(c) ? 'Colleagues recognised for going above and beyond.' : 'News about our colleagues.';
+    if (c.type === 'offer') return HOTELS.some((h) => l.indexOf(h.toLowerCase()) >= 0) || /embassy|garden|hilton/.test(l)
+      ? 'Current dining and drink offers here, with prices and times. Share any of them with a guest.'
+      : 'Current dining and drink offers, with prices and times. Share any of them with a guest.';
+    if (c.type === 'training') return 'Upcoming training sessions. Tap a highlighted day to see what’s on.';
+    if (c.type === 'monthly') return 'Newsletters and monthly updates from Marketing & Communications.';
+    if (c.group === 'hr') return 'News, policies and reminders from HR.' + (c.ack ? ' Some need your acknowledgement.' : '');
+    return 'Updates for the team.' + (c.ack ? ' Some need your acknowledgement.' : '');
+  }
+  const secDesc = (t) => t ? `<p class="sec-desc">${esc(t)}</p>` : '';
+
   function sectionRow(c, posts, opts) {
     if (!posts.length) return '';
     const color = colorHex(c.color);
     return `<section class="sec" style="--c:${esc(color)}" aria-label="${esc(c.label)}">
       <div class="sec-h"><h2><span class="dot"></span>${esc(c.label)}</h2>
         ${posts.length > 1 && !(opts && opts.noMore) ? `<button type="button" class="link-btn" data-act="nav" data-to="section" data-id="${esc(c.id)}" ${opts && opts.coll ? `data-coll="${esc(opts.coll)}"` : ''}>See all (${posts.length})</button>` : ''}</div>
+      ${opts && opts.noDesc ? '' : secDesc(catDesc(c))}
       <div class="hrow ${opts && opts.onDark ? 'on-dark' : ''}">${posts.map(hcard).join('')}</div>
     </section>`;
   }
@@ -1455,6 +1473,7 @@
     const monthName = new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
     return `<section class="sec lnd" style="--c:${esc(colorHex(c.color))}" aria-label="${esc(c.label)}">
       <div class="sec-h"><h2><span class="dot"></span>${esc(c.label)}</h2></div>
+      ${secDesc(catDesc(c))}
       <div class="lnd-wrap">
         <div class="card lnd-cal">
           <div class="lnd-head">
@@ -1618,6 +1637,7 @@
     return `<section class="sec" style="--c:#C2416B">
       <div class="sec-h"><h2><span class="dot"></span>Birthdays in ${esc(monthName)}</h2>
         ${canBirthdays() ? `<button type="button" class="link-btn" data-act="nav" data-to="birthdays">Manage</button>` : ''}</div>
+      ${secDesc('Colleagues celebrating this month. Only the day and month are shown.')}
       ${list.length ? `<div class="hrow">${list.map((b) => `
         <div class="hc hc-bd ${b.day === today ? 'today' : b.day < today ? 'past' : ''}">
           <span class="d"><b>${b.day}</b><small>${esc(monthName.slice(0, 3))}</small></span>
@@ -2009,7 +2029,7 @@
     if (!state.lastLoad && !state.loadingFeed) setTimeout(() => loadFeed(), 0);
     const t = todayItems();
     const date = new Date().toLocaleDateString('en-GB', { weekday: 'long' }) + ', ' + dmy(new Date());
-    const block = (title, color, html, kind, n) => html ? `<section class="sec" style="--c:${color}"><div class="sec-h"><h2><span class="dot"></span>${title}</h2>${kind ? `<button type="button" class="link-btn" data-act="nav" data-to="todayList" data-id="${kind}">See all (${n})</button>` : ''}</div>${html}</section>` : '';
+    const block = (title, color, html, kind, n, desc) => html ? `<section class="sec" style="--c:${color}"><div class="sec-h"><h2><span class="dot"></span>${title}</h2>${kind ? `<button type="button" class="link-btn" data-act="nav" data-to="todayList" data-id="${kind}">See all (${n})</button>` : ''}</div>${secDesc(desc)}${html}</section>` : '';
     return `
     <div class="screen"><div class="page with-nav">
       ${feedHeader('Today’s Special', esc(date))}
@@ -2017,9 +2037,9 @@
       ${propFilter()}
       ${t.count ? `
         ${birthdayTiles()}
-        ${block('Training today', COLORS.teal, t.training.length ? `<div class="list">${t.training.map((p) => trainingCard(p, false)).join('')}</div>` : '')}
-        ${block('Today’s offers', COLORS.gold, t.offers.length ? `<div class="hrow">${t.offers.map(hcard).join('')}</div>` : '', 'offers', t.offers.length)}
-        ${block('Also today', COLORS.navy, t.fresh.length ? `<div class="hrow">${t.fresh.map(hcard).join('')}</div>` : '', 'fresh', t.fresh.length)}`
+        ${block('Training today', COLORS.teal, t.training.length ? `<div class="list">${t.training.map((p) => trainingCard(p, false)).join('')}</div>` : '', '', 0, 'Sessions running today. Tap one for the time, venue and presenter.')}
+        ${block('Today’s offers', COLORS.gold, t.offers.length ? `<div class="hrow">${t.offers.map(hcard).join('')}</div>` : '', 'offers', t.offers.length, 'Offers running today at DXBAI and DXBPI.')}
+        ${block('Also today', COLORS.navy, t.fresh.length ? `<div class="hrow">${t.fresh.map(hcard).join('')}</div>` : '', 'fresh', t.fresh.length, 'Updates picked for today.')}`
       : (state.loadingFeed && !state.posts.length ? '<div class="spinner"></div>' : `<div class="empty">${I.star}<b>A quiet day so far</b><span class="small">Today’s birthdays, training, and anything set to show in Today’s Special today will appear here.</span></div>`)}
     </div>${nav('today')}</div>`;
   };
@@ -2711,7 +2731,7 @@
     const list = (p.includes || []).map((id) => state.posts.find((x) => x.id === id)).filter(Boolean);
     if (!list.length) return '';
     return cats().filter((c) => c.active !== false)
-      .map((c) => sectionRow(c, list.filter((x) => x.category === c.id), { onDark, noMore: true })).join('');
+      .map((c) => sectionRow(c, list.filter((x) => x.category === c.id), { onDark, noMore: true, noDesc: true })).join('');
   }
 
   /** Special and festive newsletters open as a full page in their own colour. */
@@ -2843,6 +2863,7 @@
           ${gaps.length ? `<span class="badge">${gaps.length}</span>` : I.chevron}
         </button>
       </div>
+      <p class="set-note">Your photo, details, birthday and PIN.</p>
       <div class="set-group">
         ${setRow({ tag: 'label', icon: I.bell, color: '#E5484D', title: 'Notifications', sub: pushHint,
           right: `<span class="switch"><input type="checkbox" role="switch" aria-label="Notifications" data-change="pushToggle" ${Push.isOn() ? 'checked' : ''} ${pushDisabled ? 'disabled' : ''}><span></span></span>` })}
@@ -2854,7 +2875,8 @@
         ${setRow({ attrs: 'data-act="nav" data-to="appearance"', icon: sv('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>', 18), color: '#3B3F4A', title: 'Appearance', right: `<span class="set-val">${{ light: 'Light', dark: 'Dark', auto: 'Automatic' }[appearance()]}</span>${I.chevron}` })}
         ${!isStandalone() ? setRow({ attrs: 'data-act="addHome"', icon: I.addHome, color: '#2F6FDB', title: 'Add to Home Screen' }) : ''}
       </div>
-      ${profileTools()}
+      <p class="set-note">How the app looks, sounds and alerts you on this phone.</p>
+      ${(() => { const tools = profileTools(); return tools ? tools + '<p class="set-note">Tools for posting and running the app, shown to the people who can use them.</p>' : ''; })()}
       <div class="set-group">
         ${setRow({ attrs: 'data-act="signOut"', icon: I.logout, color: '#9B2C2C', title: 'Sign out', danger: true, right: ' ' })}
       </div>

@@ -242,3 +242,8 @@ Front-end only; no Code.gs change.
 - **Side menu:** scrolls smoothly on its own (pull-to-refresh no longer interferes), no longer closes when you swipe left (close with × or by tapping outside), straight right edge (no rounded corners), and haptic ticks on its buttons. List rows tick when the list fits on screen without scrolling (a tick layer would stop a scrolling finger).
 - **Back keeps your place:** going back returns to where you were scrolled on the previous page.
 - **Today's Special › Today's offers / Also today:** a "See all" link opens the full list, with the hotel filter (All · DXBAI · DXBPI · Cluster). The same filter, now with **Cluster** (posts for both hotels), is on Home, HR and Offers for Cluster colleagues.
+
+## Version 2.0.12
+Front-end only; no Code.gs change.
+- **Top bar like iPhone Settings:** when you scroll, the bar turns to frosted glass with a fine line under it, and the page title appears small and centred between the buttons. Pages whose title sits in the bar (Appearance, F&B Offers, All updates…) show it centred the same way.
+- **Section notes:** every section has a short line under its heading saying what's inside (e.g. "News, policies and reminders from HR. Some need your acknowledgement."). The note is chosen from the section's type and name (offers, people/awards, new joiners, training, newsletters, notices, HR updates), plus Birthdays, Training today, Today's offers and Also today. Profile has short notes under its groups too.
