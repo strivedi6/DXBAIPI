@@ -2117,7 +2117,7 @@
       <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
         <div class="greet spacer"><span class="eyebrow">Today’s Special</span><h1>${kind === 'offers' ? 'Today’s offers' : 'Also today'}</h1></div><span style="width:44px"></span></div>
       ${hotelSeg()}
-      ${list.length ? (kind === 'offers' ? `<div class="list">${list.map(postCard).join('')}</div>` : `<div class="list">${list.map(postCard).join('')}</div>`)
+      ${list.length ? (kind === 'offers' ? `<div class="ogrid">${list.map(hcard).join('')}</div>` : `<div class="list">${list.map(postCard).join('')}</div>`)
         : emptyState(state.filter.prop === 'All' ? 'Nothing for today yet.' : 'Nothing for ' + state.filter.prop + ' today.')}
     </div></div>`;
   };

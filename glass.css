@@ -1038,3 +1038,11 @@ html[data-theme="dark"] .tdate { color: color-mix(in srgb, var(--c) 40%, #fff); 
 .coll-page .hero-tb::before { background: color-mix(in srgb, var(--bg) 80%, transparent); }
 @media (min-width: 960px) { .hero-tb { display: none; } }
 .topbar.tb.hero-tb { position: fixed; top: 0; left: 0; right: 0; max-width: 560px; margin: 0 auto; padding: calc(var(--safe-top) + 14px) 20px 10px; }
+
+/* 2.0.14 — offer list rows (search): the picture fills the full height of the row, no gaps above or below. */
+.ocard { align-items: stretch; }
+.ocard .thumb { align-self: stretch; aspect-ratio: auto; width: 132px; min-height: 99px; height: auto; }
+.ocard .thumb img { width: 100%; height: 100%; object-fit: cover; }
+.ocard .thumb { position: relative; overflow: hidden; }
+.ocard .thumb img { position: absolute; inset: 0; }
+.ogrid .hc-offer .s { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

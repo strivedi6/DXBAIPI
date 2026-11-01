@@ -259,3 +259,10 @@ Front-end only; no Code.gs change.
 - **Shadows are never cut** by scrolling rows or the side menu.
 - **Training tiles:** the date column is the same size on every tile, with a fine divider and no separate background.
 - **Profile** has the same top bar as Home, HR, Today and Offers (menu, search, photo).
+
+## Version 2.0.14
+Front-end only; no Code.gs change.
+- **Today's Special › Today's offers › See all:** the same two-column grid of offer tiles as Offers › See all (pictures 4:3, no gaps above or below the picture).
+- **Offer rows in All updates (search):** the picture fills the full height of the row; every row is the same tidy height.
+- **Offer tiles in the grid:** the date/time line can wrap to two lines instead of being cut off.
+- QA pass across every screen in light and dark (sign in, Home, HR, Today, Offers, Profile, side menu, offer/post/person/training/newsletter pages, special collection, sections, search, My profile, compose, Appearance, Birthdays, My posts, App setup, Quote of the day): no errors. Pull to refresh, back-to-same-scroll-position and the bottom bar rise re-tested.
