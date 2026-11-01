@@ -226,3 +226,7 @@ Front-end only; no Code.gs change.
 - **Living background is now visible:** the soft lights behind every page drift a little further and faster (one slow cycle every ~18 seconds) and gently brighten and dim. Content never moves. The sign-in picture zooms slowly (20 seconds) with a soft light passing over it. All of it stops when "Reduce Motion" is on.
 - **Bottom button bar slides up after the page has arrived** (it used to slide up at the same time as the page slid in, so it was hard to notice).
 - Removed two old zip files from the site folder (not used by the app).
+
+## Version 2.0.9
+Front-end only; no Code.gs change.
+- **Tile text uses the body font:** titles and names on every tile and card (offers, updates, people, birthdays, training, newsletters, special collections, offer lists) now use the body font (Hilton Sans) in a semi-bold, smaller size. The heading font (Hilton Serif) stays for page titles and section headings.
