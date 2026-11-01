@@ -878,29 +878,20 @@ html[data-palette="graphite"][data-theme="dark"] { --cream: #101113; --navy: #7E
 .pal-sw { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, var(--a) 50%, var(--b) 50%); box-shadow: 0 0 0 3px var(--glass-hi), 0 4px 12px rgba(0, 0, 0, .18); }
 .pal-opt b { font-size: 13.5px; font-weight: 600; }
 
-/* ---- Living background: soft lights drift slowly behind everything (GPU only; content never moves). */
-body::after { content: ''; position: fixed; inset: -25%; z-index: -1; pointer-events: none; opacity: .75;
-  background:
-    radial-gradient(26% 18% at 28% 26%, color-mix(in srgb, var(--navy) 55%, transparent), transparent 70%),
-    radial-gradient(22% 16% at 74% 64%, color-mix(in srgb, var(--gold) 50%, transparent), transparent 70%),
-    radial-gradient(24% 14% at 60% 22%, rgba(255, 255, 255, .55), transparent 70%);
-  animation: drift 18s ease-in-out infinite alternate, glow 9s ease-in-out infinite alternate; will-change: transform, opacity; }
-html[data-theme="dark"] body::after { background:
-    radial-gradient(26% 18% at 28% 26%, color-mix(in srgb, var(--navy) 55%, transparent), transparent 70%),
-    radial-gradient(22% 16% at 74% 64%, color-mix(in srgb, var(--gold) 26%, transparent), transparent 70%),
-    radial-gradient(24% 14% at 60% 22%, color-mix(in srgb, var(--sage) 22%, transparent), transparent 70%); }
-@keyframes drift {
-  0% { transform: translate3d(-9%, -6%, 0) scale(1); }
-  50% { transform: translate3d(8%, 7%, 0) scale(1.14); }
-  100% { transform: translate3d(-4%, 11%, 0) scale(1.04); }
-}
-@keyframes glow { from { opacity: .55; } to { opacity: .9; } }
+/* ---- Background leaves: soft, blurred leaf shapes behind every page. Static (no movement).
+   Drawn as a mask, so they take the current colour in light and dark mode and with every colour choice. */
+body::after { content: ''; position: fixed; inset: -40px; z-index: -1; pointer-events: none;
+  background: color-mix(in srgb, var(--navy) 30%, transparent);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20400%20860%22%20preserveAspectRatio%3D%22xMidYMid%20slice%22%3E%3Cfilter%20id%3D%22b%22%20x%3D%22-20%25%22%20y%3D%22-20%25%22%20width%3D%22140%25%22%20height%3D%22140%25%22%3E%3CfeGaussianBlur%20stdDeviation%3D%2216%22/%3E%3C/filter%3E%3Cg%20fill%3D%22%23000%22%20filter%3D%22url%28%23b%29%22%3E%3Cpath%20d%3D%22M0%200C30-90%20170-110%20240%200C170%20110%2030%2090%200%200Z%22%20transform%3D%22translate%28-40%2070%29%20rotate%2828%29%20scale%281.15%29%22/%3E%3Cpath%20d%3D%22M0%200C46-58%20150-72%20260%200C150%2072%2046%2058%200%200Z%22%20transform%3D%22translate%28-20%20230%29%20rotate%28-8%29%20scale%28.95%29%22/%3E%3Cpath%20d%3D%22M0%200C46-58%20150-72%20260%200C150%2072%2046%2058%200%200Z%22%20transform%3D%22translate%28250%20-30%29%20rotate%28118%29%20scale%281.05%29%22/%3E%3Cpath%20d%3D%22M0%200C30-90%20170-110%20240%200C170%20110%2030%2090%200%200Z%22%20transform%3D%22translate%28440%20520%29%20rotate%28200%29%20scale%281.25%29%22/%3E%3Cpath%20d%3D%22M0%200C46-58%20150-72%20260%200C150%2072%2046%2058%200%200Z%22%20transform%3D%22translate%28420%20700%29%20rotate%28160%29%20scale%281%29%22/%3E%3Cpath%20d%3D%22M0%200C46-58%20150-72%20260%200C150%2072%2046%2058%200%200Z%22%20transform%3D%22translate%28-30%20800%29%20rotate%28-38%29%20scale%281.1%29%22/%3E%3C/g%3E%3C/svg%3E") center / cover no-repeat; mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20400%20860%22%20preserveAspectRatio%3D%22xMidYMid%20slice%22%3E%3Cfilter%20id%3D%22b%22%20x%3D%22-20%25%22%20y%3D%22-20%25%22%20width%3D%22140%25%22%20height%3D%22140%25%22%3E%3CfeGaussianBlur%20stdDeviation%3D%2216%22/%3E%3C/filter%3E%3Cg%20fill%3D%22%23000%22%20filter%3D%22url%28%23b%29%22%3E%3Cpath%20d%3D%22M0%200C30-90%20170-110%20240%200C170%20110%2030%2090%200%200Z%22%20transform%3D%22translate%28-40%2070%29%20rotate%2828%29%20scale%281.15%29%22/%3E%3Cpath%20d%3D%22M0%200C46-58%20150-72%20260%200C150%2072%2046%2058%200%200Z%22%20transform%3D%22translate%28-20%20230%29%20rotate%28-8%29%20scale%28.95%29%22/%3E%3Cpath%20d%3D%22M0%200C46-58%20150-72%20260%200C150%2072%2046%2058%200%200Z%22%20transform%3D%22translate%28250%20-30%29%20rotate%28118%29%20scale%281.05%29%22/%3E%3Cpath%20d%3D%22M0%200C30-90%20170-110%20240%200C170%20110%2030%2090%200%200Z%22%20transform%3D%22translate%28440%20520%29%20rotate%28200%29%20scale%281.25%29%22/%3E%3Cpath%20d%3D%22M0%200C46-58%20150-72%20260%200C150%2072%2046%2058%200%200Z%22%20transform%3D%22translate%28420%20700%29%20rotate%28160%29%20scale%281%29%22/%3E%3Cpath%20d%3D%22M0%200C46-58%20150-72%20260%200C150%2072%2046%2058%200%200Z%22%20transform%3D%22translate%28-30%20800%29%20rotate%28-38%29%20scale%281.1%29%22/%3E%3C/g%3E%3C/svg%3E") center / cover no-repeat;
+  opacity: .8; animation: none; }
+html[data-theme="dark"] body::after { background: color-mix(in srgb, var(--navy) 34%, transparent); opacity: .75; }
+@keyframes drift { from { transform: none; } to { transform: none; } }
 /* Sign-in: the picture breathes very slowly and a soft light passes over it. */
 .splash-bg { overflow: hidden; }
 .splash-bg img { animation: kenburns 20s ease-in-out infinite alternate; transform-origin: 60% 40%; will-change: transform; }
 .splash-bg::before { content: ''; position: absolute; inset: -30%; z-index: 1; pointer-events: none;
   background: radial-gradient(35% 28% at 50% 50%, color-mix(in srgb, var(--sage) 30%, transparent), transparent 70%);
-  animation: drift 14s ease-in-out infinite alternate; will-change: transform; }
+  animation: none; }
 .splash-bg::after { z-index: 2; }
 @keyframes kenburns { from { transform: scale(1.02); } to { transform: scale(1.14) translate3d(-3%, -2%, 0); } }
 @media (prefers-reduced-motion: reduce) { body::after, .splash-bg img, .splash-bg::before { animation: none; } }

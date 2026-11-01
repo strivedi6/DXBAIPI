@@ -230,3 +230,7 @@ Front-end only; no Code.gs change.
 ## Version 2.0.9
 Front-end only; no Code.gs change.
 - **Tile text uses the body font:** titles and names on every tile and card (offers, updates, people, birthdays, training, newsletters, special collections, offer lists) now use the body font (Hilton Sans) in a semi-bold, smaller size. The heading font (Hilton Serif) stays for page titles and section headings.
+
+## Version 2.0.10
+Front-end only; no Code.gs change.
+- **Background is still again:** the drifting lights are removed (they could pop in suddenly). In their place are soft, blurred leaf shapes behind every page — static, never moving. They follow light and dark mode and your Colour choice. The sign-in picture keeps its slow zoom; the moving light over it is removed.
