@@ -926,3 +926,26 @@ html[data-theme="dark"] .ptr rect { fill: #fff; }
 .hc-offer .ol { font-size: 9.5px; }
 .hc-offer .s, .ocard .s, .tbody .s { font-size: 12px; }
 .hc-person .ini, .hc-bd .avatar { font-family: var(--serif); }
+
+/* =====================================================================
+   2.0.11
+   ===================================================================== */
+/* Tile pictures are 4:3 everywhere; tiles grow to fit their text. */
+.hc-offer { aspect-ratio: auto; }
+.hc-offer .im { aspect-ratio: 4 / 3; }
+.hc-text .tim { aspect-ratio: 4 / 3; }
+.ocard .thumb { width: 132px; min-height: 0; aspect-ratio: 4 / 3; align-self: center; }
+.ocard { align-items: center; }
+
+/* Bottom action bar: same smooth rise on every page (as on the people/award page). */
+.sticky-actions.enter { animation: barUp .55s cubic-bezier(.16, 1, .3, 1) .3s both !important; }
+
+/* Side menu: straight edge, smooth own scrolling. */
+.drawer { border-radius: 0; }
+.dr-scroll { overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+.drawer-ov { touch-action: none; }
+.drawer, .drawer * { touch-action: pan-y; }
+.dr-row.hap-ok, .dr-me, .dr-foot-btn { position: relative; }
+
+/* Hotel filter with a fourth option (Cluster). */
+.seg button { font-size: 12.5px; }

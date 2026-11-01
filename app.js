@@ -707,6 +707,8 @@
 
   /* ---------------- Router ---------------- */
   function go(name, params, replace) {
+    // Remember where this page was scrolled, so coming back returns to the same place.
+    if (!replace && history.state) { try { history.replaceState(Object.assign({}, history.state, { scroll: window.scrollY }), ''); } catch (e) { /* ignore */ } }
     state.route = { name, params: params || {} };
     const depth = (history.state && history.state.depth) || 0;
     const st = { name, params: state.route.params, depth: replace ? depth : depth + 1 };
@@ -744,7 +746,7 @@
     state.route = { name: st.name, params: st.params || {} };
     const native = e.hasUAVisualTransition || Date.now() - Edge.at < 1200;
     Edge.at = 0;
-    render({ dir: native ? 'none' : 'back' });
+    render({ dir: native ? 'none' : 'back', y: st.scroll || 0 });
   });
   function back(fallback) {
     if (history.state && history.length > 1) history.back();
@@ -767,7 +769,7 @@
     if (state.token && PUBLIC.indexOf(name) >= 0) name = 'today';
     return name;
   }
-  function paint(top) {
+  function paint(top, y) {
     const name = screenName();
     const view = VIEWS[name] || VIEWS.feed;
     if (name !== 'checkin') Scanner.stop();
@@ -775,7 +777,7 @@
     FX.stop();
     app.innerHTML = view(state.route.params);
     ensureSidebar();
-    if (top) window.scrollTo(0, 0);
+    if (typeof y === 'number') window.scrollTo(0, y); else if (top) window.scrollTo(0, 0);
     afterPaint();
     FX.start(app);
     const auto = app.querySelector('[data-autofocus]');
@@ -789,7 +791,7 @@
       if (p) { const g = catOf(p.category).group; return g === 'marketing' ? 'offers' : g === 'hr' ? 'hr' : 'feed'; }
       return 'feed';
     }
-    const m = { collection: 'offers', section: 'offers', share: 'offers', search: 'feed', checkin: 'hr', checkinHost: 'hr', trainingReport: 'hr', attendees: 'hr' };
+    const m = { todayList: 'today', collection: 'offers', section: 'offers', share: 'offers', search: 'feed', checkin: 'hr', checkinHost: 'hr', trainingReport: 'hr', attendees: 'hr' };
     return m[name] || name;
   }
 
@@ -812,10 +814,10 @@
     state.lastScreen = key;
     state.lastName = name;
     Transit.finish();
-    if (!changed || !prev || reduceMotion() || opts.dir === 'none') { paint(opts.top); return; }
+    if (!changed || !prev || reduceMotion() || opts.dir === 'none') { paint(opts.top, changed ? opts.y : undefined); return; }
     let dir = opts.dir || 'fade';
     if (TABS.indexOf(name) >= 0 && TABS.indexOf(prev) >= 0) dir = 'tab';
-    Transit.run(dir, () => paint(opts.top));
+    Transit.run(dir, () => paint(opts.top, opts.y));
   }
 
   /*
@@ -823,9 +825,10 @@
    * and the two move together, so something is always on screen. Works the same on every phone and browser.
    */
   const Transit = {
-    snap: null, timer: 0, holder: null, scr: null,
+    snap: null, timer: 0, holder: null, scr: null, bar: null,
     finish() {
       clearTimeout(this.timer);
+      if (this.bar) { Object.assign(this.bar.style, { position: '', top: '', bottom: '' }); this.bar = null; }
       if (this.snap) { this.snap.remove(); this.snap = null; }
       // Put the bottom bar and + button back into the screen they belong to.
       if (this.holder) {
@@ -874,7 +877,16 @@
         }
         this.scr = scr;
         scr.classList.add('tr-in', 'tr-in-' + dir);
+        // The bottom bar: while the screen slides it can't be "fixed" (it would sit at the bottom of the whole page,
+        // out of sight on long pages, then jump in). Pin it to the bottom of the window for the slide, then hand back.
         const bar = scr.querySelector('.page > .sticky-actions');
+        if (bar && getComputedStyle(bar).position === 'fixed') {
+          const h = bar.offsetHeight;
+          Object.assign(bar.style, { position: 'absolute', bottom: 'auto' });
+          const cb = bar.offsetParent;
+          bar.style.top = (window.innerHeight - h - (cb ? cb.getBoundingClientRect().top + cb.clientTop : 0)) + 'px';
+          this.bar = bar;
+        }
         if (bar) { bar.classList.add('enter'); bar.addEventListener('animationend', () => bar.classList.remove('enter'), { once: true }); }
       }
       this.timer = setTimeout(() => this.finish(), dir === 'tab' || dir === 'fade' ? 340 : 460);
@@ -1214,7 +1226,7 @@
       if (p.collectionOnly && !q) return false;
       if (forceCat) { if (catOf(p.category).type !== 'offer') return false; }
       else if (cat !== 'All' && p.category !== cat) return false;
-      if (f.prop !== 'All' && postProp(p.property) !== f.prop && postProp(p.property) !== 'Cluster') return false;
+      if (f.prop === 'Cluster' ? postProp(p.property) !== 'Cluster' : (f.prop !== 'All' && postProp(p.property) !== f.prop && postProp(p.property) !== 'Cluster')) return false;
       if (q) {
         const hay = [p.title, p.message, p.outlet, p.location, p.timing, (p.inclusions || []).join(' ')].join(' ').toLowerCase();
         if (hay.indexOf(q) < 0) return false;
@@ -1274,7 +1286,7 @@
   function propFilter() {
     const u = state.user || {};
     if (HOTELS.indexOf(u.property) >= 0) return '';
-    return `<div class="seg" role="group" aria-label="Hotel">${['All', 'DXBAI', 'DXBPI'].map((v) => `
+    return `<div class="seg" role="group" aria-label="Hotel">${['All', 'DXBAI', 'DXBPI', 'Cluster'].map((v) => `
       <button type="button" data-act="setProp" data-v="${v}" aria-pressed="${state.filter.prop === v}">${v === 'All' ? 'All' : v}</button>`).join('')}</div>`;
   }
 
@@ -1292,7 +1304,7 @@
   /** Posts for the main pages. Posts set to show only inside their special collection are left out (inside: true keeps them). */
   function visiblePosts(inside) {
     const f = state.filter;
-    return state.posts.filter((p) => !(f.prop !== 'All' && postProp(p.property) !== f.prop && postProp(p.property) !== 'Cluster') && (inside || !p.collectionOnly));
+    return state.posts.filter((p) => !(f.prop === 'Cluster' ? postProp(p.property) !== 'Cluster' : (f.prop !== 'All' && postProp(p.property) !== f.prop && postProp(p.property) !== 'Cluster')) && (inside || !p.collectionOnly));
   }
 
   function hcard(p) {
@@ -1823,12 +1835,9 @@
     });
     el.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
     window.addEventListener('popstate', close);
-    // Swipe left to close.
-    const dr = el.querySelector('.drawer');
-    let x0 = null, dx = 0;
-    dr.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; dx = 0; dr.style.transition = 'none'; }, { passive: true });
-    dr.addEventListener('touchmove', (e) => { if (x0 === null) return; dx = Math.min(0, e.touches[0].clientX - x0); dr.style.transform = `translate3d(${dx}px,0,0)`; }, { passive: true });
-    dr.addEventListener('touchend', () => { dr.style.transition = ''; dr.style.transform = ''; if (dx < -70) close(); x0 = null; });
+    // Haptic tick on the list rows only when the list fits without scrolling (a tick layer would hold a scrolling finger).
+    const list = el.querySelector('.dr-scroll');
+    requestAnimationFrame(() => { if (list && list.scrollHeight <= list.clientHeight + 2) list.querySelectorAll('.dr-row').forEach((r) => r.classList.add('hap-ok')); });
     setTimeout(() => { const b = el.querySelector('[data-close]'); if (b) b.focus({ preventScroll: true }); }, 60);
   }
 
@@ -2000,7 +2009,7 @@
     if (!state.lastLoad && !state.loadingFeed) setTimeout(() => loadFeed(), 0);
     const t = todayItems();
     const date = new Date().toLocaleDateString('en-GB', { weekday: 'long' }) + ', ' + dmy(new Date());
-    const block = (title, color, html) => html ? `<section class="sec" style="--c:${color}"><div class="sec-h"><h2><span class="dot"></span>${title}</h2></div>${html}</section>` : '';
+    const block = (title, color, html, kind, n) => html ? `<section class="sec" style="--c:${color}"><div class="sec-h"><h2><span class="dot"></span>${title}</h2>${kind ? `<button type="button" class="link-btn" data-act="nav" data-to="todayList" data-id="${kind}">See all (${n})</button>` : ''}</div>${html}</section>` : '';
     return `
     <div class="screen"><div class="page with-nav">
       ${feedHeader('Today’s Special', esc(date))}
@@ -2009,8 +2018,8 @@
       ${t.count ? `
         ${birthdayTiles()}
         ${block('Training today', COLORS.teal, t.training.length ? `<div class="list">${t.training.map((p) => trainingCard(p, false)).join('')}</div>` : '')}
-        ${block('Today’s offers', COLORS.gold, t.offers.length ? `<div class="hrow">${t.offers.map(hcard).join('')}</div>` : '')}
-        ${block('Also today', COLORS.navy, t.fresh.length ? `<div class="hrow">${t.fresh.map(hcard).join('')}</div>` : '')}`
+        ${block('Today’s offers', COLORS.gold, t.offers.length ? `<div class="hrow">${t.offers.map(hcard).join('')}</div>` : '', 'offers', t.offers.length)}
+        ${block('Also today', COLORS.navy, t.fresh.length ? `<div class="hrow">${t.fresh.map(hcard).join('')}</div>` : '', 'fresh', t.fresh.length)}`
       : (state.loadingFeed && !state.posts.length ? '<div class="spinner"></div>' : `<div class="empty">${I.star}<b>A quiet day so far</b><span class="small">Today’s birthdays, training, and anything set to show in Today’s Special today will appear here.</span></div>`)}
     </div>${nav('today')}</div>`;
   };
@@ -2027,6 +2036,26 @@
       ${canCollect() ? `<button class="btn btn-sm btn-ghost" style="border:1px dashed var(--gold);color:var(--gold-text)" type="button" data-act="nav" data-to="collections">${I.sparkles} Special collections</button>` : ''}
       ${body || emptyState('Offers, promotions and newsletters will appear here.')}
     </div>${nav('offers')}${fab(['marketing'])}</div>`;
+  };
+
+  /** Today's Special › See all: today's offers (or everything else on today), with the hotel filter. */
+  function hotelSeg() {
+    return `<div class="seg" role="group" aria-label="Hotel">${['All', 'DXBAI', 'DXBPI', 'Cluster'].map((v) => `
+      <button type="button" data-act="setProp" data-v="${v}" aria-pressed="${state.filter.prop === v}">${v}</button>`).join('')}</div>`;
+  }
+  VIEWS.todayList = ({ id }) => {
+    if (!state.lastLoad && !state.loadingFeed) setTimeout(() => loadFeed(), 0);
+    const kind = id === 'fresh' ? 'fresh' : 'offers';
+    const t = todayItems();
+    const list = t[kind] || [];
+    return `
+    <div class="screen"><div class="page">
+      <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
+        <div class="greet spacer"><span class="eyebrow">Today’s Special</span><h1>${kind === 'offers' ? 'Today’s offers' : 'Also today'}</h1></div><span style="width:44px"></span></div>
+      ${hotelSeg()}
+      ${list.length ? (kind === 'offers' ? `<div class="list">${list.map(postCard).join('')}</div>` : `<div class="list">${list.map(postCard).join('')}</div>`)
+        : emptyState(state.filter.prop === 'All' ? 'Nothing for today yet.' : 'Nothing for ' + state.filter.prop + ' today.')}
+    </div></div>`;
   };
 
   /** All posts of one category, as a list. */
@@ -5079,7 +5108,7 @@
     nav(el) {
       const to = el.dataset.to;
       if (to === 'section' && el.dataset.coll) { go(to, { id: el.dataset.id, coll: el.dataset.coll }); return; }
-      if (['share', 'achievement', 'section', 'collection', 'collectionEdit', 'popupEdit', 'attendees', 'setupSection', 'checkin', 'checkinHost'].indexOf(to) >= 0) { go(to, { id: el.dataset.id }); return; }
+      if (['share', 'achievement', 'section', 'todayList', 'collection', 'collectionEdit', 'popupEdit', 'attendees', 'setupSection', 'checkin', 'checkinHost'].indexOf(to) >= 0) { go(to, { id: el.dataset.id }); return; }
       if (to === 'trainingReport') { state.report = null; go(to, { id: el.dataset.id }); return; }
       if (to === 'leavers') { state.leavers = null; state.leaverQuery = ''; }
       if (to === 'popups') state.popupList = null;
@@ -6483,7 +6512,7 @@
      */
     // Only buttons and small controls. Never cards, list rows or anything in a swipeable row: a switch under the finger
     // would hold on to the touch, so scrolling or swiping that starts on a post would not move the page.
-    HOSTS: '.nav button, .btn, .icon-btn, .chip, .seg button, .link-btn, .fab, .swatch, .choice, .look-opt, .lnd-grid button, .remove-btn',
+    HOSTS: '.nav button, .btn, .icon-btn, .chip, .seg button, .link-btn, .fab, .swatch, .choice, .look-opt, .lnd-grid button, .remove-btn, .dr-me, .dr-foot-btn, .dr-row.hap-ok, .pal-opt',
     NO_HOST: '.hrow, .pgrid, .list > .pcard, .hc, .pcard, .ocard, .mcard, .tcard, .coll-tile, .set-row, .me-row, .face-stack, .pick',
     decorate(root) {
       if (!isIOS() || !this.on()) return;
@@ -6606,9 +6635,9 @@
     Array.from({ length: 12 }, (_, i) => `<rect x="18.4" y="3" width="3.2" height="10" rx="1.6" transform="rotate(${i * 30} 20 20)" style="--o:${(0.25 + 0.75 * ((i + 1) / 12)).toFixed(2)}"/>`).join('') + '</svg>';
   const PTR = {
     y0: null, x0: 0, dist: 0, pulling: false, busy: false, el: null, page: null,
-    PAGES: ['today', 'feed', 'hr', 'offers', 'profile', 'post', 'section', 'collection', 'search', 'myposts', 'leavers', 'adminTeam', 'adminSetup', 'setupSection', 'trainingReport', 'birthdays', 'attendees', 'popups', 'collections', 'admin', 'quotes'],
+    PAGES: ['today', 'todayList', 'feed', 'hr', 'offers', 'profile', 'post', 'section', 'collection', 'search', 'myposts', 'leavers', 'adminTeam', 'adminSetup', 'setupSection', 'trainingReport', 'birthdays', 'attendees', 'popups', 'collections', 'admin', 'quotes'],
     MAX: 96, HOLD: 58, NEED: 70,
-    ok() { return !!state.token && !this.busy && this.PAGES.indexOf(state.route.name) >= 0 && !document.querySelector('.celebrate'); },
+    ok() { return !document.querySelector('.drawer-ov') && !!state.token && !this.busy && this.PAGES.indexOf(state.route.name) >= 0 && !document.querySelector('.celebrate'); },
     init() {
       this.el = document.createElement('div');
       this.el.className = 'ptr';

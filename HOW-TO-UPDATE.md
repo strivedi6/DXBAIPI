@@ -234,3 +234,11 @@ Front-end only; no Code.gs change.
 ## Version 2.0.10
 Front-end only; no Code.gs change.
 - **Background is still again:** the drifting lights are removed (they could pop in suddenly). In their place are soft, blurred leaf shapes behind every page — static, never moving. They follow light and dark mode and your Colour choice. The sign-in picture keeps its slow zoom; the moving light over it is removed.
+
+## Version 2.0.11
+Front-end only; no Code.gs change.
+- **Tile pictures are 4:3 everywhere** (offer tiles, update tiles, offer lists). Tiles grow to fit their text.
+- **Bottom button bar rises the same way on every page** (as on the people/award page). On long pages it used to sit out of sight during the slide and then jump in.
+- **Side menu:** scrolls smoothly on its own (pull-to-refresh no longer interferes), no longer closes when you swipe left (close with × or by tapping outside), straight right edge (no rounded corners), and haptic ticks on its buttons. List rows tick when the list fits on screen without scrolling (a tick layer would stop a scrolling finger).
+- **Back keeps your place:** going back returns to where you were scrolled on the previous page.
+- **Today's Special › Today's offers / Also today:** a "See all" link opens the full list, with the hotel filter (All · DXBAI · DXBPI · Cluster). The same filter, now with **Cluster** (posts for both hotels), is on Home, HR and Offers for Cluster colleagues.
