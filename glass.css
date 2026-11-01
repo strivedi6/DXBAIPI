@@ -83,7 +83,8 @@ html[data-theme="dark"] {
   --field: rgba(255, 255, 255, .06);
   --field-line: rgba(255, 255, 255, .14);
   --card: rgba(255, 255, 255, .065);
-  --card-solid: #1C2620;
+  --card-solid: color-mix(in srgb, var(--cream) 84%, var(--navy));
+  --deep: color-mix(in srgb, var(--navy) 42%, #070a08);
   --hr: #A8C4E6; --hr-bg: rgba(120, 160, 210, .16);
   --notice: #FF8A7A; --notice-bg: rgba(255, 110, 90, .14); --notice-line: rgba(255, 120, 100, .25);
   --ok: #A6D69A; --ok-bg: rgba(140, 200, 120, .14);
@@ -95,8 +96,8 @@ html[data-theme="dark"] {
   --shadow: 0 16px 40px rgba(0, 0, 0, .38);
   --shadow-lg: 0 28px 70px rgba(0, 0, 0, .55);
 
-  --btn-bg: linear-gradient(180deg, color-mix(in srgb, var(--navy) 22%, #EEF3E2), color-mix(in srgb, var(--navy) 48%, #DDE6CB));
-  --btn-fg: #18221A;
+  --btn-bg: linear-gradient(180deg, color-mix(in srgb, var(--sage) 55%, #fff), var(--sage));
+  --btn-fg: color-mix(in srgb, var(--navy) 25%, #080a08);
   --btn-shadow: 0 10px 26px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .7);
   --sage: #B9CC9C;
 
@@ -106,7 +107,7 @@ html[data-theme="dark"] {
     radial-gradient(70% 34% at -15% 40%, color-mix(in srgb, var(--navy) 30%, transparent) 0%, transparent 70%),
     radial-gradient(100% 50% at -10% 105%, color-mix(in srgb, var(--navy) 50%, transparent) 0%, transparent 72%),
     radial-gradient(60% 30% at 112% 72%, color-mix(in srgb, var(--gold) 16%, transparent) 0%, transparent 70%),
-    linear-gradient(180deg, color-mix(in srgb, var(--cream) 55%, #2c4233) 0%, var(--cream) 52%, color-mix(in srgb, var(--cream) 78%, #000) 100%);
+    linear-gradient(180deg, color-mix(in srgb, var(--cream) 55%, var(--deep)) 0%, var(--cream) 52%, color-mix(in srgb, var(--cream) 78%, #000) 100%);
 }
 
 /* ---------- 2. Atmosphere ---------- */
@@ -264,7 +265,7 @@ html[data-theme="dark"] .brand-mark { background: rgba(255, 255, 255, .08); colo
   .nav:has(.nav-today[aria-current="page"]) .nav-lens { background: color-mix(in srgb, var(--gold) 24%, rgba(255, 255, 255, .5)); }
   .nav .nav-today .ic { color: var(--gold); }
   .nav .nav-today[aria-current="page"] { color: var(--accent-ink); }
-  html[data-theme="dark"] .nav { background: rgba(26, 36, 30, .55); box-shadow: var(--glass-edge), 0 18px 44px rgba(0, 0, 0, .55); }
+  html[data-theme="dark"] .nav { background: color-mix(in srgb, var(--card-solid) 58%, transparent); box-shadow: var(--glass-edge), 0 18px 44px rgba(0, 0, 0, .55); }
   html[data-theme="dark"] .nav::before { background: linear-gradient(180deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, 0) 50%); }
   html[data-theme="dark"] .nav button { color: #B4BEAE; }
   html[data-theme="dark"] .nav button[aria-current="page"] { color: #fff; }
@@ -475,7 +476,7 @@ html[data-theme="dark"] .spec svg { color: var(--sage); }
 .splash-mark .leaf { color: rgba(255, 255, 255, .85); }
 .splash-mark .leaf svg { width: 46px; height: 46px; }
 .splash-mark h1 { color: #fff; font-size: 46px; line-height: 1; letter-spacing: -.01em; text-shadow: 0 2px 24px rgba(0, 0, 0, .25); }
-.splash-mark .tagline { font-family: var(--serif); font-size: 18px; color: #DCE6C6; }
+.splash-mark .tagline { font-family: var(--serif); font-size: 18px; color: color-mix(in srgb, var(--sage) 65%, #fff); }
 .splash-mark .props { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: rgba(255, 255, 255, .78); }
 .splash-mark .hero-logo { filter: drop-shadow(0 4px 20px rgba(0, 0, 0, .25)); }
 .glass-panel { border-radius: 32px; padding: 22px 20px 20px; display: flex; flex-direction: column; gap: 14px;
@@ -486,13 +487,13 @@ html[data-theme="dark"] .spec svg { color: var(--sage); }
 .glass-panel .field label { color: rgba(255, 255, 255, .82); }
 .glass-panel .input { background: rgba(255, 255, 255, .14); color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .34); }
 .glass-panel .input:focus { background: rgba(255, 255, 255, .22); box-shadow: inset 0 0 0 1.5px rgba(220, 235, 200, .9), 0 0 0 4px rgba(220, 235, 200, .18); }
-.glass-panel .btn { background: linear-gradient(180deg, #E4ECD2, #B8C99A); color: #1A2419; box-shadow: 0 10px 26px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .8); }
+.glass-panel .btn { background: linear-gradient(180deg, color-mix(in srgb, var(--sage) 50%, #fff), var(--sage)); color: color-mix(in srgb, var(--navy) 25%, #0a0d0a); box-shadow: 0 10px 26px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .8); }
 .glass-panel .error-box { background: rgba(255, 120, 100, .22); color: #FFE2DC; box-shadow: inset 0 0 0 1px rgba(255, 160, 140, .4); }
 .splash-foot { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; color: rgba(255, 255, 255, .8); flex-wrap: wrap; }
-.splash-foot .link-btn { color: #E4ECD2; min-height: 40px; }
+.splash-foot .link-btn { color: color-mix(in srgb, var(--sage) 50%, #fff); min-height: 40px; }
 .splash .dots { display: flex; justify-content: center; gap: 6px; }
 .splash .dots i { width: 6px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .45); }
-.splash .dots i:first-child { width: 18px; background: #DCE6C6; }
+.splash .dots i:first-child { width: 18px; background: var(--sage); }
 @media (max-height: 700px) { .splash-mark h1 { font-size: 38px; } .splash-mark { padding-top: 8px; gap: 8px; } }
 
 /* ---------- 14. Profile & settings ---------- */
@@ -522,7 +523,7 @@ html[data-theme="dark"] .set-ic { background: color-mix(in srgb, var(--ic, var(-
 .ovl { background: rgba(20, 22, 16, .35); -webkit-backdrop-filter: blur(14px) saturate(120%); backdrop-filter: blur(14px) saturate(120%); }
 .ovl-card { border-radius: 30px; background: color-mix(in srgb, var(--card-solid) 82%, transparent); color: var(--ink); box-shadow: var(--glass-edge), var(--shadow-lg);
   -webkit-backdrop-filter: blur(30px) saturate(160%); backdrop-filter: blur(30px) saturate(160%); }
-html[data-theme="dark"] .ovl-card { background: rgba(28, 38, 32, .82); }
+html[data-theme="dark"] .ovl-card { background: color-mix(in srgb, var(--card-solid) 85%, transparent); }
 html[data-theme="dark"] .ovl-card h3 { color: #fff; }
 .wp-em { background: var(--glass-strong); box-shadow: var(--glass-edge); }
 html[data-theme="dark"] .wp-em { background: rgba(255, 255, 255, .08); }
@@ -591,7 +592,7 @@ html[data-theme="dark"] .cel-card:not(.pop-card) p { color: #4F5247; }
 
 /* Regular newsletters: deep olive glass (special and festive ones keep their own colour). */
 .nl-regular { background: radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--gold) 30%, transparent), transparent 60%), linear-gradient(150deg, color-mix(in srgb, var(--navy) 88%, #000), color-mix(in srgb, var(--navy) 55%, #000)); color: #F3EFE6; }
-html[data-theme="dark"] .nl-regular { background: radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--gold) 20%, transparent), transparent 60%), linear-gradient(150deg, #2D3D31, #18221B); }
+html[data-theme="dark"] .nl-regular { background: radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--gold) 20%, transparent), transparent 60%), linear-gradient(150deg, var(--deep), var(--card-solid)); }
 
 /* ===== 2.0.1 ===== */
 /* No band below the page when you pull past the end: the window colour matches the bottom of the atmosphere. */
@@ -612,7 +613,7 @@ html[data-theme="dark"] { --page-end: color-mix(in srgb, var(--cream) 78%, #000)
   box-shadow: inset -1px 0 0 var(--glass-line), 24px 0 60px rgba(20, 18, 10, .25); border-radius: 0 30px 30px 0;
   transform: translate3d(-104%, 0, 0); transition: transform .42s cubic-bezier(.22, 1, .36, 1); will-change: transform; }
 .drawer-ov.in .drawer { transform: none; }
-html[data-theme="dark"] .drawer { background: rgba(22, 32, 26, .82); }
+html[data-theme="dark"] .drawer { background: color-mix(in srgb, var(--card-solid) 85%, transparent); }
 .dr-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; }
 .dr-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .dr-logo { max-height: 44px; max-width: 200px; width: auto; height: auto; object-fit: contain; }
@@ -786,7 +787,7 @@ html[data-theme="dark"] .full-hero .fh-bar .icon-btn, html[data-theme="dark"] .d
     box-shadow: inset 0 1px 0 var(--glass-hi), 0 -1px 0 var(--hairline), 0 -10px 30px rgba(30, 26, 16, .10); }
   .page:not(.with-nav) > .sticky-actions::before, form.page > .sticky-actions::before { content: none; }
   html[data-theme="dark"] .page:not(.with-nav) > .sticky-actions, html[data-theme="dark"] form.page > .sticky-actions {
-    background: rgba(18, 28, 22, .78); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 -10px 30px rgba(0, 0, 0, .35); }
+    background: color-mix(in srgb, var(--card-solid) 80%, transparent); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 -10px 30px rgba(0, 0, 0, .35); }
   .page:not(.with-nav):has(> .sticky-actions), form.page:has(> .sticky-actions) { padding-bottom: calc(118px + var(--safe-bottom)); }
   .page:not(.with-nav):has(> .sticky-actions .acked-box + *, > .sticky-actions .btn + span, > .sticky-actions .btn + .btn) { padding-bottom: calc(160px + var(--safe-bottom)); }
   .coll-page .page > .sticky-actions { background: color-mix(in srgb, var(--bg) 80%, transparent); }
@@ -813,7 +814,7 @@ html[data-theme="dark"] .full-hero .fh-bar .icon-btn, html[data-theme="dark"] .d
 .full-hero + .page, .detail-hero + .page.sheet { -webkit-backdrop-filter: none; backdrop-filter: none;
   background: linear-gradient(180deg, color-mix(in srgb, var(--cream) 94%, transparent) 0, color-mix(in srgb, var(--cream) 70%, transparent) 220px, transparent 520px); }
 html[data-theme="dark"] .full-hero + .page, html[data-theme="dark"] .detail-hero + .page.sheet {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--cream) 92%, #2c4233) 0, color-mix(in srgb, var(--cream) 60%, transparent) 220px, transparent 520px); }
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cream) 92%, var(--deep)) 0, color-mix(in srgb, var(--cream) 60%, transparent) 220px, transparent 520px); }
 .coll-page .full-hero + .page { background: linear-gradient(var(--bg) 0 44px, transparent 44px); }
 
 /* =====================================================================
@@ -838,7 +839,7 @@ html[data-theme="dark"] .full-hero + .page, html[data-theme="dark"] .detail-hero
 
 /* Text panel under a picture (offers, posts, newsletters, collections): solid, the picture never shows through. */
 :root { --sheet: color-mix(in srgb, var(--cream) 78%, #fff); }
-html[data-theme="dark"] { --sheet: #15201A; }
+html[data-theme="dark"] { --sheet: color-mix(in srgb, var(--cream) 88%, var(--navy)); }
 .full-hero + .page, .detail-hero + .page.sheet,
 html[data-theme="dark"] .full-hero + .page, html[data-theme="dark"] .detail-hero + .page.sheet {
   background: var(--sheet); -webkit-backdrop-filter: none; backdrop-filter: none;
@@ -854,3 +855,60 @@ html[data-theme="dark"] .full-hero + .page, html[data-theme="dark"] .detail-hero
 .coll-page > .page > .topbar.tb { position: sticky; z-index: 25; }
 .coll-page > .fx-layer.fx-full { z-index: 0; }
 .coll-page .full-hero + .page { z-index: auto; }
+
+/* =====================================================================
+   2.0.7
+   ===================================================================== */
+/* ---- Colour choice (Profile › Appearance › Colour). Sage is the default.
+   Each colour has a light version and a deep dark version, like the sage/forest pair. */
+html[data-palette="navy"] { --sage: #C5D4EE; --cream: #D3D6DB; --navy: #2E4262; --navy-2: #4A5E80; }
+html[data-palette="navy"][data-theme="dark"] { --cream: #0C121C; --navy: #6D89B5; --navy-2: #1E2A3C; --sage: #C5D4EE; }
+html[data-palette="plum"] { --sage: #E8CFE0; --cream: #DCD2D2; --navy: #5B3B53; --navy-2: #765A6F; }
+html[data-palette="plum"][data-theme="dark"] { --cream: #150E14; --navy: #9C6E92; --navy-2: #2C1E29; --sage: #E8CFE0; }
+html[data-palette="terracotta"] { --sage: #F0D2C2; --cream: #DFD3C6; --navy: #8A4A33; --navy-2: #A3664F; }
+html[data-palette="terracotta"][data-theme="dark"] { --cream: #170F0B; --navy: #B9775E; --navy-2: #33211A; --sage: #F0D2C2; }
+html[data-palette="teal"] { --sage: #BFE3DE; --cream: #CED8D5; --navy: #285A58; --navy-2: #457673; }
+html[data-palette="teal"][data-theme="dark"] { --cream: #0A1615; --navy: #5C9C97; --navy-2: #1A2D2C; --sage: #BFE3DE; }
+html[data-palette="graphite"] { --sage: #D9DCE1; --cream: #D5D4D1; --navy: #3A3D43; --navy-2: #575B62; }
+html[data-palette="graphite"][data-theme="dark"] { --cream: #101113; --navy: #7E838D; --navy-2: #24262A; --sage: #D9DCE1; }
+.pal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.pal-opt { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 8px; border: 0; border-radius: 24px; cursor: pointer; font: inherit; color: var(--ink);
+  background: var(--glass); box-shadow: var(--glass-edge), var(--shadow-sm); }
+.pal-opt[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--gold), var(--shadow-sm); }
+.pal-sw { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, var(--a) 50%, var(--b) 50%); box-shadow: 0 0 0 3px var(--glass-hi), 0 4px 12px rgba(0, 0, 0, .18); }
+.pal-opt b { font-size: 13.5px; font-weight: 600; }
+
+/* ---- Living background: two soft lights drift slowly behind everything (GPU only, very subtle). */
+body::after { content: ''; position: fixed; inset: -20%; z-index: -1; pointer-events: none; opacity: .55;
+  background:
+    radial-gradient(30% 22% at 30% 30%, color-mix(in srgb, var(--navy) 40%, transparent), transparent 70%),
+    radial-gradient(26% 20% at 72% 66%, color-mix(in srgb, var(--gold) 34%, transparent), transparent 70%);
+  animation: drift 38s ease-in-out infinite alternate; will-change: transform; }
+html[data-theme="dark"] body::after { opacity: .7; }
+@keyframes drift {
+  0% { transform: translate3d(-4%, -3%, 0) scale(1); }
+  50% { transform: translate3d(5%, 4%, 0) scale(1.08); }
+  100% { transform: translate3d(-2%, 6%, 0) scale(1.02); }
+}
+/* Sign-in: the picture breathes very slowly and a soft light passes over it. */
+.splash-bg { overflow: hidden; }
+.splash-bg img { animation: kenburns 32s ease-in-out infinite alternate; transform-origin: 60% 40%; will-change: transform; }
+.splash-bg::before { content: ''; position: absolute; inset: -30%; z-index: 1; pointer-events: none;
+  background: radial-gradient(35% 28% at 50% 50%, color-mix(in srgb, var(--sage) 30%, transparent), transparent 70%);
+  animation: drift 26s ease-in-out infinite alternate; will-change: transform; }
+.splash-bg::after { z-index: 2; }
+@keyframes kenburns { from { transform: scale(1.02); } to { transform: scale(1.12) translate3d(-2%, -1%, 0); } }
+@media (prefers-reduced-motion: reduce) { body::after, .splash-bg img, .splash-bg::before { animation: none; } }
+
+/* ---- Pull to refresh: content stays where it is; a small glass circle with the spinner drops down. */
+.ptr { top: calc(var(--safe-top) + 6px); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 80;
+  background: color-mix(in srgb, var(--glass-strong) 85%, transparent); box-shadow: var(--glass-edge), var(--shadow);
+  -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%); }
+.ptr svg { width: 26px; height: 26px; }
+.ptr rect { fill: var(--ink); }
+html[data-theme="dark"] .ptr rect { fill: #fff; }
+
+/* ---- Bottom action bar slides up when a page opens. */
+@keyframes barUp { from { transform: translate3d(0, 110%, 0); } to { transform: none; } }
+.sticky-actions.enter { animation: barUp .5s cubic-bezier(.16, 1, .3, 1) .08s both; }
+@media (prefers-reduced-motion: reduce) { .sticky-actions.enter { animation: none; } }

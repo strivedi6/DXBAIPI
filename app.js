@@ -87,8 +87,18 @@
   const PROP_LABEL = { DXBAI: 'DXBAI · Embassy Suites', DXBPI: 'DXBPI · Hilton Garden Inn', Cluster: 'Cluster' };
   const postProp = (v) => (HOTELS.indexOf(v) >= 0 ? v : 'Cluster');
   const APP_NAME = CONFIG.appName || 'Business Bay Team';
-  const MAIN = '#E6E0D5'; // status bar: top of the Sand atmosphere
-  const DARK_BAR = '#16211B'; // status bar: top of the Forest atmosphere
+  /* Colour choice (Profile › Appearance): each has a light and a deep dark version. Saved on this phone. */
+  const PALETTES = {
+    sage: { name: 'Sage', a: '#46563F', b: '#16211B', bar: ['#E6E0D5', '#16211B'] },
+    navy: { name: 'Navy', a: '#2E4262', b: '#121A27', bar: ['#E2E4E8', '#121A27'] },
+    plum: { name: 'Plum', a: '#5B3B53', b: '#1C131A', bar: ['#E8E1E1', '#1C131A'] },
+    terracotta: { name: 'Terracotta', a: '#8A4A33', b: '#1E140F', bar: ['#EAE1D7', '#1E140F'] },
+    teal: { name: 'Teal', a: '#285A58', b: '#0F1D1C', bar: ['#DEE5E3', '#0F1D1C'] },
+    graphite: { name: 'Graphite', a: '#3A3D43', b: '#151618', bar: ['#E3E2E0', '#151618'] }
+  };
+  const palette = () => (PALETTES[LS.get('bb_palette')] ? LS.get('bb_palette') : 'sage');
+  const MAIN = PALETTES[palette()].bar[0]; // status bar: top of the light atmosphere
+  const DARK_BAR = PALETTES[palette()].bar[1]; // status bar: top of the dark atmosphere
 
   /* ---------------- Icons ---------------- */
   const sv = (d, w) => `<svg width="${w || 22}" height="${w || 22}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -178,7 +188,9 @@
     const dark = document.documentElement.dataset.theme === 'dark';
     const vars = ['--navy', '--ink', '--navy-2', '--gold', '--gold-text', '--gold-light', '--gold-bg', '--cream'];
     vars.forEach((v) => root.removeProperty(v));
-    if (!t) { setThemeColor(dark ? DARK_BAR : MAIN); return; }
+    const pal = palette();
+    if (pal === 'sage') delete document.documentElement.dataset.palette; else document.documentElement.dataset.palette = pal;
+    if (!t) { setThemeColor(PALETTES[pal].bar[dark ? 1 : 0]); return; }
     root.setProperty('--navy', t.primary);
     root.setProperty('--navy-2', `color-mix(in srgb, ${t.primary} 85%, #fff)`);
     root.setProperty('--gold', t.accent);
@@ -190,7 +202,7 @@
       root.setProperty('--gold-bg', `color-mix(in srgb, ${t.accent} 16%, #fff)`);
       root.setProperty('--cream', t.background);
     }
-    setThemeColor(dark ? DARK_BAR : t.background);
+    setThemeColor(dark ? PALETTES[pal].bar[1] : t.background);
   }
   function setThemeColor(c) { const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute('content', c); }
   function setTheme(t) {
@@ -862,6 +874,8 @@
         }
         this.scr = scr;
         scr.classList.add('tr-in', 'tr-in-' + dir);
+        const bar = scr.querySelector('.page > .sticky-actions');
+        if (bar) { bar.classList.add('enter'); bar.addEventListener('animationend', () => bar.classList.remove('enter'), { once: true }); }
       }
       this.timer = setTimeout(() => this.finish(), dir === 'tab' || dir === 'fade' ? 340 : 460);
     }
@@ -2835,6 +2849,9 @@
         ${opt('dark', 'Dark', 'Easier at night', 'dark')}
         ${opt('auto', 'Automatic', 'Matches your phone', 'auto')}
       </div>
+      <span class="section-title">Colour</span>
+      <div class="pal-grid">${Object.keys(PALETTES).map((k) => `<button type="button" class="pal-opt" data-act="setPalette" data-v="${k}" aria-pressed="${palette() === k}">
+        <span class="pal-sw" style="--a:${PALETTES[k].a};--b:${PALETTES[k].b}"></span><b>${PALETTES[k].name}</b></button>`).join('')}</div>
       <p class="hint">Saved on this phone only.</p>
     </div>${nav('appearance')}</div>`;
   };
@@ -5259,6 +5276,12 @@
       LS.set('bb_appearance', el.dataset.v);
       applyAppearance(); render();
     },
+    setPalette(el) {
+      const before = palette();
+      LS.set('bb_palette', el.dataset.v);
+      applyAppearance(); render();
+      if (before !== palette()) freshHistory();
+    },
     async attend(el) {
       const id = el.dataset.id;
       const going = el.dataset.v === '1';
@@ -6607,6 +6630,7 @@
           if (dy > 10 && dy > dx * 1.5 && window.scrollY <= 0) { this.pulling = true; this.page = this.movers(); }
           else if (dx > 12 || dy < -4) { this.y0 = null; return; }
         }
+        if (this.pulling && window.scrollY > 0) { this.y0 = null; this.pulling = false; this.hide(); return; }
         if (this.pulling) { this.dist = Math.min(this.MAX, (dy - 10) * 0.6); this.show(); }
       }, { passive: true });
       const end = () => {
@@ -6622,12 +6646,8 @@
       return scr ? [...scr.children].filter((n) => !n.matches('.nav, .nav-blur, .fab, .fx-layer, canvas')) : [];
     },
     shift(px, animate) {
-      (this.page || []).forEach((pg) => {
-        pg.style.transition = animate ? 'transform .35s cubic-bezier(.2, .9, .3, 1)' : 'none';
-        pg.style.transform = px ? `translate3d(0, ${px}px, 0)` : '';
-      });
       this.el.style.transition = animate ? 'transform .35s cubic-bezier(.2, .9, .3, 1), opacity .2s' : 'opacity .15s';
-      this.el.style.transform = `translate(-50%, ${Math.max(0, px / 2 - 15)}px)`;
+      this.el.style.transform = `translate(-50%, ${Math.round(px * 0.85 - 44)}px) scale(${(0.6 + Math.min(1, px / this.NEED) * 0.4).toFixed(3)})`;
     },
     show() {
       const ready = this.dist >= this.NEED;

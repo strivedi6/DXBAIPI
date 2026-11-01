@@ -213,3 +213,10 @@ Front-end only; no Code.gs change — just upload the folder.
 - **Solid text panel** under the picture on offers, posts, newsletters and special collections; the picture no longer shows through.
 - **Special collections:** the animation runs over the picture and the coloured panel, behind the text and cards.
 - **Pull down to refresh** moves the whole page (picture and text together) and always lets go: if the connection is slow, it stops waiting after 12 seconds.
+
+## Version 2.0.7
+Front-end only; no Code.gs change — just upload the folder.
+- **Choose your colour:** Profile › Appearance › Colour — Sage (default), Navy, Plum, Terracotta, Teal or Graphite. Each has a light version and a deep dark version (like Sage and Forest). Saved on each phone. A seasonal theme set by Admin still takes over while it's on.
+- **Living background:** soft lights drift very slowly behind every page, and the sign-in picture moves gently. It's subtle, doesn't move any content, and stops if the phone has "Reduce Motion" turned on.
+- **Pull to refresh, rebuilt:** the page no longer moves; a small glass circle with the spinner drops down from the top while it refreshes. Tested: refreshing twice in a row works, the page scrolls normally afterwards, and nothing stays stuck.
+- **Bottom button bar** (Share with guest, Acknowledge, Publish…) slides up smoothly when a page opens.
