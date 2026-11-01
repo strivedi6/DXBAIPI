@@ -814,7 +814,8 @@
     state.lastScreen = key;
     state.lastName = name;
     Transit.finish();
-    if (!changed || !prev || reduceMotion() || opts.dir === 'none') { paint(opts.top, changed ? opts.y : undefined); return; }
+    const noAnim = state.noAnimOnce; state.noAnimOnce = false;
+    if (!changed || !prev || reduceMotion() || opts.dir === 'none' || noAnim) { paint(opts.top, changed ? opts.y : undefined); return; }
     let dir = opts.dir || 'fade';
     if (TABS.indexOf(name) >= 0 && TABS.indexOf(prev) >= 0) dir = 'tab';
     Transit.run(dir, () => paint(opts.top, opts.y));
@@ -1286,8 +1287,7 @@
   function propFilter() {
     const u = state.user || {};
     if (HOTELS.indexOf(u.property) >= 0) return '';
-    return `<div class="seg" role="group" aria-label="Hotel">${['All', 'DXBAI', 'DXBPI', 'Cluster'].map((v) => `
-      <button type="button" data-act="setProp" data-v="${v}" aria-pressed="${state.filter.prop === v}">${v === 'All' ? 'All' : v}</button>`).join('')}</div>`;
+    return hotelSeg();
   }
 
   function pushBanner() {
@@ -1316,7 +1316,8 @@
         <span class="ph">${img ? `<img src="${esc(img)}" alt="">` : `<span class="ini">${esc(initials(p.personName || p.title))}</span>`}</span>
         ${isAward(c) && p.subtitle ? `<span class="ribbon">${I.award}${esc(p.subtitle)}</span>` : ''}
         <span class="nm">${esc(p.personName || p.title)}</span>
-        ${p.position ? `<span class="ps">${esc(p.position)}</span>` : ''}
+        ${(p.livePosition || p.position) ? `<span class="ps">${esc(p.livePosition || p.position)}</span>` : ''}
+        ${p.livePosition && p.liveDept && p.liveDept !== p.livePosition ? `<span class="pd">${esc(p.liveDept)}</span>` : ''}
       </button>`;
     }
     if (c.type === 'offer') {
@@ -1814,8 +1815,7 @@
     }).join('');
     const bd = (state.birthdaysToday || []).length ? row('data-to="hr"', I.cake, 'Birthdays today', state.birthdaysToday.length, '#C2416B') : '';
     return `<aside class="drawer" role="dialog" aria-modal="true" aria-label="Menu">
-      <div class="dr-head"><span class="dr-brand">${logo}</span>
-        <button class="icon-btn" type="button" data-close aria-label="Close menu">${I.close}</button></div>
+      <div class="dr-head"><span class="dr-brand">${logo}</span></div>
       <button type="button" class="dr-me" data-act="nav" data-to="profile">${avatarHtml(u, 46)}
         <span class="set-tx"><b>${esc(u.name || '')}</b><span>${esc([u.position || u.department, postProp(u.property)].filter(Boolean).join(' · '))}</span></span></button>
       <div class="dr-scroll">
@@ -1834,31 +1834,74 @@
       </div>
     </aside>`;
   }
+  /* Side menu like the Claude app: the whole page slides to the right and the menu is revealed underneath.
+     Tap the page or drag it back to the left to close. */
   function openMenu() {
     if (document.querySelector('.drawer-ov')) return;
+    const root = document.documentElement;
+    const y = window.scrollY;
+    const key = state.lastScreen;
+    const W = Math.round(Math.min(window.innerWidth * 0.84, 340));
+    root.style.setProperty('--dr-w', W + 'px');
     const el = document.createElement('div');
     el.className = 'drawer-ov';
     el.innerHTML = menuHtml();
+    const shield = document.createElement('div');
+    shield.className = 'app-shield';
+    shield.setAttribute('aria-label', 'Close menu');
     document.body.appendChild(el);
-    document.documentElement.classList.add('menu-open');
-    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('in')));
+    document.body.appendChild(shield);
+    root.classList.add('menu-open');
+    app.scrollTop = y; // the page stays exactly where it was while it slides aside
+    requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add('menu-in')));
+    let closing = false;
     const close = () => {
-      if (!el.isConnected) return;
-      el.classList.remove('in');
-      document.documentElement.classList.remove('menu-open');
-      setTimeout(() => el.remove(), 380);
+      if (closing) return;
+      closing = true;
+      app.style.transition = ''; app.style.transform = '';
+      root.classList.remove('menu-in');
+      requestAnimationFrame(() => { if (state.lastScreen !== key) app.scrollTop = 0; });
       window.removeEventListener('popstate', close);
+      document.removeEventListener('keydown', onKey);
+      setTimeout(() => {
+        const moved = state.lastScreen !== key;
+        root.classList.remove('menu-open');
+        app.scrollTop = 0;
+        el.remove(); shield.remove();
+        window.scrollTo(0, moved ? 0 : y);
+        if (typeof Bar !== 'undefined') Bar.update();
+      }, 430);
     };
-    // Tapping outside, ×, Escape, or any link in the menu closes it (the link's own action still runs).
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    // Any link in the menu closes it; its own action still runs (the new page appears as the page slides back).
     el.addEventListener('click', (e) => {
-      if (e.target === el || (e.target.closest && e.target.closest('[data-close], [data-act]'))) close();
+      const a = e.target.closest && e.target.closest('[data-act]');
+      if (!a) return;
+      if (a.dataset.act === 'nav') state.noAnimOnce = true;
+      close();
     });
-    el.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    document.addEventListener('keydown', onKey);
     window.addEventListener('popstate', close);
+    // Drag the page back to the left (it follows the finger), or tap it, to close.
+    let x0 = null, dx = 0, t0 = 0;
+    shield.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; dx = 0; t0 = Date.now(); app.style.transition = 'none'; }, { passive: true });
+    shield.addEventListener('touchmove', (e) => {
+      if (x0 === null) return;
+      dx = Math.max(-W, Math.min(0, e.touches[0].clientX - x0));
+      app.style.transform = `translate3d(${W + dx}px, 0, 0)`;
+    }, { passive: true });
+    shield.addEventListener('touchend', () => {
+      if (x0 === null) return;
+      x0 = null;
+      app.style.transition = '';
+      const fast = dx < -30 && Date.now() - t0 < 250;
+      if (Math.abs(dx) < 6 || dx < -W * 0.3 || fast) close();
+      else app.style.transform = '';
+    });
+    shield.addEventListener('click', () => close());
     // Haptic tick on the list rows only when the list fits without scrolling (a tick layer would hold a scrolling finger).
     const list = el.querySelector('.dr-scroll');
     requestAnimationFrame(() => { if (list && list.scrollHeight <= list.clientHeight + 2) list.querySelectorAll('.dr-row').forEach((r) => r.classList.add('hap-ok')); });
-    setTimeout(() => { const b = el.querySelector('[data-close]'); if (b) b.focus({ preventScroll: true }); }, 60);
   }
 
   /** Moves the little dots under the featured cards as they are swiped. */
@@ -2060,8 +2103,9 @@
 
   /** Today's Special › See all: today's offers (or everything else on today), with the hotel filter. */
   function hotelSeg() {
-    return `<div class="seg" role="group" aria-label="Hotel">${['All', 'DXBAI', 'DXBPI', 'Cluster'].map((v) => `
-      <button type="button" data-act="setProp" data-v="${v}" aria-pressed="${state.filter.prop === v}">${v}</button>`).join('')}</div>`;
+    // "Cluster" shows everything for both hotels; DXBAI / DXBPI show that hotel plus Cluster posts.
+    return `<div class="seg" role="group" aria-label="Hotel">${[['All', 'Cluster'], ['DXBAI', 'DXBAI'], ['DXBPI', 'DXBPI']].map(([v, l]) => `
+      <button type="button" data-act="setProp" data-v="${v}" aria-pressed="${(state.filter.prop === 'Cluster' ? 'All' : state.filter.prop) === v}">${l}</button>`).join('')}</div>`;
   }
   VIEWS.todayList = ({ id }) => {
     if (!state.lastLoad && !state.loadingFeed) setTimeout(() => loadFeed(), 0);
@@ -2085,6 +2129,12 @@
     const cl = coll ? (state.collections.find((x) => x.id === coll) || (state.adminColls || []).find((x) => x.id === coll)) : null;
     const list = coll ? visiblePosts(true).filter((p) => p.category === id && p.collection === coll) : visiblePosts().filter((p) => p.category === id);
     const grid = c.type === 'people';
+    if (c.type === 'offer') return `
+    <div class="screen"><div class="page">
+      <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
+        ${cl ? `<div class="greet spacer"><span class="eyebrow">${esc(cl.name)}</span><h1>${esc(c.label)}</h1></div>` : `<h1 style="flex:1">${esc(c.label)}</h1>`}<span style="width:44px"></span></div>
+      ${list.length ? `<div class="ogrid">${list.map(hcard).join('')}</div>` : emptyState('Nothing posted yet.')}
+    </div></div>`;
     return `
     <div class="screen"><div class="page">
       <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
@@ -2219,7 +2269,7 @@
         <span class="ph">${img ? `<img src="${esc(img)}" alt="${esc(p.personName || p.title)}">` : `<span class="ini">${esc(initials(p.personName || p.title))}</span>`}</span>
         ${isAward(c) && p.subtitle ? `<span class="ribbon">${I.award}${esc(p.subtitle)}</span>` : ''}
         <h1 class="title-lg">${esc(p.personName || p.title)}</h1>
-        ${(p.position || p.department) ? `<span class="pos">${esc(p.position || p.department)}</span>` : ''}
+        ${(p.livePosition || p.position || p.department) ? `<span class="pos">${esc([p.livePosition || p.position || p.department, p.livePosition && p.liveDept !== p.livePosition ? p.liveDept : ''].filter(Boolean).join(' · '))}</span>` : ''}
         <span class="small muted">${esc(PROP_LABEL[postProp(p.property)] || '')}</span>
       </div>
       ${p.message ? `<div class="prose center${p.plainText ? ' plain' : ''}">${esc(p.message)}</div>` : ''}
@@ -2855,7 +2905,7 @@
     const gaps = profileGaps(u);
     return `
     <div class="screen"><div class="page with-nav">
-      <div class="topbar"><div class="greet"><h1>Profile</h1></div></div>
+      ${feedHeader('Profile', 'Account &amp; settings')}
       <div class="set-group">
         <button type="button" class="me-row${gaps.length ? ' needs' : ''}" data-act="nav" data-to="me">
           ${avatarHtml(u, 64)}
@@ -5247,7 +5297,7 @@
         } else {
           form.querySelector('#c-pid').value = j.employeeId || id;
           form.querySelector('#c-pname').value = j.name;
-          const pos = form.querySelector('#c-pos'); if (!pos.value && j.department) pos.value = j.department;
+          const pos = form.querySelector('#c-pos'); if (!pos.value && (j.position || j.department)) pos.value = [j.position, j.department].filter(Boolean).join(', ');
           if (j.photo && !form.querySelector('input[name="image"]').value) {
             form.querySelector('input[name="image"]').value = j.photo;
             const box = form.querySelector('#img-box');
@@ -6761,9 +6811,9 @@
   const Bar = {
     el: null, big: null,
     setup() {
-      this.el = null; this.big = null;
+      this.el = null; this.big = null; this.hero = null; this.float = null;
       const bar = app.querySelector('.page > .topbar');
-      if (!bar || bar.parentElement.firstElementChild !== bar) return;
+      if (!bar || bar.parentElement.firstElementChild !== bar) { this.setupHero(); return; }
       bar.classList.add('tb');
       const greet = bar.querySelector(':scope > .greet');
       const h1 = greet ? greet.querySelector('h1') : null;
@@ -6778,11 +6828,46 @@
         greet.classList.add('large-title');
         bar.after(greet);
         this.big = greet;
+      } else if (!bar.querySelector(':scope > h1')) {
+        // A page whose title is further down (special collections, Today's offers…): show it in the bar once it scrolls away.
+        const h1 = bar.parentElement.querySelector(':scope > .stack h1, :scope > h1, :scope > .stack > h1');
+        if (h1) {
+          const mini = document.createElement('div');
+          mini.className = 'tb-title';
+          mini.setAttribute('aria-hidden', 'true');
+          mini.innerHTML = `<b>${esc(h1.textContent)}</b>`;
+          bar.insertBefore(mini, bar.children[1] || null);
+          this.big = h1;
+        }
       }
       this.el = bar;
       this.update();
     },
+    /** Pages that open with a big picture: a frosted bar with Back, the title and Edit appears once the picture scrolls away. */
+    setupHero() {
+      const scr = app.querySelector('.screen');
+      const hero = scr && scr.querySelector(':scope > .full-hero, :scope > .detail-hero');
+      if (!hero) return;
+      const h1 = scr.querySelector('.page h1');
+      const right = hero.querySelector('.fh-bar > .row, .hero-edit');
+      const fb = document.createElement('div');
+      fb.className = 'topbar tb hero-tb';
+      fb.innerHTML = `<button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
+        <div class="tb-title" aria-hidden="true"><b>${esc(h1 ? h1.textContent : '')}</b></div>
+        <span class="row" style="gap:8px">${right ? (right.classList.contains('row') ? right.innerHTML : right.outerHTML.replace('hero-edit', '')) : '<span style="width:44px"></span>'}</span>`;
+      fb.querySelectorAll('.tag').forEach((t) => t.remove());
+      scr.appendChild(fb);
+      this.hero = hero; this.float = fb;
+      this.update();
+    },
     update() {
+      if (this.float && this.float.isConnected) {
+        const on = this.hero.getBoundingClientRect().bottom < 96;
+        this.float.classList.toggle('on', on);
+        this.float.classList.toggle('is-scrolled', on);
+        this.float.classList.toggle('is-tucked', on && (!this.float.querySelector('.tb-title b').textContent ? false : (app.querySelector('.page h1') || this.hero).getBoundingClientRect().bottom < 96));
+        return;
+      }
       const bar = this.el;
       if (!bar || !bar.isConnected) return;
       const y = window.scrollY;

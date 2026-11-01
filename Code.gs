@@ -1931,7 +1931,7 @@ function actionLookupStaff_(req) {
   const i = findStaff_(t, q);
   if (i >= 0) {
     const u = userAt_(t, i);
-    return { found: true, employeeId: u.employeeId, name: u.name, department: u.department, property: u.property, photo: u.photo };
+    return { found: true, employeeId: u.employeeId, name: u.name, department: u.department, position: u.position || '', property: u.property, photo: u.photo };
   }
   // Not an Employee ID: search first and last names (every word typed must start a word of the name).
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
@@ -1942,7 +1942,7 @@ function actionLookupStaff_(req) {
     if (!u.employeeId || u.status !== 'Approved') return;
     const parts = u.name.toLowerCase().split(/\s+/);
     const ok = words.every(function (w) { return parts.some(function (p) { return p.indexOf(w) === 0; }) || u.employeeId.toLowerCase().indexOf(w.replace(/^0+(?=.)/, '')) >= 0; });
-    if (ok && matches.length < 10) matches.push({ employeeId: u.employeeId, name: u.name, department: u.department, property: u.property, photo: u.photo });
+    if (ok && matches.length < 10) matches.push({ employeeId: u.employeeId, name: u.name, department: u.department, position: u.position || '', property: u.property, photo: u.photo });
   });
   if (matches.length === 1) return Object.assign({ found: true }, matches[0]);
   return { found: false, matches: matches };
@@ -2863,12 +2863,20 @@ function applyLivePhotos_(posts, activeCats) {
   (activeCats || activeCategories_()).forEach(function (c) { if (c.type === 'people') peopleTypes[c.id] = true; });
   if (!posts.some(function (p) { return peopleTypes[p.category] && p.personId; })) return;
   var staff = table_(SHEET_STAFF);
-  var photoById = {};
-  staff.rows.forEach(function (r, i) { var u = userAt_(staff, i); if (u.employeeId) photoById[normId_(u.employeeId)] = u.photo || ''; });
+  var photoById = {}, infoById = {};
+  staff.rows.forEach(function (r, i) {
+    var u = userAt_(staff, i);
+    if (!u.employeeId) return;
+    photoById[normId_(u.employeeId)] = u.photo || '';
+    infoById[normId_(u.employeeId)] = { position: u.position || '', department: u.department || '' };
+  });
   posts.forEach(function (p) {
     if (!peopleTypes[p.category] || !p.personId) return;
     var live = photoById[normId_(p.personId)];
     if (live) p.image = live;
+    // The colleague's current job title and department from their profile (shown on New Joiners and award tiles).
+    var info = infoById[normId_(p.personId)];
+    if (info) { p.livePosition = info.position; p.liveDept = info.department; }
   });
 }
 

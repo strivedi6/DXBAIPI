@@ -976,3 +976,65 @@ html[data-theme="dark"] .topbar.tb::before { background: color-mix(in srgb, var(
 .sec-desc { margin: -6px 2px 0; font-size: 13px; line-height: 1.45; color: var(--muted); max-width: 46ch; }
 .coll-page .sec-desc { color: rgba(255, 255, 255, .78); }
 .set-note { margin: -8px 18px 4px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+
+/* =====================================================================
+   2.0.13
+   ===================================================================== */
+/* ---- Page changes: the background never moves; only the content slides and fades. */
+.tr-snap, .screen.tr-in-forward, .screen.tr-in-back { background: transparent !important; box-shadow: none !important; }
+.tr-snap.tr-out-forward { animation: trOutFwd .34s cubic-bezier(.4, 0, .2, 1) both; }
+.screen.tr-in-forward { animation: trInFwd .46s cubic-bezier(.16, 1, .3, 1) both; }
+.tr-snap.tr-out-back { animation: trOutBack .34s cubic-bezier(.4, 0, .2, 1) both; }
+.screen.tr-in-back { animation: trInBack .46s cubic-bezier(.16, 1, .3, 1) both; }
+@keyframes trOutFwd { to { transform: translate3d(-18%, 0, 0); opacity: 0; } }
+@keyframes trInFwd { from { transform: translate3d(34%, 0, 0); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes trOutBack { to { transform: translate3d(30%, 0, 0); opacity: 0; } }
+@keyframes trInBack { from { transform: translate3d(-18%, 0, 0); opacity: 0; } to { transform: none; opacity: 1; } }
+/* Coloured pages (special collections) keep their own colour. */
+.screen.coll-page.tr-in-forward, .screen.coll-page.tr-in-back { background: var(--bg) !important; }
+
+/* ---- Side menu like the Claude app: the page slides right, the menu is underneath. */
+.drawer-ov { position: fixed; inset: 0; z-index: 1; background: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; touch-action: auto; }
+.drawer { width: var(--dr-w, 300px); border-radius: 0; box-shadow: none; transform: translate3d(-22%, 0, 0); opacity: .4;
+  transition: transform .42s cubic-bezier(.22, 1, .36, 1), opacity .35s; background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+html[data-theme="dark"] .drawer { background: transparent; }
+html.menu-in .drawer { transform: none; opacity: 1; }
+.drawer-ov .drawer { left: 0; }
+html.menu-open #app { position: fixed; left: 0; right: 0; top: 0; height: 100lvh; overflow: hidden; z-index: 2; isolation: isolate;
+  background: var(--atmos), var(--cream); transition: transform .42s cubic-bezier(.22, 1, .36, 1), border-radius .42s, box-shadow .42s; }
+html.menu-in #app { transform: translate3d(var(--dr-w, 300px), 0, 0); border-radius: 38px; box-shadow: -18px 0 50px rgba(0, 0, 0, .28); }
+html.menu-open body { overflow: hidden; }
+.app-shield { position: fixed; top: 0; bottom: 0; left: var(--dr-w, 300px); right: 0; z-index: 60; touch-action: none; }
+.dr-head { min-height: 52px; padding: 0 4px; }
+@media (prefers-reduced-motion: reduce) { html.menu-open #app, .drawer { transition: none; } }
+
+/* ---- Shadows are never cut by a scrolling row or list. */
+.hrow { padding: 16px 20px 46px; margin-top: -16px; margin-bottom: -32px; }
+@media (min-width: 960px) { .hrow { padding: 16px 0 46px; margin: -16px 0 -32px; } }
+.dr-scroll { padding: 6px 16px 30px; margin-top: -6px; }
+
+/* ---- Offers "See all": two-column grid of the same tiles (4:3 pictures). */
+.ogrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.ogrid .hc-offer { width: auto; }
+.ogrid .hc-offer .t { font-size: 14px; }
+@media (min-width: 640px) { .ogrid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); } }
+
+/* ---- People tiles: job title, then department. */
+.hc-person .pd { font-size: 11.5px; color: var(--muted); line-height: 1.3; margin-top: -3px; }
+
+/* ---- Training tiles: date column the same size on every tile, a fine divider, no separate background. */
+.hc-train, .tcard { align-items: stretch; }
+.tdate, html[data-theme="dark"] .tdate, .is-today .tdate { flex: none; width: 52px; align-self: stretch; justify-content: center; border-radius: 0; padding: 0 12px 0 0;
+  background: none; box-shadow: none; border-right: 1px solid var(--hairline); color: color-mix(in srgb, var(--c) 72%, var(--ink)); box-sizing: content-box; }
+html[data-theme="dark"] .tdate { color: color-mix(in srgb, var(--c) 40%, #fff); }
+.is-today .tdate { color: var(--accent-ink); }
+.tbody { justify-content: center; padding-left: 2px; }
+
+/* ---- Pages that open with a big picture: frosted bar with Back, title and Edit once the picture scrolls away. */
+.hero-tb { position: fixed; top: 0; left: 0; right: 0; max-width: 560px; margin: 0 auto; z-index: 26; padding: calc(var(--safe-top) + 14px) 20px 10px;
+  opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+.hero-tb.on { opacity: 1; pointer-events: auto; }
+.hero-tb::before { opacity: 1 !important; }
+.coll-page .hero-tb::before { background: color-mix(in srgb, var(--bg) 80%, transparent); }
+@media (min-width: 960px) { .hero-tb { display: none; } }
+.topbar.tb.hero-tb { position: fixed; top: 0; left: 0; right: 0; max-width: 560px; margin: 0 auto; padding: calc(var(--safe-top) + 14px) 20px 10px; }

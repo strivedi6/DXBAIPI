@@ -247,3 +247,15 @@ Front-end only; no Code.gs change.
 Front-end only; no Code.gs change.
 - **Top bar like iPhone Settings:** when you scroll, the bar turns to frosted glass with a fine line under it, and the page title appears small and centred between the buttons. Pages whose title sits in the bar (Appearance, F&B Offers, All updates…) show it centred the same way.
 - **Section notes:** every section has a short line under its heading saying what's inside (e.g. "News, policies and reminders from HR. Some need your acknowledgement."). The note is chosen from the section's type and name (offers, people/awards, new joiners, training, newsletters, notices, HR updates), plus Birthdays, Training today, Today's offers and Also today. Profile has short notes under its groups too.
+
+## Version 2.0.13
+**Install:** the front end updates by itself. For job titles on New Joiners / award tiles, paste the new `Code.gs` into Apps Script and deploy a new version (Deploy › Manage deployments › Edit › New version). No new tab or setup step.
+- **Job title on people tiles:** New Joiners and award tiles show the colleague's job title, then their department, taken live from their profile (needs the new Code.gs). "Find" in the post form now fills "Job title, Department".
+- **Offers › See all:** two-column grid of the same tiles, pictures 4:3.
+- **Title in the bar on every page:** special collections, Today's offers and other pages show their title in the frosted bar when you scroll. Pages that open with a big picture (offers, posts, newsletters, collections) get a frosted bar with Back, the title and Edit once the picture has scrolled away.
+- **Page changes keep the background still:** only the content slides and fades.
+- **Side menu like the Claude app:** the page slides to the right and the menu is revealed underneath. Tap the page, or drag it back to the left, to close. No close button.
+- **Hotel filter:** Cluster (everything) · DXBAI · DXBPI. No separate "All".
+- **Shadows are never cut** by scrolling rows or the side menu.
+- **Training tiles:** the date column is the same size on every tile, with a fine divider and no separate background.
+- **Profile** has the same top bar as Home, HR, Today and Offers (menu, search, photo).
