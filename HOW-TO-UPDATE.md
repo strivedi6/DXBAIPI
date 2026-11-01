@@ -220,3 +220,9 @@ Front-end only; no Code.gs change — just upload the folder.
 - **Living background:** soft lights drift very slowly behind every page, and the sign-in picture moves gently. It's subtle, doesn't move any content, and stops if the phone has "Reduce Motion" turned on.
 - **Pull to refresh, rebuilt:** the page no longer moves; a small glass circle with the spinner drops down from the top while it refreshes. Tested: refreshing twice in a row works, the page scrolls normally afterwards, and nothing stays stuck.
 - **Bottom button bar** (Share with guest, Acknowledge, Publish…) slides up smoothly when a page opens.
+
+## Version 2.0.8
+Front-end only; no Code.gs change.
+- **Living background is now visible:** the soft lights behind every page drift a little further and faster (one slow cycle every ~18 seconds) and gently brighten and dim. Content never moves. The sign-in picture zooms slowly (20 seconds) with a soft light passing over it. All of it stops when "Reduce Motion" is on.
+- **Bottom button bar slides up after the page has arrived** (it used to slide up at the same time as the page slid in, so it was hard to notice).
+- Removed two old zip files from the site folder (not used by the app).

@@ -878,26 +878,31 @@ html[data-palette="graphite"][data-theme="dark"] { --cream: #101113; --navy: #7E
 .pal-sw { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, var(--a) 50%, var(--b) 50%); box-shadow: 0 0 0 3px var(--glass-hi), 0 4px 12px rgba(0, 0, 0, .18); }
 .pal-opt b { font-size: 13.5px; font-weight: 600; }
 
-/* ---- Living background: two soft lights drift slowly behind everything (GPU only, very subtle). */
-body::after { content: ''; position: fixed; inset: -20%; z-index: -1; pointer-events: none; opacity: .55;
+/* ---- Living background: soft lights drift slowly behind everything (GPU only; content never moves). */
+body::after { content: ''; position: fixed; inset: -25%; z-index: -1; pointer-events: none; opacity: .75;
   background:
-    radial-gradient(30% 22% at 30% 30%, color-mix(in srgb, var(--navy) 40%, transparent), transparent 70%),
-    radial-gradient(26% 20% at 72% 66%, color-mix(in srgb, var(--gold) 34%, transparent), transparent 70%);
-  animation: drift 38s ease-in-out infinite alternate; will-change: transform; }
-html[data-theme="dark"] body::after { opacity: .7; }
+    radial-gradient(26% 18% at 28% 26%, color-mix(in srgb, var(--navy) 55%, transparent), transparent 70%),
+    radial-gradient(22% 16% at 74% 64%, color-mix(in srgb, var(--gold) 50%, transparent), transparent 70%),
+    radial-gradient(24% 14% at 60% 22%, rgba(255, 255, 255, .55), transparent 70%);
+  animation: drift 18s ease-in-out infinite alternate, glow 9s ease-in-out infinite alternate; will-change: transform, opacity; }
+html[data-theme="dark"] body::after { background:
+    radial-gradient(26% 18% at 28% 26%, color-mix(in srgb, var(--navy) 55%, transparent), transparent 70%),
+    radial-gradient(22% 16% at 74% 64%, color-mix(in srgb, var(--gold) 26%, transparent), transparent 70%),
+    radial-gradient(24% 14% at 60% 22%, color-mix(in srgb, var(--sage) 22%, transparent), transparent 70%); }
 @keyframes drift {
-  0% { transform: translate3d(-4%, -3%, 0) scale(1); }
-  50% { transform: translate3d(5%, 4%, 0) scale(1.08); }
-  100% { transform: translate3d(-2%, 6%, 0) scale(1.02); }
+  0% { transform: translate3d(-9%, -6%, 0) scale(1); }
+  50% { transform: translate3d(8%, 7%, 0) scale(1.14); }
+  100% { transform: translate3d(-4%, 11%, 0) scale(1.04); }
 }
+@keyframes glow { from { opacity: .55; } to { opacity: .9; } }
 /* Sign-in: the picture breathes very slowly and a soft light passes over it. */
 .splash-bg { overflow: hidden; }
-.splash-bg img { animation: kenburns 32s ease-in-out infinite alternate; transform-origin: 60% 40%; will-change: transform; }
+.splash-bg img { animation: kenburns 20s ease-in-out infinite alternate; transform-origin: 60% 40%; will-change: transform; }
 .splash-bg::before { content: ''; position: absolute; inset: -30%; z-index: 1; pointer-events: none;
   background: radial-gradient(35% 28% at 50% 50%, color-mix(in srgb, var(--sage) 30%, transparent), transparent 70%);
-  animation: drift 26s ease-in-out infinite alternate; will-change: transform; }
+  animation: drift 14s ease-in-out infinite alternate; will-change: transform; }
 .splash-bg::after { z-index: 2; }
-@keyframes kenburns { from { transform: scale(1.02); } to { transform: scale(1.12) translate3d(-2%, -1%, 0); } }
+@keyframes kenburns { from { transform: scale(1.02); } to { transform: scale(1.14) translate3d(-3%, -2%, 0); } }
 @media (prefers-reduced-motion: reduce) { body::after, .splash-bg img, .splash-bg::before { animation: none; } }
 
 /* ---- Pull to refresh: content stays where it is; a small glass circle with the spinner drops down. */
@@ -910,5 +915,5 @@ html[data-theme="dark"] .ptr rect { fill: #fff; }
 
 /* ---- Bottom action bar slides up when a page opens. */
 @keyframes barUp { from { transform: translate3d(0, 110%, 0); } to { transform: none; } }
-.sticky-actions.enter { animation: barUp .5s cubic-bezier(.16, 1, .3, 1) .08s both; }
+.sticky-actions.enter { animation: barUp .55s cubic-bezier(.16, 1, .3, 1) .3s both; }
 @media (prefers-reduced-motion: reduce) { .sticky-actions.enter { animation: none; } }
