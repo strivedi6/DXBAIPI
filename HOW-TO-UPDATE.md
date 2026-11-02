@@ -266,3 +266,11 @@ Front-end only; no Code.gs change.
 - **Offer rows in All updates (search):** the picture fills the full height of the row; every row is the same tidy height.
 - **Offer tiles in the grid:** the date/time line can wrap to two lines instead of being cut off.
 - QA pass across every screen in light and dark (sign in, Home, HR, Today, Offers, Profile, side menu, offer/post/person/training/newsletter pages, special collection, sections, search, My profile, compose, Appearance, Birthdays, My posts, App setup, Quote of the day): no errors. Pull to refresh, back-to-same-scroll-position and the bottom bar rise re-tested.
+
+## Version 2.0.15 — computer (desktop) layout
+Front-end only; no Code.gs change.
+- **One sidebar on a computer:** the ☰ menu button is hidden on wide screens; its Sections list (with counts) now sits in the permanent left sidebar under Home, HR, Today's Special, Offers and Profile.
+- **Picture pages fit on one screen:** offers, posts, newsletters, training and special collections show the picture on the left (it stays in view) and everything else on the right.
+- **No bottom bar on a computer:** Share with guest (with the price), Acknowledge, Share this achievement and similar buttons sit right under the title.
+- **Wider main pages:** Home, HR, Today and Offers use up to about 1360 px of the screen; the search and profile buttons sit at the top right.
+- Phones are unchanged.

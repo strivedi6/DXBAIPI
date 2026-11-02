@@ -904,7 +904,22 @@
       <div class="nav-brand" aria-hidden="true">${safeUrl(state.settings.logo) ? logoImg('nav-logo', false) : `<span class="monogram">${esc(CONFIG.monogram || 'BB')}</span><b>${esc(CONFIG.appShortName || CONFIG.appName)}</b>`}</div>
       ${items.map(([k, label, ic]) => `
       <button type="button" class="${k === 'today' ? 'nav-today' : ''}" data-act="nav" data-to="${k}" ${active === k ? 'aria-current="page"' : ''}><span class="ic">${active === k && IF[k] ? IF[k] : ic}</span><span class="lb">${k === 'today' ? '<span class="lb-m">Today</span><span class="lb-d">Today’s Special</span>' : label}</span>${k === 'profile' && profileN ? `<span class="badge">${profileN}</span>` : ''}</button>`).join('')}
+      ${navSections()}
       <div class="nav-foot" aria-hidden="false"><button type="button" class="nav-foot-btn" data-act="refresh" aria-label="Refresh">${I.refresh}<span>Refresh</span></button><button type="button" class="nav-foot-btn" data-act="signOut" aria-label="Log out">${I.logout}<span>Log out</span></button></div></nav>`;
+  }
+
+  /** Desktop sidebar: the sections list (on phones it lives in the ☰ menu instead). */
+  function navSections() {
+    if (!state.user) return '';
+    const posts = visiblePosts();
+    const rows = cats().filter((c) => c.active !== false).map((c) => {
+      const n = (c.type === 'training' ? upcomingTraining(posts.filter((p) => p.category === c.id), 45) : posts.filter((p) => p.category === c.id)).length;
+      if (!n) return '';
+      const cur = state.route.name === 'section' && (state.route.params || {}).id === c.id;
+      return `<button type="button" class="nav-sec" data-act="nav" ${c.type === 'training' ? 'data-to="hr"' : `data-to="section" data-id="${esc(c.id)}"`} style="--c:${esc(colorHex(c.color))}" ${cur ? 'aria-current="page"' : ''}>
+        <span class="ns-ic">${I[TYPE_ICON[c.type]] || I.bell}</span><span class="ns-lb">${esc(c.label)}</span><span class="ns-n">${n}</span></button>`;
+    }).join('');
+    return rows ? `<div class="nav-secs"><span class="nav-sec-label">Sections</span>${rows}</div>` : '';
   }
 
   function catTag(c, text) {
