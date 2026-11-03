@@ -1111,3 +1111,57 @@ html[data-theme="dark"] .tdate { color: color-mix(in srgb, var(--c) 40%, #fff); 
   .screen.det:has(> .detail-hero, > .full-hero) { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
 }
 .topbar .tb-right { margin-left: auto; }
+
+/* =====================================================================
+   2.0.18 — Desktop refinements
+   ===================================================================== */
+@media (min-width: 960px) {
+  /* Picture pages: one card on the left (16:9 cover, title, posted by / until, Back · Edit · Share),
+     the rest of the page on the right. */
+  .screen.det:has(> .hero-card) {
+    --gut: max(40px, calc((100vw - 236px - 1320px) / 2));
+    display: grid; grid-template-columns: minmax(340px, 480px) minmax(0, 1fr); column-gap: 40px; align-items: start;
+    padding: 36px var(--gut) 48px calc(236px + var(--gut)); min-height: 100vh; }
+  .hero-card { grid-column: 1; position: sticky; top: 36px; display: flex; flex-direction: column; overflow: hidden;
+    border-radius: 30px; background: var(--glass); box-shadow: var(--glass-edge), var(--shadow); }
+  .coll-page .hero-card { background: rgba(255, 255, 255, .1); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2), 0 18px 40px rgba(0, 0, 0, .25); }
+  .hero-card > .full-hero, .hero-card > .detail-hero { position: relative; top: auto; margin: 0 !important; width: 100%; max-width: none !important;
+    aspect-ratio: 16 / 9; height: auto; border-radius: 0; box-shadow: none; padding: 0; overflow: hidden; }
+  .hero-card > .full-hero img, .hero-card > .detail-hero img { width: 100%; height: 100%; aspect-ratio: auto; max-height: none; object-fit: cover; border-radius: 0; }
+  .hero-card > .full-hero::after, .hero-card > .detail-hero::after { content: none; }
+  .hero-card .fh-bar, .hero-card .detail-hero > .icon-btn { display: none; }
+  .hc-info { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 10px; }
+  .hc-info h1, .hc-info .title-lg { font-size: 28px !important; line-height: 1.12; }
+  .hc-info > .tag { align-self: flex-start; }
+  .hc-info > p.row { margin: 0; }
+  .hc-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .hc-acts .btn { width: auto; gap: 6px; padding: 0 16px 0 12px; }
+  .hc-acts .btn svg { width: 18px; height: 18px; }
+  .hc-info > .sticky-actions { position: static !important; margin: 4px 0 0; padding: 0; background: none; box-shadow: none; animation: none !important;
+    -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .hc-info > .sticky-actions::before { content: none; }
+  .hc-info > .sticky-actions .btn { width: 100%; }
+  .hc-info > .sticky-actions .buybar { gap: 16px; }
+  .hc-info > .sticky-actions .buybar .btn { flex: 1; }
+  .screen.det:has(> .hero-card) > .page { grid-column: 2; margin: 0 !important; max-width: none !important; width: auto; padding: 0 !important; --pt: 0px; --px: 0px;
+    background: none !important; box-shadow: none !important; border-radius: 0; -webkit-backdrop-filter: none; backdrop-filter: none; min-height: 0; }
+  .screen.det:has(> .hero-card) > .page > .spacer { display: none; }
+  .hero-tb, .topbar.tb.hero-tb { display: none !important; }
+
+  /* Sidebar keeps its own colour on coloured pages (special collections, special newsletters). */
+  html .coll-page > .nav, html[data-theme="dark"] .coll-page > .nav { background: var(--atmos), var(--cream); color: var(--ink); }
+  .coll-page > .nav .nav-brand, .coll-page > .nav button { color: var(--muted-2); }
+  .coll-page > .nav button[aria-current="page"] { color: var(--btn-fg); }
+
+  /* Top bar reaches from the sidebar to the right edge of the window. */
+  .page.with-nav { padding-left: var(--px) !important; padding-right: var(--px) !important; }
+  .screen.det > .page:not(.with-nav) > .topbar.tb::before { left: calc((100% - 100vw + 236px) / 2); right: calc((100% - 100vw + 236px) / 2); }
+
+  /* Highlighted (banded) sections: plain on a computer. */
+  .blk-band, .coll-page .blk-band, html[data-theme="dark"] .blk-band { background: none !important; margin-left: 0; margin-right: 0; padding: 0; }
+
+  /* Tiles always in one row: scroll sideways when there are more than fit. */
+  .hrow { flex-wrap: nowrap !important; overflow-x: auto !important; overflow-y: visible; scroll-snap-type: x proximity; scrollbar-width: thin;
+    margin: -10px -12px -24px !important; padding: 10px 12px 36px !important; }
+  .hrow > * { flex-shrink: 0; }
+}

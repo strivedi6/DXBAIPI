@@ -282,3 +282,12 @@ Front-end only; no Code.gs change.
 ## Version 2.0.17
 Front-end only; no Code.gs change.
 - **Share button says what you're sharing:** "Share this offer", "Share this newsletter", "Share this achievement" or "Share this article", on the button and as the title of the share screen.
+
+## Version 2.0.18 — computer layout
+Front-end only; no Code.gs change.
+- **Logo** in the computer sidebar turns white in dark mode.
+- **Top bar** runs from the sidebar to the right edge of the window.
+- **Sidebar keeps its own colour** on special collections and special newsletters.
+- **Highlighted sections** show as plain sections on a computer.
+- **Tiles stay in one row** on a computer and scroll sideways when there are more.
+- **Picture pages** (offers, posts, newsletters, training, special collections): one card on the left with a 16:9 cover, the title, posted by / until, **Back** and **Edit** buttons with words, and the Share / Acknowledge button. The rest of the page sits on the right.

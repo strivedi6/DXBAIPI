@@ -903,11 +903,47 @@
     const pending = canApprove() && state.staff ? state.staff.filter((s) => s.status === 'Pending').length : 0;
     const profileN = (state.user ? profileGaps().length : 0) + pending;
     return `<div class="nav-blur" aria-hidden="true"></div><nav class="nav" aria-label="Main"><span class="nav-lens" aria-hidden="true"></span>
-      <div class="nav-brand" aria-hidden="true">${safeUrl(state.settings.logo) ? logoImg('nav-logo', false) : `<span class="monogram">${esc(CONFIG.monogram || 'BB')}</span><b>${esc(CONFIG.appShortName || CONFIG.appName)}</b>`}</div>
+      <div class="nav-brand" aria-hidden="true">${safeUrl(state.settings.logo) ? logoImg('nav-logo', document.documentElement.dataset.theme === 'dark') : `<span class="monogram">${esc(CONFIG.monogram || 'BB')}</span><b>${esc(CONFIG.appShortName || CONFIG.appName)}</b>`}</div>
       ${items.map(([k, label, ic]) => `
       <button type="button" class="${k === 'today' ? 'nav-today' : ''}" data-act="nav" data-to="${k}" ${active === k ? 'aria-current="page"' : ''}><span class="ic">${active === k && IF[k] ? IF[k] : ic}</span><span class="lb">${k === 'today' ? '<span class="lb-m">Today</span><span class="lb-d">Today’s Special</span>' : label}</span>${k === 'profile' && profileN ? `<span class="badge">${profileN}</span>` : ''}</button>`).join('')}
       ${navSections()}
       <div class="nav-foot" aria-hidden="false"><button type="button" class="nav-foot-btn" data-act="refresh" aria-label="Refresh">${I.refresh}<span>Refresh</span></button><button type="button" class="nav-foot-btn" data-act="signOut" aria-label="Log out">${I.logout}<span>Log out</span></button></div></nav>`;
+  }
+
+  /** Computer screens: the cover picture (16:9), title, posted by / until line and the buttons
+   *  (Back, Edit, Share…) are gathered into one card on the left; the rest of the page sits on the right. */
+  function deskHero() {
+    if (!window.matchMedia('(min-width: 960px)').matches) return;
+    const scr = app.querySelector('.screen');
+    const hero = scr && scr.querySelector(':scope > .full-hero, :scope > .detail-hero');
+    const page = hero && scr.querySelector(':scope > .page');
+    if (!page || scr.querySelector(':scope > .hero-card')) return;
+    const card = document.createElement('div');
+    card.className = 'hero-card';
+    scr.insertBefore(card, hero);
+    card.appendChild(hero);
+    const info = document.createElement('div');
+    info.className = 'hc-info';
+    card.appendChild(info);
+    // Title block: the first heading and the lines that belong to it (outlet, posted by, until).
+    const head = page.querySelector(':scope > .os-head, :scope > .stack:has(h1), :scope > h1');
+    if (head) info.appendChild(head);
+    const until = page.querySelector(':scope > p.row');
+    if (until) info.appendChild(until);
+    // Buttons with words next to the icons.
+    const acts = document.createElement('div');
+    acts.className = 'hc-acts';
+    acts.innerHTML = `<button class="btn btn-sm btn-outline" type="button" data-act="back">${I.back}<span>Back</span></button>`;
+    hero.querySelectorAll('.icon-btn:not([data-act="back"])').forEach((b) => {
+      const nb = b.cloneNode(true);
+      nb.className = 'btn btn-sm btn-outline';
+      nb.innerHTML = b.innerHTML + `<span>${esc(b.getAttribute('aria-label') === 'Edit post' || /edit/i.test(b.getAttribute('aria-label') || '') ? 'Edit' : (b.getAttribute('aria-label') || ''))}</span>`;
+      acts.appendChild(nb);
+    });
+    hero.querySelectorAll('.fh-bar .tag').forEach((t) => info.insertBefore(t, info.firstChild));
+    info.appendChild(acts);
+    const bar = page.querySelector(':scope > .sticky-actions');
+    if (bar) info.appendChild(bar);
   }
 
   /** Desktop sidebar: the sections list (on phones it lives in the ☰ menu instead). */
@@ -7105,6 +7141,7 @@
     document.documentElement.style.backgroundColor = col;
     document.body.style.backgroundColor = col;
     DateFields.enhance(app);
+    deskHero();
     railDots();
     Bar.setup();
     Lens.place(true);
