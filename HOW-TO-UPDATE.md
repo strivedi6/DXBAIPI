@@ -278,3 +278,7 @@ Front-end only; no Code.gs change.
 ## Version 2.0.16
 Front-end only; no Code.gs change.
 - **Seasonal themes keep text readable:** with a theme on (Festive, Ramadan, Eid, National Day…), titles and body text stay their normal colour — near-black in light mode, white in dark mode. The season's colour goes on buttons, icons, highlights, the greeting banner and the background glow only. In dark mode the light buttons take a soft version of the season's colour.
+
+## Version 2.0.17
+Front-end only; no Code.gs change.
+- **Share button says what you're sharing:** "Share this offer", "Share this newsletter", "Share this achievement" or "Share this article", on the button and as the title of the share screen.

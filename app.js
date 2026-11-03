@@ -2269,7 +2269,7 @@
         <div class="spacer"></div>
         <div class="sticky-actions"><div class="buybar">
           ${hasPrice ? `<span class="bb-price"><small>AED</small><b>${esc(money(p.price))}</b></span>` : ''}
-          <button class="btn" type="button" data-act="nav" data-to="share" data-id="${esc(p.id)}">${I.share} Share with guest</button>
+          <button class="btn" type="button" data-act="nav" data-to="share" data-id="${esc(p.id)}">${I.share} ${shareLabel(p)}</button>
         </div></div>
       </div>
     </div>`;
@@ -2820,9 +2820,14 @@
     </div>`;
   }
 
-  /** Newsletters that Admin or Marketing allowed to be shared get a "Share with guests" button. */
+  /** The share button says what is being shared: offer, newsletter, achievement or article. */
+  function shareLabel(p) {
+    const t = catOf(p.category).type;
+    return 'Share this ' + ({ offer: 'offer', monthly: 'newsletter', people: 'achievement' }[t] || 'article');
+  }
+  /** Newsletters that Admin or Marketing allowed to be shared get a share button. */
   function shareNlBtn(p) {
-    return p.shareable ? `<button class="btn share-nl" type="button" data-act="nav" data-to="share" data-id="${esc(p.id)}">${I.share} Share with guests</button>` : '';
+    return p.shareable ? `<button class="btn share-nl" type="button" data-act="nav" data-to="share" data-id="${esc(p.id)}">${I.share} ${shareLabel(p)}</button>` : '';
   }
   function textDetail(p) {
     const cat = catOf(p.category);
@@ -3279,7 +3284,7 @@
       ${isMonthly ? newsletterStyleFields(d) : ''}
       ${isMonthly ? Blocks.editor(newsletterBlocks(d), { posts: true, exclude: d.id, title: 'Newsletter sections', hint: 'Build the newsletter: text sections with headings, images and chosen posts, in the order you want. Use the arrows to move them.' }) : ''}
       ${isMonthly && canCollect() ? `<div class="card"><label class="switch-row" style="border:0;padding:0">
-        <span><b style="font-size:14px">Can be shared with guests</b><br><span class="small muted">Adds a “Share with guests” button (picture or PDF, with the hotel logo and address)</span></span>
+        <span><b style="font-size:14px">Can be shared with guests</b><br><span class="small muted">Adds a “Share this newsletter” button (picture or PDF, with the hotel logo and address)</span></span>
         <span class="switch"><input type="checkbox" role="switch" name="shareable" ${d.shareable ? 'checked' : ''}><span></span></span></label></div>` : ''}
       ${collectionPicker(d)}
       ${specialFields(d)}
@@ -5115,7 +5120,7 @@
     <div class="screen"><div class="page">
       <div class="topbar">
         <button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
-        <h1>Share with guest</h1><span style="width:44px"></span>
+        <h1>${esc(shareLabel(p))}</h1><span style="width:44px"></span>
       </div>
       ${ready ? `<img src="${esc(Share.current.url)}" alt="Picture for guests" style="width:100%;border-radius:16px;box-shadow:0 6px 24px rgba(19,41,75,.12)">`
         : failed ? `<div class="card center"><p>Could not prepare the image.</p><button class="btn btn-outline" type="button" data-act="retryShare">Try again</button></div>`
