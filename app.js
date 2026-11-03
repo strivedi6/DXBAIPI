@@ -186,7 +186,7 @@
     const root = document.documentElement.style;
     const t = activeTheme();
     const dark = document.documentElement.dataset.theme === 'dark';
-    const vars = ['--navy', '--ink', '--navy-2', '--gold', '--gold-text', '--gold-light', '--gold-bg', '--cream'];
+    const vars = ['--navy', '--ink', '--navy-2', '--gold', '--gold-text', '--gold-light', '--gold-bg', '--cream', '--sage'];
     vars.forEach((v) => root.removeProperty(v));
     const pal = palette();
     if (pal === 'sage') delete document.documentElement.dataset.palette; else document.documentElement.dataset.palette = pal;
@@ -194,9 +194,11 @@
     root.setProperty('--navy', t.primary);
     root.setProperty('--navy-2', `color-mix(in srgb, ${t.primary} 85%, #fff)`);
     root.setProperty('--gold', t.accent);
+    // Light buttons and highlights in dark mode take a soft version of the season's colour.
+    root.setProperty('--sage', `color-mix(in srgb, ${t.primary} 32%, #fff)`);
     if (!dark) {
       // In dark mode the season keeps its main and accent colours; text and backgrounds stay dark-mode colours.
-      root.setProperty('--ink', t.primary);
+      // Text keeps its normal colour (near-black in light, white in dark); only buttons, accents and glows take the season's colour.
       root.setProperty('--gold-text', `color-mix(in srgb, ${t.accent} 72%, #000)`);
       root.setProperty('--gold-light', `color-mix(in srgb, ${t.accent} 45%, #fff)`);
       root.setProperty('--gold-bg', `color-mix(in srgb, ${t.accent} 16%, #fff)`);

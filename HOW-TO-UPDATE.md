@@ -274,3 +274,7 @@ Front-end only; no Code.gs change.
 - **No bottom bar on a computer:** Share with guest (with the price), Acknowledge, Share this achievement and similar buttons sit right under the title.
 - **Wider main pages:** Home, HR, Today and Offers use up to about 1360 px of the screen; the search and profile buttons sit at the top right.
 - Phones are unchanged.
+
+## Version 2.0.16
+Front-end only; no Code.gs change.
+- **Seasonal themes keep text readable:** with a theme on (Festive, Ramadan, Eid, National Day…), titles and body text stay their normal colour — near-black in light mode, white in dark mode. The season's colour goes on buttons, icons, highlights, the greeting banner and the background glow only. In dark mode the light buttons take a soft version of the season's colour.
