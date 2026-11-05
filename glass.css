@@ -1165,3 +1165,8 @@ html[data-theme="dark"] .tdate { color: color-mix(in srgb, var(--c) 40%, #fff); 
     margin: -10px -12px -24px !important; padding: 10px 12px 36px !important; }
   .hrow > * { flex-shrink: 0; }
 }
+
+/* Thin "updating…" progress bar shown while the feed refreshes from the server */
+#updbar { position: fixed; top: 0; left: 0; height: 3px; width: 0; z-index: 10000; opacity: 0; pointer-events: none; border-radius: 0 3px 3px 0; background: linear-gradient(90deg, var(--gold, #C8A24B), color-mix(in srgb, var(--gold, #C8A24B) 55%, #ffffff)); }
+#updbar.on { opacity: 1; width: 92%; transition: width 9s cubic-bezier(.08, .72, .1, 1), opacity .2s ease; }
+#updbar.done { opacity: 0; width: 100%; transition: width .25s ease, opacity .4s ease .15s; }

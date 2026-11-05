@@ -515,9 +515,18 @@
     return p;
   }
 
+  /* Thin top bar shown while content is being refreshed from the server. */
+  function showUpdbar(on) {
+    let b = document.getElementById('updbar');
+    if (!b) { b = document.createElement('div'); b.id = 'updbar'; document.body.appendChild(b); }
+    if (on) { b.classList.remove('done'); void b.offsetWidth; b.classList.add('on'); }
+    else { b.classList.add('done'); b.classList.remove('on'); setTimeout(() => b.classList.remove('done'), 400); }
+  }
+
   async function loadFeed(silent) {
     if (!state.token || state.loadingFeed) return;
     state.loadingFeed = true;
+    showUpdbar(true);
     if (!silent) refreshFeedArea();
     try {
       const j = await api('feed');
@@ -553,6 +562,7 @@
       }
     } finally {
       state.loadingFeed = false;
+      showUpdbar(false);
     }
     if (state.deepLinkPost && state.posts.some((p) => p.id === state.deepLinkPost)) {
       const id = state.deepLinkPost;

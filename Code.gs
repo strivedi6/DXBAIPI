@@ -30,6 +30,22 @@ const SHEET_WISHES = 'Wishes';
 const SCHEMA_VERSION = 18;
 const BIRTHDAY_HOUR = 9;
 
+// Feed caching: how long a built feed is reused (seconds) before the Sheet is read again,
+// and which actions clear it so a change shows up right away.
+const FEED_TTL = 20;
+const FEED_WRITE = {
+  createPost: 1, updatePost: 1, deletePost: 1, resetContent: 1,
+  saveCategory: 1, saveSettings: 1, saveOutlets: 1, saveDepartments: 1,
+  saveCollection: 1, deleteCollection: 1, savePopup: 1, deletePopup: 1,
+  saveBirthdays: 1, deleteBirthday: 1, setMyBirthday: 1,
+  saveQuote: 1, deleteQuote: 1, setPhoto: 1, setMemberPhoto: 1,
+  setStaff: 1, setLastDay: 1, setMyPosition: 1, updateMyProfile: 1,
+  uploadFont: 1, removeFont: 1, cleanupFiles: 1, signup: 1,
+  ack: 1, wishBirthday: 1
+};
+// Keep-warm: the deployed web-app /exec URL, pinged on a schedule so the backend does not cold-start.
+const WARM_URL = 'https://script.google.com/macros/s/AKfycbyixFoZ4Oby8HaEuzp_kKovO1afQnOeNilCTfo3bH4mw6lVd4A7niwTWET2c53ncdy8/exec';
+
 const SESSION_DAYS = 30;
 const MAX_PIN_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 15 * 60;
@@ -71,6 +87,36 @@ function doGet() {
   return out({ ok: true, status: 'running', version: BACKEND_VERSION });
 }
 
+/* ---------------- Feed cache + keep-warm ---------------- */
+
+/** Current feed-cache revision. Bumped on any content change so stale copies are ignored at once. */
+function feedRev_() {
+  try { return Number(PropertiesService.getScriptProperties().getProperty('FEED_REV') || 0); } catch (e) { return 0; }
+}
+function bumpFeed_() {
+  try {
+    const p = PropertiesService.getScriptProperties();
+    p.setProperty('FEED_REV', String((Number(p.getProperty('FEED_REV') || 0) + 1) % 1e9));
+  } catch (e) {}
+}
+
+/** Pings the web app so Google keeps it "warm" (avoids slow cold starts on the first open). */
+function keepWarm_() {
+  let url;
+  try { url = ScriptApp.getService().getUrl(); } catch (e) {}
+  if (!url) url = WARM_URL;
+  try { UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true }); } catch (e) {}
+}
+
+/** Run once from the editor, after the web app is deployed, to schedule the keep-warm ping. */
+function enableKeepWarm() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'keepWarm_') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('keepWarm_').timeBased().everyMinutes(5).create();
+  console.log('Keep-warm scheduled: the backend will be pinged every 5 minutes.');
+}
+
 function doPost(e) {
   let req;
   try {
@@ -82,7 +128,9 @@ function doPost(e) {
   if (!fn) return out({ ok: false, error: 'Unknown action.' });
   try {
     ensureSchema_();
-    return out(Object.assign({ ok: true }, fn(req) || {}));
+    const result = Object.assign({ ok: true }, fn(req) || {});
+    if (FEED_WRITE[req.action]) bumpFeed_();
+    return out(result);
   } catch (err) {
     if (err.userMessage) return out({ ok: false, error: err.userMessage });
     console.error(req.action, err && err.stack || err);
@@ -103,6 +151,8 @@ function setup() {
   ScriptApp.newTrigger('trainingWrapUp').timeBased().everyMinutes(10).create();
   // Once a month: move uploaded files no longer used anywhere in the app to the Drive Trash.
   ScriptApp.newTrigger('monthlyCleanup').timeBased().onMonthDay(1).atHour(3).inTimezone(TZ).create();
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'keepWarm_') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('keepWarm_').timeBased().everyMinutes(5).create();
   console.log('Setup complete. Birthday and training notifications scheduled, attendance reports after each training, and an unused-file cleanup on the 1st of each month. Uploads folder: ' + folder.getUrl());
 }
 
@@ -397,6 +447,15 @@ function actionChangePin_(req) {
 
 function actionFeed_(req) {
   const user = auth_(req).user;
+  const cache = CacheService.getScriptCache();
+  const key = 'feed:' + feedRev_() + ':' + user.employeeId;
+  try { const hit = cache.get(key); if (hit) return JSON.parse(hit); } catch (e) {}
+  const payload = buildFeed_(user);
+  try { const s = JSON.stringify(payload); if (s.length < 95000) cache.put(key, s, FEED_TTL); } catch (e) {}
+  return payload;
+}
+
+function buildFeed_(user) {
   const t = table_(SHEET_POSTS);
   const today = dayKey_(new Date());
   const oldest = dayKey_(new Date(Date.now() - 90 * 864e5));

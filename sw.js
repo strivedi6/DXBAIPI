@@ -5,7 +5,7 @@ try {
   // Push stays off if the OneSignal worker can't load; the app still works.
 }
 
-const CACHE = 'bbteam-v68';
+const CACHE = 'bbteam-v69';
 const SHELL = [
   './',
   './index.html',
@@ -60,16 +60,15 @@ self.addEventListener('fetch', (event) => {
   }
   if (url.origin !== self.location.origin) return;
 
-  // Network first for the app files, so updates show up; cached copy when offline.
+  // App files: serve instantly from cache, then refresh the cache in the background
+  // (stale-while-revalidate) so the screen never waits on the network to appear.
+  // A new version still lands promptly: a bumped CACHE re-primes the shell on install.
   event.respondWith(
-    fetch(req)
-      .then((res) => {
-        if (res && res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
-        }
-        return res;
-      })
-      .catch(() => caches.match(req).then((hit) => hit || (req.mode === 'navigate' ? caches.match('./index.html') : undefined)))
+    caches.open(CACHE).then((cache) => cache.match(req).then((cached) => {
+      const network = fetch(req)
+        .then((res) => { if (res && res.ok) cache.put(req, res.clone()); return res; })
+        .catch(() => cached || (req.mode === 'navigate' ? cache.match('./index.html') : undefined));
+      return cached || network;
+    }))
   );
 });
