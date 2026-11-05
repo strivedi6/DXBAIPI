@@ -967,7 +967,10 @@
       return `<button type="button" class="nav-sec" data-act="nav" ${c.type === 'training' ? 'data-to="hr"' : `data-to="section" data-id="${esc(c.id)}"`} style="--c:${esc(colorHex(c.color))}" ${cur ? 'aria-current="page"' : ''}>
         <span class="ns-ic">${I[TYPE_ICON[c.type]] || I.bell}</span><span class="ns-lb">${esc(c.label)}</span><span class="ns-n">${n}</span></button>`;
     }).join('');
-    return rows ? `<div class="nav-secs"><span class="nav-sec-label">Sections</span>${rows}</div>` : '';
+    const kc = ['kudos', 'kudosSend'].indexOf(state.route.name) >= 0;
+    const quick = `<span class="nav-sec-label" style="margin-top:12px">Quick links</span>
+      <button type="button" class="nav-sec" data-act="nav" data-to="kudos" style="--c:#C2416B" ${kc ? 'aria-current="page"' : ''}><span class="ns-ic">${I.heart}</span><span class="ns-lb">Kudos Corner</span></button>`;
+    return `<div class="nav-secs">${rows ? `<span class="nav-sec-label">Sections</span>${rows}` : ''}${quick}</div>`;
   }
 
   function catTag(c, text) {
@@ -1885,6 +1888,7 @@
         ${bd || sections ? `<span class="dr-label">Sections</span><div class="dr-group">${bd}${sections}</div>` : ''}
         <span class="dr-label">Quick links</span>
         <div class="dr-group">
+          ${row('data-to="kudos"', I.heart, 'Kudos Corner', 0, '#C2416B')}
           ${row('data-to="today"', I.star, 'Today’s Special', 0, COLORS.gold)}
           ${row('data-to="search"', I.search, 'All updates', 0, COLORS.grey)}
           ${state.collections && state.collections.length ? row('data-to="offers"', I.sparkles, 'Special collections', state.collections.length, COLORS.burgundy) : ''}
@@ -2183,6 +2187,73 @@
       ${list.length ? (kind === 'offers' ? `<div class="ogrid">${list.map(hcard).join('')}</div>` : `<div class="list">${list.map(postCard).join('')}</div>`)
         : emptyState(state.filter.prop === 'All' ? 'Nothing for today yet.' : 'Nothing for ' + state.filter.prop + ' today.')}
     </div></div>`;
+  };
+
+  /* ---------------- Kudos Corner ---------------- */
+  async function loadKudos() {
+    try { state.kudos = await api('kudos'); }
+    catch (e) { showError(e); state.kudos = state.kudos || { top: [], recent: [], sentThisMonth: [] }; }
+    if (['kudos', 'kudosSend'].indexOf(state.route.name) >= 0) render();
+  }
+  const KUDOS_CHIPS = ['Great teamwork', 'Went above and beyond', 'Thank you for your help', 'Amazing guest service', 'Always positive'];
+  const monthLabel = (ym) => { const [y, m] = String(ym || '').split('-').map(Number); return y ? new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long' }) : ''; };
+
+  VIEWS.kudos = () => {
+    if (!state.kudos) setTimeout(loadKudos, 0);
+    const k = state.kudos;
+    const mon = monthLabel(k && k.month) || new Date().toLocaleDateString('en-GB', { month: 'long' });
+    const pod = (p, rank) => p ? `<div class="kd-p kd-r${rank}">
+        <span class="kd-ph">${avatarHtml(p, rank === 1 ? 92 : 72)}<span class="kd-medal">${rank}</span></span>
+        <b>${esc(p.name)}</b><span class="kd-pos">${esc(p.position || '')}</span>
+        <span class="kd-n">${I.heart} ${p.count}</span></div>` : `<div class="kd-p kd-r${rank} kd-empty"><span class="kd-ph">${avatarHtml({ name: '?' }, rank === 1 ? 92 : 72)}<span class="kd-medal">${rank}</span></span><b>—</b></div>`;
+    const top = (k && k.top) || [];
+    return `
+    <div class="screen"><div class="page">
+      <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
+        <div class="greet spacer"><span class="eyebrow">Appreciation</span><h1>Kudos Corner</h1></div><span style="width:44px"></span></div>
+      <p class="sec-desc" style="margin-top:-8px">Say thank you to a colleague who made a difference. You can send each colleague kudos once a month, with or without your name.</p>
+      <button class="btn" type="button" data-act="nav" data-to="kudosSend">${I.heart} Send kudos</button>
+      ${!k ? '<div class="spinner"></div>' : `
+      ${k.receivedThisMonth ? `<div class="kd-me">${I.sparkles}<span>You’ve received <b>${k.receivedThisMonth}</b> kudos in ${esc(mon)}. Keep it up!</span></div>` : ''}
+      <section class="sec"><div class="sec-h"><h2>Top of ${esc(mon)}</h2></div>
+        <p class="sec-desc">The three colleagues appreciated most this month.</p>
+        ${top.length ? `<div class="kd-podium">${pod(top[1], 2)}${pod(top[0], 1)}${pod(top[2], 3)}</div>`
+          : `<div class="empty">${I.heart}<b>No kudos yet this month</b><span class="small">Be the first to appreciate a colleague.</span></div>`}
+      </section>
+      ${k.recent && k.recent.length ? `<section class="sec"><div class="sec-h"><h2>Recent appreciation</h2></div>
+        <div class="list">${k.recent.map((x) => `<div class="kd-item">
+          ${avatarHtml(x.to, 46)}
+          <div class="kd-tx"><span class="kd-line"><b>${esc(x.toMe ? 'You' : x.to.name)}</b> received kudos${x.from ? ` from <b>${esc(x.mine ? 'you' : x.from)}</b>` : x.mine ? ' from <b>you</b> (anonymous)' : ' from <i>a colleague</i>'}</span>
+            ${x.message ? `<span class="kd-msg">“${esc(x.message)}”</span>` : ''}
+            <span class="kd-ago">${esc(ago(x.at))}</span></div>
+          <span class="kd-heart">${I.heart}</span></div>`).join('')}</div></section>` : ''}`}
+    </div></div>`;
+  };
+
+  VIEWS.kudosSend = () => {
+    const pick = state.kudosPick;
+    return `
+    <div class="screen"><form class="page" data-form="kudos" novalidate>
+      <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button><h1 style="flex:1">Send kudos</h1><span style="width:44px"></span></div>
+      <div class="card">
+        <span class="section-title" style="margin:0">Who would you like to appreciate?</span>
+        ${pick ? `<div class="kd-pick">${avatarHtml(pick, 52)}<span class="set-tx"><b>${esc(pick.name)}</b><span>${esc([pick.position, pick.property].filter(Boolean).join(' · '))}</span></span>
+            <button type="button" class="link-btn" data-act="kudosClear">Change</button></div>`
+          : `<div class="search">${I.search}<label class="sr-only" for="kq">Find a colleague</label><input class="input" id="kq" type="search" autocomplete="off" placeholder="Type a first or last name" data-input="kudosSearch" data-autofocus></div>
+            <div class="pick-list" id="kq-res"><p class="hint">Only colleagues who use the app can receive kudos.</p></div>`}
+      </div>
+      <div class="card">
+        <div class="field"><label for="km">Message (optional)</label>
+          <textarea class="textarea" id="km" name="message" maxlength="200" rows="3" placeholder="What did they do that made a difference?"></textarea></div>
+        <div class="chips wrap">${KUDOS_CHIPS.map((c) => `<button type="button" class="chip" data-act="kudosChip" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+        <p class="hint">Leave it empty to just send kudos.</p>
+        <label class="switch-row"><span><b>Send anonymously</b><br><span class="small muted">They won’t see your name. Admin can still check every kudos to keep things fair.</span></span>
+          <span class="switch"><input type="checkbox" role="switch" name="anonymous" aria-label="Send anonymously"><span></span></span></label>
+      </div>
+      <div class="error-box" id="form-error" hidden></div>
+      <div class="spacer"></div>
+      <div class="sticky-actions"><button class="btn" type="submit" ${pick ? '' : 'disabled'}>${I.heart} Send kudos</button></div>
+    </form></div>`;
   };
 
   /** All posts of one category, as a list. */
@@ -5256,6 +5327,8 @@
       if (to === 'birthdays') state.bdayList = null;
       if (to === 'offers' || to === 'feed') state.filter.q = '';
       if (to === 'myposts') state.myPosts = null;
+      if (to === 'kudos') state.kudos = null;
+      if (to === 'kudosSend') { state.kudosPick = null; if (!state.kudos) loadKudos(); }
       if (to === 'admin' || to === 'adminTeam') state.staff = null;
       if (to === 'adminSetup') state.adminCats = null;
       go(to);
@@ -5269,6 +5342,20 @@
     setProp(el) { state.filter.prop = el.dataset.v; render(); },
     refresh() { PTR.run(); },
     menu() { openMenu(); },
+    kudosPick(el) {
+      state.kudosPick = { employeeId: el.dataset.id, name: el.dataset.name, position: el.dataset.pos, property: el.dataset.prop, photo: el.dataset.photo };
+      const form = el.closest('form');
+      const msg = form && form.querySelector('textarea') ? form.querySelector('textarea').value : '';
+      const anon = form && form.querySelector('[name="anonymous"]') ? form.querySelector('[name="anonymous"]').checked : false;
+      render();
+      const f = app.querySelector('form[data-form="kudos"]');
+      if (f) { f.querySelector('textarea').value = msg; f.querySelector('[name="anonymous"]').checked = anon; }
+    },
+    kudosClear() { state.kudosPick = null; render(); },
+    kudosChip(el) {
+      const ta = app.querySelector('form[data-form="kudos"] textarea');
+      if (ta) { ta.value = el.dataset.v + (/[.!]$/.test(el.dataset.v) ? '' : '!'); ta.focus(); }
+    },
     open(el) { go('post', { id: el.dataset.id }); },
     enablePush() { Push.enable(); },
     openWish(el) {
@@ -5903,6 +5990,20 @@
         formError(form, e.message);
       }
     },
+    async kudos(form) {
+      const p = state.kudosPick;
+      if (!p) return formError(form, 'Please choose a colleague.');
+      const message = (form.querySelector('textarea').value || '').trim();
+      const anonymous = form.querySelector('[name="anonymous"]').checked;
+      busy(form, true);
+      try {
+        await api('sendKudos', { employeeId: p.employeeId, message, anonymous });
+        state.kudosPick = null; state.kudos = null;
+        try { Sound.play('confetti'); } catch (e) { /* no sound */ }
+        toast('Kudos sent to ' + firstName(p.name) + '! 🌟');
+        back('kudos');
+      } catch (e) { busy(form, false); formError(form, e.message); }
+    },
     async quote(form) {
       const f = Object.fromEntries(new FormData(form));
       if (!f.date) return formError(form, 'Please choose a date.');
@@ -6465,7 +6566,29 @@
     }
   };
 
+  let kudosTimer = 0, kudosSeq = 0;
   const INPUT = {
+    kudosSearch(el) {
+      clearTimeout(kudosTimer);
+      const q = el.value.trim();
+      const box = document.getElementById('kq-res');
+      if (!box) return;
+      if (q.length < 2) { box.innerHTML = '<p class="hint">Only colleagues who use the app can receive kudos.</p>'; return; }
+      kudosTimer = setTimeout(async () => {
+        const seq = ++kudosSeq;
+        box.innerHTML = '<div class="spinner" style="margin:10px auto"></div>';
+        try {
+          const j = await api('findColleague', { query: q });
+          if (seq !== kudosSeq || !document.getElementById('kq-res')) return;
+          const sent = (state.kudos && state.kudos.sentThisMonth) || [];
+          box.innerHTML = (j.matches || []).map((m) => {
+            const done = sent.indexOf(m.employeeId) >= 0;
+            return `<button type="button" class="pick" data-act="kudosPick" data-id="${esc(m.employeeId)}" data-name="${esc(m.name)}" data-pos="${esc(m.position || '')}" data-prop="${esc(m.property || '')}" data-photo="${esc(m.photo || '')}" ${done ? 'disabled' : ''}>
+              ${avatarHtml(m, 38)}<span><b>${esc(m.name)}</b><small>${esc(done ? 'Already sent kudos this month' : [m.position, m.property].filter(Boolean).join(' · '))}</small></span></button>`;
+          }).join('') || '<p class="hint">No colleague found with that name.</p>';
+        } catch (e) { if (seq === kudosSeq) box.innerHTML = `<p class="hint">${esc(e.message)}</p>`; }
+      }, 300);
+    },
     leaverSearch(el) {
       state.leaverQuery = el.value;
       const pos = el.selectionStart;
@@ -6775,7 +6898,7 @@
     Array.from({ length: 12 }, (_, i) => `<rect x="18.4" y="3" width="3.2" height="10" rx="1.6" transform="rotate(${i * 30} 20 20)" style="--o:${(0.25 + 0.75 * ((i + 1) / 12)).toFixed(2)}"/>`).join('') + '</svg>';
   const PTR = {
     y0: null, x0: 0, dist: 0, pulling: false, busy: false, el: null, page: null,
-    PAGES: ['today', 'todayList', 'feed', 'hr', 'offers', 'profile', 'post', 'section', 'collection', 'search', 'myposts', 'leavers', 'adminTeam', 'adminSetup', 'setupSection', 'trainingReport', 'birthdays', 'attendees', 'popups', 'collections', 'admin', 'quotes'],
+    PAGES: ['today', 'todayList', 'kudos', 'feed', 'hr', 'offers', 'profile', 'post', 'section', 'collection', 'search', 'myposts', 'leavers', 'adminTeam', 'adminSetup', 'setupSection', 'trainingReport', 'birthdays', 'attendees', 'popups', 'collections', 'admin', 'quotes'],
     MAX: 96, HOLD: 58, NEED: 70,
     ok() { return !document.querySelector('.drawer-ov') && !!state.token && !this.busy && this.PAGES.indexOf(state.route.name) >= 0 && !document.querySelector('.celebrate'); },
     init() {
@@ -6840,6 +6963,7 @@
       const r = state.route.name, p = state.route.params || {};
       const jobs = [loadFeed(true)];
       if (r === 'leavers') jobs.push(loadLeavers());
+      if (r === 'kudos') jobs.push(loadKudos());
       if (r === 'popups') jobs.push(loadPopups());
       if (r === 'collections') jobs.push(loadCollections());
       if (r === 'birthdays') jobs.push(loadBirthdays());

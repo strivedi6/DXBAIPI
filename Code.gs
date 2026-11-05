@@ -27,7 +27,8 @@ const SHEET_POPUPS = 'Popups';
 const SHEET_ATTEND = 'Attendance';
 const SHEET_QUOTES = 'Quotes';
 const SHEET_WISHES = 'Wishes';
-const SCHEMA_VERSION = 18;
+const SHEET_KUDOS = 'Kudos';
+const SCHEMA_VERSION = 19;
 const BIRTHDAY_HOUR = 9;
 
 // Feed caching: how long a built feed is reused (seconds) before the Sheet is read again,
@@ -216,6 +217,9 @@ function ensureSchema_(force) {
     ss.getSheetByName(SHEET_QUOTES).getRange('A:A').setNumberFormat('@');
     tab(SHEET_WISHES, ['Date', 'Target ID', 'Wisher ID', 'Wisher Name', 'Emoji', 'Updated']);
     ss.getSheetByName(SHEET_WISHES).getRange('A:C').setNumberFormat('@');
+    tab(SHEET_KUDOS, ['Timestamp', 'Month', 'From ID', 'From Name', 'To ID', 'To Name', 'To Property', 'Anonymous', 'Message', 'Status']);
+    ss.getSheetByName(SHEET_KUDOS).getRange('B:C').setNumberFormat('@');
+    ss.getSheetByName(SHEET_KUDOS).getRange('E:E').setNumberFormat('@');
     ss.getSheetByName(SHEET_ATTEND).getRange('C:C').setNumberFormat('@');
     ss.getSheetByName(SHEET_BDAYS).getRange('A:A').setNumberFormat('@');
     ss.getSheetByName(SHEET_BDAYS).getRange('C:C').setNumberFormat('@');
@@ -315,7 +319,10 @@ const ACTIONS = {
   deleteCollection: actionDeleteCollection_,
   staffList: actionStaffList_,
   setStaff: actionSetStaff_,
-  resetPin: actionResetPin_
+  resetPin: actionResetPin_,
+  kudos: actionKudos_,
+  sendKudos: actionSendKudos_,
+  findColleague: actionFindColleague_
 };
 
 /* ------------------------------------------------------------------ */
@@ -3009,4 +3016,116 @@ function actionWishes_(req) {
     .sort(function (a, b) { return b.at - a.at; })
     .map(function (w) { return { name: w.name, emoji: w.emoji }; });
   return { wishes: list, count: list.length };
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Kudos Corner                                                        */
+/* Every kudos is a row in the Kudos tab (sender is always recorded,   */
+/* even when it shows as anonymous in the app). Set Status to "Hidden" */
+/* on a row to remove it from the app and from the counts.             */
+/* ------------------------------------------------------------------ */
+
+function kudosRows_() {
+  const ss = SpreadsheetApp.getActive();
+  if (!ss.getSheetByName(SHEET_KUDOS)) return [];
+  const t = table_(SHEET_KUDOS);
+  return t.rows.map(function (r) {
+    const o = rowObject_(t, r);
+    const clean = function (v) { return String(v == null ? '' : v).replace(/^'/, '').trim(); };
+    return {
+      at: o['Timestamp'] ? new Date(o['Timestamp']).getTime() : 0,
+      month: clean(o['Month']),
+      from: normId_(clean(o['From ID'])),
+      fromName: clean(o['From Name']),
+      to: normId_(clean(o['To ID'])),
+      toName: clean(o['To Name']),
+      anon: isTrue_(o['Anonymous']),
+      message: clean(o['Message']),
+      hidden: /hidden|remove|fake/i.test(clean(o['Status']))
+    };
+  }).filter(function (k) { return k.from && k.to; });
+}
+
+function kudosMonth_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM'); }
+
+/** Live staff details by Employee ID (name, photo, job title, hotel). */
+function staffById_() {
+  const t = table_(SHEET_STAFF);
+  const by = {};
+  t.rows.forEach(function (r, i) { const u = userAt_(t, i); if (u.employeeId) by[u.employeeId] = u; });
+  return by;
+}
+
+function actionKudos_(req) {
+  const user = auth_(req).user;
+  const me = normId_(user.employeeId);
+  const month = kudosMonth_();
+  const all = kudosRows_().filter(function (k) { return !k.hidden; });
+  const staff = staffById_();
+  const person = function (id, fallback) {
+    const u = staff[id] || {};
+    return { employeeId: id, name: u.name || fallback || '', photo: u.photo || '', position: u.position || u.department || '', property: u.property || '' };
+  };
+  const counts = {};
+  all.filter(function (k) { return k.month === month; }).forEach(function (k) {
+    const c = counts[k.to] || (counts[k.to] = { n: 0, first: k.at, name: k.toName });
+    c.n++; if (k.at < c.first) c.first = k.at;
+  });
+  const top = Object.keys(counts).sort(function (a, b) { return counts[b].n - counts[a].n || counts[a].first - counts[b].first; })
+    .slice(0, 3).map(function (id) { return Object.assign(person(id, counts[id].name), { count: counts[id].n }); });
+  const recent = all.slice().sort(function (a, b) { return b.at - a.at; }).slice(0, 40).map(function (k) {
+    const to = person(k.to, k.toName);
+    return { at: k.at, to: to, from: k.anon ? '' : (staff[k.from] ? staff[k.from].name : k.fromName), mine: k.from === me, toMe: k.to === me, message: k.message };
+  });
+  const mine = kudosRows_().filter(function (k) { return k.from === me && k.month === month; }).map(function (k) { return k.to; });
+  const received = all.filter(function (k) { return k.to === me && k.month === month; }).length;
+  return { month: month, top: top, recent: recent, sentThisMonth: mine, receivedThisMonth: received,
+    receivedTotal: all.filter(function (k) { return k.to === me; }).length };
+}
+
+function actionSendKudos_(req) {
+  const user = auth_(req).user;
+  const me = normId_(user.employeeId);
+  const target = normId_(req.employeeId);
+  if (!target) fail_('Please choose a colleague.');
+  if (target === me) fail_('You can’t send kudos to yourself.');
+  const staff = staffById_();
+  const to = staff[target];
+  if (!to || to.status !== 'Approved' || hasLeft_(to)) fail_('This colleague isn’t on the app.');
+  const message = String(req.message || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  const anon = req.anonymous === true || req.anonymous === 'true';
+  const month = kudosMonth_();
+  withLock_(function () {
+    if (kudosRows_().some(function (k) { return k.from === me && k.to === target && k.month === month; })) {
+      fail_('You’ve already sent ' + to.name.split(/\s+/)[0] + ' kudos this month. You can send again next month.');
+    }
+    appendRow_(table_(SHEET_KUDOS), { 'Timestamp': new Date(), 'Month': "'" + month, 'From ID': "'" + me, 'From Name': asText_(user.name),
+      'To ID': "'" + target, 'To Name': asText_(to.name), 'To Property': to.property, 'Anonymous': anon, 'Message': asText_(message), 'Status': 'Visible' });
+  });
+  try {
+    oneSignal_({ include_aliases: { external_id: [target] }, headings: { en: '🌟 You received kudos!' },
+      contents: { en: (anon ? 'A colleague' : String(user.name).split(/\s+/)[0]) + ' appreciated you' + (message ? ': “' + message.slice(0, 80) + '”' : '.') } });
+  } catch (e) { /* recorded anyway */ }
+  return { ok: true };
+}
+
+/** Any colleague can look up others by name to send kudos: only name, job title, hotel and photo are returned. */
+function actionFindColleague_(req) {
+  const user = auth_(req).user;
+  const me = normId_(user.employeeId);
+  const words = String(req.query || '').toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return { matches: [] };
+  const t = table_(SHEET_STAFF);
+  const out = [];
+  t.rows.forEach(function (r, k) {
+    if (out.length >= 12) return;
+    const u = userAt_(t, k);
+    if (!u.employeeId || u.employeeId === me || u.status !== 'Approved' || hasLeft_(u)) return;
+    const parts = u.name.toLowerCase().split(/\s+/);
+    if (words.every(function (w) { return parts.some(function (p) { return p.indexOf(w) === 0; }); })) {
+      out.push({ employeeId: u.employeeId, name: u.name, position: u.position || u.department || '', property: u.property, photo: u.photo });
+    }
+  });
+  return { matches: out };
 }

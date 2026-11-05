@@ -291,3 +291,10 @@ Front-end only; no Code.gs change.
 - **Highlighted sections** show as plain sections on a computer.
 - **Tiles stay in one row** on a computer and scroll sideways when there are more.
 - **Picture pages** (offers, posts, newsletters, training, special collections): one card on the left with a 16:9 cover, the title, posted by / until, **Back** and **Edit** buttons with words, and the Share / Acknowledge button. The rest of the page sits on the right.
+
+## Version 2.1.0 — Kudos Corner
+**Install:** paste the new `Code.gs` into Apps Script and deploy a new version (Deploy › Manage deployments › Edit › New version). The first time the app talks to it, the backend adds a **Kudos** tab by itself. Then upload the folder (already done if pushed to GitHub).
+- **Kudos Corner** (☰ menu › Quick links, and the computer sidebar): the **top 3** colleagues appreciated most this month, a list of recent appreciation, and how many kudos you received this month.
+- **Send kudos:** find a colleague by name, add a short message (or tap a ready phrase, or leave it empty to just send kudos), and choose **Send anonymously** if you like. The colleague gets a notification.
+- **Fair use:** each person can send kudos to the same colleague **once a month**. People who already got your kudos this month show as "Already sent".
+- **Kudos tab (for Admin):** every kudos is a row: Timestamp, Month, From ID, From Name, To ID, To Name, To Property, Anonymous, Message, Status. The sender is always recorded, even when anonymous in the app. To remove a fake or inappropriate kudos, change its **Status** to **Hidden**: it disappears from the app and from the top 3.

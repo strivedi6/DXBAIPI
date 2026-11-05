@@ -1170,3 +1170,44 @@ html[data-theme="dark"] .tdate { color: color-mix(in srgb, var(--c) 40%, #fff); 
 #updbar { position: fixed; top: 0; left: 0; height: 3px; width: 0; z-index: 10000; opacity: 0; pointer-events: none; border-radius: 0 3px 3px 0; background: linear-gradient(90deg, var(--gold, #C8A24B), color-mix(in srgb, var(--gold, #C8A24B) 55%, #ffffff)); }
 #updbar.on { opacity: 1; width: 92%; transition: width 9s cubic-bezier(.08, .72, .1, 1), opacity .2s ease; }
 #updbar.done { opacity: 0; width: 100%; transition: width .25s ease, opacity .4s ease .15s; }
+
+/* =====================================================================
+   2.1.0 — Kudos Corner
+   ===================================================================== */
+.kd-me { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 999px; font-size: 14px;
+  background: color-mix(in srgb, #C2416B 12%, var(--glass)); box-shadow: var(--glass-edge); color: var(--ink); }
+.kd-me svg { color: #C2416B; flex-shrink: 0; }
+.kd-podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; align-items: end; gap: 10px; padding-top: 8px; }
+.kd-p { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding: 16px 8px 14px; border-radius: 26px;
+  background: var(--glass); box-shadow: var(--glass-edge), var(--shadow-sm); min-width: 0; }
+.kd-r1 { padding-top: 22px; padding-bottom: 20px; background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--gold) 26%, transparent), transparent 70%), var(--glass); }
+.kd-ph { position: relative; margin-bottom: 6px; }
+.kd-ph .avatar { box-shadow: 0 0 0 3px var(--glass-hi), 0 8px 20px rgba(30, 24, 10, .18); }
+.kd-r1 .kd-ph .avatar { box-shadow: 0 0 0 3px var(--glass-hi), 0 0 0 6px color-mix(in srgb, var(--gold) 70%, transparent), 0 10px 24px rgba(30, 24, 10, .22); }
+.kd-medal { position: absolute; right: -4px; bottom: -4px; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; color: #fff; background: #B98A3E; box-shadow: 0 0 0 2px var(--cream); }
+.kd-r2 .kd-medal { background: #8E99A6; } .kd-r3 .kd-medal { background: #A8693E; }
+.kd-p b { font-size: 14px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.kd-r1 b { font-size: 15px; }
+.kd-pos { font-size: 11.5px; color: var(--muted); line-height: 1.3; }
+.kd-n { margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 700; color: #C2416B;
+  background: color-mix(in srgb, #C2416B 12%, transparent); padding: 3px 10px; border-radius: 999px; }
+.kd-n svg { width: 13px; height: 13px; }
+html[data-theme="dark"] .kd-n, html[data-theme="dark"] .kd-me svg, html[data-theme="dark"] .kd-heart { color: #F39BB8; }
+.kd-empty { opacity: .45; }
+.kd-item { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: 30px; background: var(--glass); box-shadow: var(--glass-edge), var(--shadow-sm); }
+.kd-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.kd-line { font-size: 14px; line-height: 1.4; }
+.kd-line b { font-weight: 600; }
+.kd-msg { font-family: var(--serif); font-style: italic; font-size: 15.5px; line-height: 1.4; color: var(--ink); }
+.kd-ago { font-size: 12px; color: var(--muted); }
+.kd-heart { color: #C2416B; opacity: .7; flex-shrink: 0; margin-top: 2px; }
+.kd-heart svg { width: 18px; height: 18px; }
+.kd-pick { display: flex; align-items: center; gap: 12px; }
+.pick:disabled { opacity: .5; cursor: default; }
+.pick .avatar { flex-shrink: 0; }
+@media (min-width: 960px) {
+  .screen.det > .page:has(.kd-podium), .screen.det > form.page[data-form="kudos"] { max-width: 760px; }
+  .kd-podium { max-width: 560px; }
+  form.page[data-form="kudos"] > .sticky-actions .btn { width: auto; min-width: 240px; }
+}
