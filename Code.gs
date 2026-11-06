@@ -3073,7 +3073,7 @@ function actionKudos_(req) {
     c.n++; if (k.at < c.first) c.first = k.at;
   });
   const top = Object.keys(counts).sort(function (a, b) { return counts[b].n - counts[a].n || counts[a].first - counts[b].first; })
-    .slice(0, 3).map(function (id) { return Object.assign(person(id, counts[id].name), { count: counts[id].n }); });
+    .slice(0, 10).map(function (id) { return Object.assign(person(id, counts[id].name), { count: counts[id].n }); });
   const recent = all.slice().sort(function (a, b) { return b.at - a.at; }).slice(0, 40).map(function (k) {
     const to = person(k.to, k.toName);
     return { at: k.at, to: to, from: k.anon ? '' : (staff[k.from] ? staff[k.from].name : k.fromName), mine: k.from === me, toMe: k.to === me, message: k.message };

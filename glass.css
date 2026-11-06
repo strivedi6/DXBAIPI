@@ -1211,3 +1211,46 @@ html[data-theme="dark"] .kd-n, html[data-theme="dark"] .kd-me svg, html[data-the
   .kd-podium { max-width: 560px; }
   form.page[data-form="kudos"] > .sticky-actions .btn { width: auto; min-width: 240px; }
 }
+
+/* =====================================================================
+   2.1.1
+   ===================================================================== */
+.kd-emo { font-size: 17px; line-height: 1; color: #D2456F; }
+.kd-big { font-size: 40px; line-height: 1; color: #D2456F; }
+.kd-rank { display: flex; flex-direction: column; border-radius: 28px; overflow: hidden; background: var(--glass); box-shadow: var(--glass-edge), var(--shadow-sm); }
+.kd-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px 10px 10px; position: relative; }
+.kd-row + .kd-row::before { content: ''; position: absolute; top: 0; left: 106px; right: 0; border-top: 1px solid var(--hairline); }
+.kd-no { width: 36px; text-align: center; font-family: var(--serif); font-size: 20px; color: var(--muted); flex-shrink: 0; }
+.kd-row .kd-tx { flex: 1; min-width: 0; }
+.kd-row .kd-tx b { font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kd-row .kd-n { margin: 0; }
+
+/* Sign-in on a computer: picture on the left, sign-in on the right. */
+@media (min-width: 960px) {
+  .splash { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(420px, 1fr); grid-template-rows: 1fr auto auto 1fr;
+    column-gap: 0; padding: 0; min-height: 100vh; color: var(--ink); }
+  .splash-bg { position: relative; inset: auto; z-index: 0; grid-column: 1; grid-row: 1 / -1; height: 100vh; position: sticky; top: 0; }
+  .splash-bg::after { background: linear-gradient(90deg, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, .18)); }
+  .splash-mark, .glass-panel, .splash-foot { grid-column: 2; width: min(440px, calc(100% - 80px)); justify-self: center; }
+  .splash-mark { grid-row: 2; flex: none; padding: 0 0 28px; align-items: flex-start; text-align: left; }
+  .splash-mark .hero-logo { max-height: 72px; }
+  .splash-mark .on-dark-logo.tone-dark { filter: none; }
+  html[data-theme="dark"] .splash-mark .on-dark-logo.tone-dark { filter: brightness(0) invert(1); }
+  .splash-mark h1 { color: var(--ink); text-shadow: none; font-size: 40px; }
+  .splash-mark .leaf { color: var(--navy); }
+  .splash-mark .tagline { color: var(--muted-2); }
+  .splash-mark .props { color: var(--muted); }
+  .glass-panel { grid-row: 3; background: var(--glass); color: var(--ink); box-shadow: var(--glass-edge), var(--shadow); }
+  .glass-panel h2 { color: var(--ink); }
+  .glass-panel .muted, .glass-panel p { color: var(--muted); }
+  .glass-panel .field label { color: var(--muted-2); }
+  .glass-panel .input { background: var(--field); color: var(--ink); box-shadow: inset 0 0 0 1px var(--field-line); }
+  .glass-panel .input:focus { background: var(--glass-strong); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--navy) 55%, transparent), 0 0 0 4px color-mix(in srgb, var(--navy) 14%, transparent); }
+  .glass-panel .btn { background: var(--btn-bg); color: var(--btn-fg); box-shadow: var(--btn-shadow); }
+  .glass-panel .error-box { background: var(--notice-bg); color: var(--notice); }
+  .splash-foot { grid-row: 4; align-self: start; justify-content: flex-start; padding-top: 16px; color: var(--muted); }
+  .splash-foot .link-btn { color: var(--accent-ink); }
+}
+@media (min-width: 960px) {
+  html:not([data-theme="dark"]) .splash-mark .on-dark-logo.tone-light { filter: brightness(0); }
+}

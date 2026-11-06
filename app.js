@@ -969,7 +969,7 @@
     }).join('');
     const kc = ['kudos', 'kudosSend'].indexOf(state.route.name) >= 0;
     const quick = `<span class="nav-sec-label" style="margin-top:12px">Quick links</span>
-      <button type="button" class="nav-sec" data-act="nav" data-to="kudos" style="--c:#C2416B" ${kc ? 'aria-current="page"' : ''}><span class="ns-ic">${I.heart}</span><span class="ns-lb">Kudos Corner</span></button>`;
+      <button type="button" class="nav-sec" data-act="nav" data-to="kudos" style="--c:#C2416B" ${kc ? 'aria-current="page"' : ''}><span class="ns-ic"><span class="kd-emo" aria-hidden="true">♥</span></span><span class="ns-lb">Kudos Corner</span></button>`;
     return `<div class="nav-secs">${rows ? `<span class="nav-sec-label">Sections</span>${rows}` : ''}${quick}</div>`;
   }
 
@@ -1888,7 +1888,7 @@
         ${bd || sections ? `<span class="dr-label">Sections</span><div class="dr-group">${bd}${sections}</div>` : ''}
         <span class="dr-label">Quick links</span>
         <div class="dr-group">
-          ${row('data-to="kudos"', I.heart, 'Kudos Corner', 0, '#C2416B')}
+          ${row('data-to="kudos"', '<span class="kd-emo" aria-hidden="true">♥</span>', 'Kudos Corner', 0, '#C2416B')}
           ${row('data-to="today"', I.star, 'Today’s Special', 0, COLORS.gold)}
           ${row('data-to="search"', I.search, 'All updates', 0, COLORS.grey)}
           ${state.collections && state.collections.length ? row('data-to="offers"', I.sparkles, 'Special collections', state.collections.length, COLORS.burgundy) : ''}
@@ -2205,28 +2205,26 @@
     const pod = (p, rank) => p ? `<div class="kd-p kd-r${rank}">
         <span class="kd-ph">${avatarHtml(p, rank === 1 ? 92 : 72)}<span class="kd-medal">${rank}</span></span>
         <b>${esc(p.name)}</b><span class="kd-pos">${esc(p.position || '')}</span>
-        <span class="kd-n">${I.heart} ${p.count}</span></div>` : `<div class="kd-p kd-r${rank} kd-empty"><span class="kd-ph">${avatarHtml({ name: '?' }, rank === 1 ? 92 : 72)}<span class="kd-medal">${rank}</span></span><b>—</b></div>`;
+        <span class="kd-n">♥ ${p.count}</span></div>` : `<div class="kd-p kd-r${rank} kd-empty"><span class="kd-ph">${avatarHtml({ name: '?' }, rank === 1 ? 92 : 72)}<span class="kd-medal">${rank}</span></span><b>—</b></div>`;
     const top = (k && k.top) || [];
     return `
     <div class="screen"><div class="page">
       <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
         <div class="greet spacer"><span class="eyebrow">Appreciation</span><h1>Kudos Corner</h1></div><span style="width:44px"></span></div>
       <p class="sec-desc" style="margin-top:-8px">Say thank you to a colleague who made a difference. You can send each colleague kudos once a month, with or without your name.</p>
-      <button class="btn" type="button" data-act="nav" data-to="kudosSend">${I.heart} Send kudos</button>
+      <button class="btn" type="button" data-act="nav" data-to="kudosSend">♥ Send kudos</button>
       ${!k ? '<div class="spinner"></div>' : `
       ${k.receivedThisMonth ? `<div class="kd-me">${I.sparkles}<span>You’ve received <b>${k.receivedThisMonth}</b> kudos in ${esc(mon)}. Keep it up!</span></div>` : ''}
       <section class="sec"><div class="sec-h"><h2>Top of ${esc(mon)}</h2></div>
-        <p class="sec-desc">The three colleagues appreciated most this month.</p>
+        <p class="sec-desc">The colleagues appreciated most this month.</p>
         ${top.length ? `<div class="kd-podium">${pod(top[1], 2)}${pod(top[0], 1)}${pod(top[2], 3)}</div>`
-          : `<div class="empty">${I.heart}<b>No kudos yet this month</b><span class="small">Be the first to appreciate a colleague.</span></div>`}
+          : `<div class="empty"><span class="kd-big" aria-hidden="true">♥</span><b>No kudos yet this month</b><span class="small">Be the first to appreciate a colleague.</span></div>`}
       </section>
-      ${k.recent && k.recent.length ? `<section class="sec"><div class="sec-h"><h2>Recent appreciation</h2></div>
-        <div class="list">${k.recent.map((x) => `<div class="kd-item">
-          ${avatarHtml(x.to, 46)}
-          <div class="kd-tx"><span class="kd-line"><b>${esc(x.toMe ? 'You' : x.to.name)}</b> received kudos${x.from ? ` from <b>${esc(x.mine ? 'you' : x.from)}</b>` : x.mine ? ' from <b>you</b> (anonymous)' : ' from <i>a colleague</i>'}</span>
-            ${x.message ? `<span class="kd-msg">“${esc(x.message)}”</span>` : ''}
-            <span class="kd-ago">${esc(ago(x.at))}</span></div>
-          <span class="kd-heart">${I.heart}</span></div>`).join('')}</div></section>` : ''}`}
+      ${top.length > 3 ? `<section class="sec"><div class="sec-h"><h2>Top 10</h2></div>
+        <div class="kd-rank">${top.slice(3, 10).map((p, i) => `<div class="kd-row">
+          <span class="kd-no">${i + 4}</span>${avatarHtml(p, 42)}
+          <span class="kd-tx"><b>${esc(p.name)}</b><span class="kd-pos">${esc(p.position || '')}</span></span>
+          <span class="kd-n">♥ ${p.count}</span></div>`).join('')}</div></section>` : ''}`}
     </div></div>`;
   };
 
@@ -2252,7 +2250,7 @@
       </div>
       <div class="error-box" id="form-error" hidden></div>
       <div class="spacer"></div>
-      <div class="sticky-actions"><button class="btn" type="submit" ${pick ? '' : 'disabled'}>${I.heart} Send kudos</button></div>
+      <div class="sticky-actions"><button class="btn" type="submit" ${pick ? '' : 'disabled'}>♥ Send kudos</button></div>
     </form></div>`;
   };
 

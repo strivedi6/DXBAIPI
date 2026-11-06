@@ -298,3 +298,8 @@ Front-end only; no Code.gs change.
 - **Send kudos:** find a colleague by name, add a short message (or tap a ready phrase, or leave it empty to just send kudos), and choose **Send anonymously** if you like. The colleague gets a notification.
 - **Fair use:** each person can send kudos to the same colleague **once a month**. People who already got your kudos this month show as "Already sent".
 - **Kudos tab (for Admin):** every kudos is a row: Timestamp, Month, From ID, From Name, To ID, To Name, To Property, Anonymous, Message, Status. The sender is always recorded, even when anonymous in the app. To remove a fake or inappropriate kudos, change its **Status** to **Hidden**: it disappears from the app and from the top 3.
+
+## Version 2.1.1
+**Install:** paste the new `Code.gs` and deploy a new version (needed for the Top 10). The front end updates by itself.
+- **Sign in on a computer:** picture on the left, logo and sign-in on the right (no more stretched photo).
+- **Kudos Corner:** a simple ♥ in place of the heart icon (Send kudos, counts, menu and sidebar link). "Recent appreciation" is removed; below the top 3 there is now a **Top 10** list (places 4–10).
