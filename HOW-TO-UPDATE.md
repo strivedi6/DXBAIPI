@@ -346,3 +346,7 @@ Front-end only; no Code.gs change.
 - **Profile:** App setup has its own card in the left column (Admin only). Sign out is removed from Profile — it's in the sidebar on a computer and in the ☰ menu on phones.
 - **App setup:** the extra "App setup" card at the top is removed; just the title and a one-line note.
 - **People tiles** (Employee of the Month, New Joiners, Promotions — in sections, newsletters and announcements) are all the same size, and the award ribbon ("Heart of the House", "Medallion Winner"…) stays on one line.
+
+## Version 2.2.7
+Front-end only; no Code.gs change.
+- **People tiles are 3:5** (width : height) everywhere — 180 px wide on a computer, two per row on phones — so they're no longer extra tall.
