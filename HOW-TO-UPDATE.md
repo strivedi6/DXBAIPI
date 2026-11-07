@@ -340,3 +340,9 @@ Front-end only; no Code.gs change.
 Front-end only; no Code.gs change.
 - **Posting / editing on a computer:** the form stays in the space left of the live preview (it no longer runs underneath it). The preview uses the new look and no longer shows the Back and Edit buttons.
 - **Profile** and **App setup** show their groups in two columns side by side on a computer.
+
+## Version 2.2.6
+Front-end only; no Code.gs change.
+- **Profile:** App setup has its own card in the left column (Admin only). Sign out is removed from Profile — it's in the sidebar on a computer and in the ☰ menu on phones.
+- **App setup:** the extra "App setup" card at the top is removed; just the title and a one-line note.
+- **People tiles** (Employee of the Month, New Joiners, Promotions — in sections, newsletters and announcements) are all the same size, and the award ribbon ("Heart of the House", "Medallion Winner"…) stays on one line.

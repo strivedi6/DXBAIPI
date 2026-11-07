@@ -3033,7 +3033,6 @@
     if (canApprove() && !isAdmin()) rows.push({ attrs: 'data-act="nav" data-to="adminTeam"', icon: I.shield, color: '#2E9E5B', title: 'Access requests', sub: 'Approve new colleagues', badge: pending ? pending + ' new' : '' });
     if (isAdmin()) {
       rows.push({ attrs: 'data-act="nav" data-to="adminTeam"', icon: I.shield, color: '#2E9E5B', title: 'Team access', sub: 'Approvals, roles and PIN resets', badge: pending ? pending + ' new' : '' });
-      rows.push({ attrs: 'data-act="nav" data-to="adminSetup"', icon: I.gear, color: '#6B717E', title: 'App setup', sub: 'Logo, fonts, theme, sign-in image, lists and categories' });
     }
     if (!rows.length) return '';
     if (canApprove() && state.staff === null) setTimeout(() => { if (state.staff === null) loadStaff(); }, 0);
@@ -3077,11 +3076,10 @@
         ${!isStandalone() ? setRow({ attrs: 'data-act="addHome"', icon: I.addHome, color: '#2F6FDB', title: 'Add to Home Screen' }) : ''}
       </div>
       <p class="set-note">How the app looks, sounds and alerts you on this phone.</p>
+      ${isAdmin() ? `<div class="set-group">${setRow({ attrs: 'data-act="nav" data-to="adminSetup"', icon: I.gear, color: '#6B717E', title: 'App setup', sub: 'Logo, fonts, theme, sign-in image, lists and categories' })}</div>
+      <p class="set-note">Settings for everyone who uses the app (Admin only).</p>` : ''}
       </div><div class="pf-col">
       ${(() => { const tools = profileTools(); return tools ? tools + '<p class="set-note">Tools for posting and running the app, shown to the people who can use them.</p>' : ''; })()}
-      <div class="set-group">
-        ${setRow({ attrs: 'data-act="signOut"', icon: I.logout, color: '#9B2C2C', title: 'Sign out', danger: true, right: ' ' })}
-      </div>
       </div></div>
       <p class="small muted center">version ${esc(CONFIG.appVersion || '1.0.0')}</p>
     </div>${nav('profile')}</div>`;
@@ -4068,11 +4066,7 @@
       return setRow({ attrs: `data-act="nav" data-to="setupSection" data-id="${k}"`, icon: x.icon(), color: x.color, title: esc(x.title), sub: esc(x.desc), danger: k === 'reset',
         right: `${v ? `<span class="set-val">${esc(v)}</span>` : ''}${I.chevron}` }); };
     return `
-      <div class="set-intro">
-        <span class="set-intro-ic">${I.gear}</span>
-        <h2>App setup</h2>
-        <p>Manage how the app looks and works for everyone at DXBAI and DXBPI: the logo, fonts and seasonal theme, the lists people choose from, and the post categories.</p>
-      </div>
+      <p class="sec-desc" style="margin-top:-8px">How the app looks and works for everyone at DXBAI and DXBPI.</p>
       <div class="pf-cols"><div class="pf-col">
       <div class="set-group">${['logo', 'hotels', 'fonts', 'theme', 'signin'].map(row).join('')}</div>
       </div><div class="pf-col">

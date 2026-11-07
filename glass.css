@@ -1303,3 +1303,14 @@ html[data-theme="dark"] .kd-n, html[data-theme="dark"] .kd-me svg, html[data-the
   .screen.det.cp-on > form.page > .topbar.tb::before { left: 0; right: 0; }
   .screen.det.cp-on > form.page > .sticky-actions { position: sticky; bottom: 0; }
 }
+
+/* ===== 2.2.6: people tiles are one size everywhere; award ribbon on one line ===== */
+.hc-person { width: 196px; height: 286px; flex-shrink: 0; justify-content: flex-start; overflow: hidden; }
+.pgrid .hc-person, .ogrid .hc-person { width: auto; }
+.hc-person .ph { width: 104px; height: 104px; flex-shrink: 0; }
+.hc-person .ribbon { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-flex; flex-shrink: 0;
+  font-size: 11px; padding: 4px 10px; gap: 4px; }
+.hc-person .ribbon svg { flex-shrink: 0; width: 13px; height: 13px; }
+.hc-person .nm { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+.hc-person .ps { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.hc-person .pd { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
