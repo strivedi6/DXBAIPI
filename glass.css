@@ -1069,14 +1069,14 @@ html[data-theme="dark"] .tdate { color: color-mix(in srgb, var(--c) 40%, #fff); 
   .nav-foot { margin-top: auto; }
 
   /* Main pages use the full width. */
-  .page.with-nav { --px: max(40px, calc((100vw - 236px - 1360px) / 2)); }
+  .page.with-nav { --px: max(40px, calc((100vw - var(--sb) - 1360px) / 2)); }
 
   /* Pages that open with a picture (offers, posts, newsletters, training, special collections):
      picture on the left (stays in view), everything else on the right, so it fits on one screen. */
   .screen.det:has(> .detail-hero, > .full-hero) {
-    --gut: max(40px, calc((100vw - 236px - 1280px) / 2));
+    --gut: max(40px, calc((100vw - var(--sb) - 1280px) / 2));
     display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); column-gap: 48px; align-items: start;
-    padding: 36px var(--gut) 48px calc(236px + var(--gut)); min-height: 100vh; }
+    padding: 36px var(--gut) 48px calc(var(--sb) + var(--gut)); min-height: 100vh; }
   .screen.det > .detail-hero, .screen.det > .full-hero {
     grid-column: 1; grid-row: 1 / span 2; position: sticky; top: 36px; margin: 0 !important; max-width: none !important; width: 100%;
     aspect-ratio: 4 / 3; height: auto; border-radius: 30px; overflow: hidden; padding: 0; box-shadow: var(--shadow); }
@@ -1119,9 +1119,9 @@ html[data-theme="dark"] .tdate { color: color-mix(in srgb, var(--c) 40%, #fff); 
   /* Picture pages: one card on the left (16:9 cover, title, posted by / until, Back · Edit · Share),
      the rest of the page on the right. */
   .screen.det:has(> .hero-card) {
-    --gut: max(40px, calc((100vw - 236px - 1320px) / 2));
+    --gut: max(40px, calc((100vw - var(--sb) - 1320px) / 2));
     display: grid; grid-template-columns: minmax(340px, 480px) minmax(0, 1fr); column-gap: 40px; align-items: start;
-    padding: 36px var(--gut) 48px calc(236px + var(--gut)); min-height: 100vh; }
+    padding: 36px var(--gut) 48px calc(var(--sb) + var(--gut)); min-height: 100vh; }
   .hero-card { grid-column: 1; position: sticky; top: 36px; display: flex; flex-direction: column; overflow: hidden;
     border-radius: 30px; background: var(--glass); box-shadow: var(--glass-edge), var(--shadow); }
   .coll-page .hero-card { background: rgba(255, 255, 255, .1); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2), 0 18px 40px rgba(0, 0, 0, .25); }
@@ -1155,7 +1155,7 @@ html[data-theme="dark"] .tdate { color: color-mix(in srgb, var(--c) 40%, #fff); 
 
   /* Top bar reaches from the sidebar to the right edge of the window. */
   .page.with-nav { padding-left: var(--px) !important; padding-right: var(--px) !important; }
-  .screen.det > .page:not(.with-nav) > .topbar.tb::before { left: calc((100% - 100vw + 236px) / 2); right: calc((100% - 100vw + 236px) / 2); }
+  .screen.det > .page:not(.with-nav) > .topbar.tb::before { left: calc((100% - 100vw + var(--sb)) / 2); right: calc((100% - 100vw + var(--sb)) / 2); }
 
   /* Highlighted (banded) sections: plain on a computer. */
   .blk-band, .coll-page .blk-band, html[data-theme="dark"] .blk-band { background: none !important; margin-left: 0; margin-right: 0; padding: 0; }
@@ -1254,3 +1254,15 @@ html[data-theme="dark"] .kd-n, html[data-theme="dark"] .kd-me svg, html[data-the
 @media (min-width: 960px) {
   html:not([data-theme="dark"]) .splash-mark .on-dark-logo.tone-light { filter: brightness(0); }
 }
+
+/* ===== 2.2.1 ===== */
+:root { --sb: 300px; }
+#toast { }
+@media (min-width: 960px) {
+  #toast { left: calc(50% + var(--sb) / 2); }
+  .screen.det > .page.lnd-page { max-width: 1320px !important; width: 100%; padding-left: 40px; padding-right: 40px; }
+  .lnd-page .lnd-wrap { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 24px; align-items: start; }
+  .lnd-page .lnd-cal { position: sticky; top: 104px; }
+}
+.lnd-page .sec { gap: 14px; }
+@media (min-width: 960px) { .nav .nav-sec[aria-current="page"] .ns-ic { background: rgba(255, 255, 255, .35); color: inherit; } }

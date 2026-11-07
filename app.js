@@ -803,6 +803,7 @@
       if (p) { const g = catOf(p.category).group; return g === 'marketing' ? 'offers' : g === 'hr' ? 'hr' : 'feed'; }
       return 'feed';
     }
+    if (name === 'section') { const g = catOf((state.route.params || {}).id).group; return g === 'hr' ? 'hr' : g === 'marketing' ? 'offers' : 'feed'; }
     const m = { todayList: 'today', collection: 'offers', section: 'offers', share: 'offers', search: 'feed', checkin: 'hr', checkinHost: 'hr', trainingReport: 'hr', attendees: 'hr' };
     return m[name] || name;
   }
@@ -964,7 +965,7 @@
       const n = (c.type === 'training' ? upcomingTraining(posts.filter((p) => p.category === c.id), 45) : posts.filter((p) => p.category === c.id)).length;
       if (!n) return '';
       const cur = state.route.name === 'section' && (state.route.params || {}).id === c.id;
-      return `<button type="button" class="nav-sec" data-act="nav" ${c.type === 'training' ? 'data-to="hr"' : `data-to="section" data-id="${esc(c.id)}"`} style="--c:${esc(colorHex(c.color))}" ${cur ? 'aria-current="page"' : ''}>
+      return `<button type="button" class="nav-sec" data-act="nav" data-to="section" data-id="${esc(c.id)}" style="--c:${esc(colorHex(c.color))}" ${cur ? 'aria-current="page"' : ''}>
         <span class="ns-ic">${I[TYPE_ICON[c.type]] || I.bell}</span><span class="ns-lb">${esc(c.label)}</span><span class="ns-n">${n}</span></button>`;
     }).join('');
     const kc = ['kudos', 'kudosSend'].indexOf(state.route.name) >= 0;
@@ -1877,7 +1878,7 @@
     const sections = cats().filter((c) => c.active !== false).map((c) => {
       const n = (c.type === 'training' ? upcomingTraining(posts.filter((p) => p.category === c.id), 45) : posts.filter((p) => p.category === c.id)).length;
       if (!n) return '';
-      return row(c.type === 'training' ? 'data-to="hr"' : `data-to="section" data-id="${esc(c.id)}"`, I[TYPE_ICON[c.type]] || I.bell, c.label, n, colorHex(c.color));
+      return row(`data-to="section" data-id="${esc(c.id)}"`, I[TYPE_ICON[c.type]] || I.bell, c.label, n, colorHex(c.color));
     }).join('');
     const bd = (state.birthdaysToday || []).length ? row('data-to="hr"', I.cake, 'Birthdays today', state.birthdaysToday.length, '#C2416B') : '';
     return `<aside class="drawer" role="dialog" aria-modal="true" aria-label="Menu">
@@ -2257,6 +2258,16 @@
   /** All posts of one category, as a list. */
   VIEWS.section = ({ id, coll }) => {
     const c = catOf(id);
+    // Learning & Development: only the training calendar and its sessions.
+    if (c.type === 'training' && !coll) {
+      if (!state.lastLoad && !state.loadingFeed) setTimeout(() => loadFeed(), 0);
+      return `
+    <div class="screen"><div class="page lnd-page">
+      <div class="topbar"><button class="icon-btn" type="button" data-act="back" aria-label="Back">${I.back}</button>
+        <div class="greet spacer"><span class="eyebrow">HR</span><h1>${esc(c.label)}</h1></div><span style="width:44px"></span></div>
+      ${lndSection(c).replace(/<div class="sec-h">[\s\S]*?<\/div>\s*/, '')}
+    </div></div>`;
+    }
     // From inside a special collection: only that collection's posts in this category.
     const cl = coll ? (state.collections.find((x) => x.id === coll) || (state.adminColls || []).find((x) => x.id === coll)) : null;
     const list = coll ? visiblePosts(true).filter((p) => p.category === id && p.collection === coll) : visiblePosts().filter((p) => p.category === id);

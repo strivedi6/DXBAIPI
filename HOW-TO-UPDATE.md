@@ -310,3 +310,8 @@ Front-end only (Code.gs only has its title comment changed — no need to redepl
 - **App icon:** the new Hearts icon (red, magenta and orange heart on navy) for Android, iPhone and the browser.
 - The web address stays https://strivedi6.github.io/DXBAIPI/ so everyone's installed app keeps working.
 - **New icon on phones:** Android usually updates the icon by itself within a few days. On iPhone, remove the app from the Home Screen and add it again (Share › Add to Home Screen) to see the new icon and name.
+
+## Version 2.2.1
+Front-end only; no Code.gs change.
+- **Computer sidebar** is 300 px wide.
+- **Learning & Development** (sidebar or ☰ menu) opens its own page: only the training calendar and sessions. On a computer the calendar stays in place on the left while the sessions scroll on the right; the HR item stays highlighted in the sidebar.
