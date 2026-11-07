@@ -1322,3 +1322,7 @@ html[data-theme="dark"] .kd-n, html[data-theme="dark"] .kd-me svg, html[data-the
 .hc-person .ph { width: 96px; height: 96px; }
 @media (max-width: 959px) { .pgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 960px) { .pgrid { grid-template-columns: repeat(auto-fill, 180px); gap: 16px; } }
+
+/* ===== 2.2.8: people tiles fit their content (no fixed ratio or height) ===== */
+.hc-person { aspect-ratio: auto; height: auto; padding-bottom: 18px; }
+.hrow .hc-person { align-self: stretch; }

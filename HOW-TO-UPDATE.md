@@ -350,3 +350,6 @@ Front-end only; no Code.gs change.
 ## Version 2.2.7
 Front-end only; no Code.gs change.
 - **People tiles are 3:5** (width : height) everywhere — 180 px wide on a computer, two per row on phones — so they're no longer extra tall.
+
+## Version 2.2.8
+- **People tiles** have no fixed shape: their height follows the photo, award, name and job title. Tiles in the same row line up to the tallest one.
