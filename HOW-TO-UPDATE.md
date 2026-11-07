@@ -303,3 +303,10 @@ Front-end only; no Code.gs change.
 **Install:** paste the new `Code.gs` and deploy a new version (needed for the Top 10). The front end updates by itself.
 - **Sign in on a computer:** picture on the left, logo and sign-in on the right (no more stretched photo).
 - **Kudos Corner:** a simple ♥ in place of the heart icon (Send kudos, counts, menu and sidebar link). "Recent appreciation" is removed; below the top 3 there is now a **Top 10** list (places 4–10).
+
+## Version 2.2.0 — the app is now called Hearts
+Front-end only (Code.gs only has its title comment changed — no need to redeploy).
+- **Name:** "Hearts" everywhere: Home Screen name, browser tab, sign-in screen (when no logo is set), menu and sidebar. The menu monogram is now "H".
+- **App icon:** the new Hearts icon (red, magenta and orange heart on navy) for Android, iPhone and the browser.
+- The web address stays https://strivedi6.github.io/DXBAIPI/ so everyone's installed app keeps working.
+- **New icon on phones:** Android usually updates the icon by itself within a few days. On iPhone, remove the app from the Home Screen and add it again (Share › Add to Home Screen) to see the new icon and name.

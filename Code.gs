@@ -1,5 +1,5 @@
 /**
- * Business Bay Team App: backend
+ * Hearts App: backend
  * Connects the staff app to this Google Sheet
  * (tabs: Staff, Posts, Read Log, Categories, Collections, Birthdays, Popups, Attendance, Settings, Lists).
  * New tabs and columns are added automatically the first time this version runs.

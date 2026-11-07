@@ -1,12 +1,12 @@
 // App settings. Change these, then re-upload the folder to Netlify.
 window.APP_CONFIG = {
-  appName: 'Business Bay Team',
-  appShortName: 'DXBAIPI',
-  monogram: 'BB',
+  appName: 'Hearts',
+  appShortName: 'Hearts',
+  monogram: 'H',
   subtitle: 'Embassy Suites · Hilton Garden Inn',
 
   // Raise this each time you upload a new version (shown on the Profile screen).
-  appVersion: '2.1.1',
+  appVersion: '2.2.0',
 
   // Training check-in & "Attend" option. Set to true to switch it back on, then re-upload.
   trainingCheckin: false,

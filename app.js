@@ -1,4 +1,4 @@
-/* Business Bay Team app */
+/* Hearts app */
 (function () {
   'use strict';
 
@@ -86,7 +86,7 @@
   const HOTELS = ['DXBAI', 'DXBPI'];
   const PROP_LABEL = { DXBAI: 'DXBAI · Embassy Suites', DXBPI: 'DXBPI · Hilton Garden Inn', Cluster: 'Cluster' };
   const postProp = (v) => (HOTELS.indexOf(v) >= 0 ? v : 'Cluster');
-  const APP_NAME = CONFIG.appName || 'Business Bay Team';
+  const APP_NAME = CONFIG.appName || 'Hearts';
   /* Colour choice (Profile › Appearance): each has a light and a deep dark version. Saved on this phone. */
   const PALETTES = {
     sage: { name: 'Sage', a: '#46563F', b: '#16211B', bar: ['#E6E0D5', '#16211B'] },
