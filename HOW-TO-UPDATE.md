@@ -320,3 +320,6 @@ Front-end only; no Code.gs change.
 Front-end only; no Code.gs change.
 - **Computer: same content width on every page.** Home, HR, Today, Offers, Profile, Kudos Corner, Learning & Development, section lists, posts, offers and forms all line up on the same left and right edges (up to 1320 px).
 - **Shadows never cut:** swipe rows have room on every side, so tile shadows show in full (including on special collections).
+
+## Version 2.2.3
+- **Welcome notification:** when someone turns on notifications, the first message now reads "You're all set 💛 — You'll now get team updates, offers and celebrations here." instead of "Hearts — Thanks for subscribing!" (iPhone adds "from Hearts" under every title by itself, so the app name is never used as a title).

@@ -638,6 +638,8 @@
             serviceWorkerPath: BASE.replace(/^\//, '') + 'sw.js',
             serviceWorkerParam: { scope: BASE },
             notifyButton: { enable: false },
+            // iPhone already adds "from Hearts" under the title, so the welcome title must not be the app name too.
+            welcomeNotification: { title: 'You’re all set 💛', message: 'You’ll now get team updates, offers and celebrations here.' },
             promptOptions: { slidedown: { prompts: [] } }
           });
           this.ready = true;
