@@ -315,3 +315,8 @@ Front-end only (Code.gs only has its title comment changed — no need to redepl
 Front-end only; no Code.gs change.
 - **Computer sidebar** is 300 px wide.
 - **Learning & Development** (sidebar or ☰ menu) opens its own page: only the training calendar and sessions. On a computer the calendar stays in place on the left while the sessions scroll on the right; the HR item stays highlighted in the sidebar.
+
+## Version 2.2.2
+Front-end only; no Code.gs change.
+- **Computer: same content width on every page.** Home, HR, Today, Offers, Profile, Kudos Corner, Learning & Development, section lists, posts, offers and forms all line up on the same left and right edges (up to 1320 px).
+- **Shadows never cut:** swipe rows have room on every side, so tile shadows show in full (including on special collections).

@@ -1266,3 +1266,24 @@ html[data-theme="dark"] .kd-n, html[data-theme="dark"] .kd-me svg, html[data-the
 }
 .lnd-page .sec { gap: 14px; }
 @media (min-width: 960px) { .nav .nav-sec[aria-current="page"] .ns-ic { background: rgba(255, 255, 255, .35); color: inherit; } }
+
+/* ===== 2.2.2 — computer: one content width everywhere, shadows never cut ===== */
+@media (min-width: 960px) {
+  :root { --cw: 1320px; --gutter: max(40px, calc((100vw - var(--sb) - var(--cw)) / 2)); }
+  /* Main tabs */
+  .page.with-nav { --px: var(--gutter) !important; padding-left: var(--gutter) !important; padding-right: var(--gutter) !important; }
+  /* Every other page uses exactly the same left and right edges. */
+  .screen.det > .page:not(.with-nav), .screen.det > form.page, .screen.det > .page.lnd-page {
+    max-width: none !important; width: 100% !important; margin: 0 !important; --px: var(--gutter);
+    padding-left: var(--gutter) !important; padding-right: var(--gutter) !important; }
+  /* Picture pages: same edges, card on the left. */
+  .screen.det:has(> .hero-card) { --gut: var(--gutter) !important; padding: 36px var(--gutter) 48px calc(var(--sb) + var(--gutter)) !important; }
+  .screen.det:has(> .hero-card) > .page { padding-left: 0 !important; padding-right: 0 !important; }
+  /* Swipe rows: room on every side so card shadows are never clipped. */
+  .hrow { margin: -24px -40px -40px !important; padding: 24px 40px 48px !important; scroll-padding-inline: 40px; }
+  .ogrid { overflow: visible; }
+}
+@media (min-width: 960px) {
+  .screen.det > div.page > .stack:has(> h1), .screen.det > div.page > .person-hero { order: 0; }
+  .screen.det > div.page > .sticky-actions { order: 1; }
+}
