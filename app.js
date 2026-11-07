@@ -639,7 +639,7 @@
             serviceWorkerParam: { scope: BASE },
             notifyButton: { enable: false },
             // iPhone already adds "from Hearts" under the title, so the welcome title must not be the app name too.
-            welcomeNotification: { title: 'You’re all set 💛', message: 'You’ll now get team updates, offers and celebrations here.' },
+            welcomeNotification: { title: 'Welcome to Hearts 💛', message: 'You’ll now get team updates, offers and celebrations here.' },
             promptOptions: { slidedown: { prompts: [] } }
           });
           this.ready = true;
@@ -3323,6 +3323,16 @@
   }
 
   /* ---------- Publisher: compose ---------- */
+  /** Optional words for the notification itself (first line and message). Hidden while "Send notification" is off. */
+  function pushCaption() {
+    return `<div class="push-cap">
+      <div class="field"><label for="c-pt">Notification title (optional)</label>
+        <input class="input" id="c-pt" name="pushTitle" maxlength="60" placeholder="e.g. 🎉 Taco Tuesday is back!"></div>
+      <div class="field"><label for="c-px">Notification message (optional)</label>
+        <input class="input" id="c-px" name="pushText" maxlength="160" placeholder="Leave empty to use the post title"></div>
+      <p class="hint">Shown on the lock screen. Leave both empty for the standard wording.</p>
+    </div>`;
+  }
   function composeDefaults(cat) {
     return { category: cat, property: 'Cluster', priority: 'Normal', pinned: false, sendPush: true, inclusions: [], title: '', message: '' };
   }
@@ -3439,7 +3449,7 @@
         <label class="switch-row"><span><b style="font-size:14px">Pin to top</b><br><span class="small muted">Keeps it first in everyone’s feed</span></span>
           <span class="switch"><input type="checkbox" name="pinned" ${d.pinned ? 'checked' : ''}><span></span></span></label>
         ${!editing || !d.pushSent ? `<label class="switch-row"><span><b style="font-size:14px">Send notification</b><br><span class="small muted">${CONFIG.oneSignalAppId ? 'Alerts staff at the selected hotel' : 'Will work once alerts are set up'}</span></span>
-          <span class="switch"><input type="checkbox" name="sendPush" ${editing ? '' : 'checked'}><span></span></span></label>` : ''}
+          <span class="switch"><input type="checkbox" name="sendPush" ${editing ? '' : 'checked'}><span></span></span></label>${pushCaption()}` : ''}
       </div>
 
       <div class="error-box" id="form-error" hidden></div>
@@ -3611,7 +3621,7 @@
       ${specialFields(d)}
       <div class="card" style="gap:0;padding:4px 16px">
         ${!editing || !d.pushSent ? `<label class="switch-row"><span><b style="font-size:14px">Send notification</b><br><span class="small muted">Alerts staff at the selected hotel</span></span>
-          <span class="switch"><input type="checkbox" name="sendPush" ${editing ? '' : 'checked'}><span></span></span></label>` : ''}
+          <span class="switch"><input type="checkbox" name="sendPush" ${editing ? '' : 'checked'}><span></span></span></label>${pushCaption()}` : ''}
       </div>
       <div class="error-box" id="form-error" hidden></div>
       <div class="sticky-actions"><button class="btn" type="submit">${editing ? 'Save changes' : 'Publish'}</button></div>
@@ -3660,7 +3670,7 @@
       </div>
       <div class="card" style="gap:0;padding:4px 16px">
         ${!editing || !d.pushSent ? `<label class="switch-row"><span><b style="font-size:14px">Announce it now</b><br><span class="small muted">Sends a notification today as well</span></span>
-          <span class="switch"><input type="checkbox" name="sendPush" ${editing ? '' : 'checked'}><span></span></span></label>` : ''}
+          <span class="switch"><input type="checkbox" name="sendPush" ${editing ? '' : 'checked'}><span></span></span></label>${pushCaption()}` : ''}
       </div>
       <div class="error-box" id="form-error" hidden></div>
       <div class="sticky-actions"><button class="btn" type="submit">${editing ? 'Save changes' : 'Add to calendar'}</button></div>
@@ -6105,6 +6115,8 @@
         end: f.end || '',
         pinned: !!f.pinned,
         sendPush: !!f.sendPush,
+        pushTitle: (f.pushTitle || '').trim(),
+        pushText: (f.pushText || '').trim(),
         image: f.image || '',
         menu: f.menu || '',
         attachment: f.attachment || ''

@@ -1287,3 +1287,7 @@ html[data-theme="dark"] .kd-n, html[data-theme="dark"] .kd-me svg, html[data-the
   .screen.det > div.page > .stack:has(> h1), .screen.det > div.page > .person-hero { order: 0; }
   .screen.det > div.page > .sticky-actions { order: 1; }
 }
+
+/* ===== 2.2.4: notification wording in the post form ===== */
+.push-cap { display: flex; flex-direction: column; gap: 10px; padding: 4px 0 14px; border-top: 1px solid var(--hairline); }
+.card:has(input[name="sendPush"]:not(:checked)) .push-cap { display: none; }

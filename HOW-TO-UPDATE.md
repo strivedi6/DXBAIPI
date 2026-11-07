@@ -323,3 +323,15 @@ Front-end only; no Code.gs change.
 
 ## Version 2.2.3
 - **Welcome notification:** when someone turns on notifications, the first message now reads "You're all set 💛 — You'll now get team updates, offers and celebrations here." instead of "Hearts — Thanks for subscribing!" (iPhone adds "from Hearts" under every title by itself, so the app name is never used as a title).
+
+## Version 2.2.4 — notification wording
+**Install:** paste the new `Code.gs` into Apps Script and deploy a new version (Deploy › Manage deployments › Edit › New version).
+- **Welcome:** the first notification after turning alerts on reads "Welcome to Hearts 💛 — You'll now get team updates, offers and celebrations here."
+- **Your own words per post:** under "Send notification" in every post form there are two optional boxes: **Notification title** (first line) and **Notification message**. They're hidden when "Send notification" is off.
+- **Standard wording when left empty:**
+  - Offers: "🍽️ New at Together & Co." — "Taco Tuesday · AED 65"
+  - People (awards, new joiners, promotions): "🏆 Employee of the Month" — "Leah Kessler · Front of the House"
+  - Newsletters: "📰 Latest Updates" — the newsletter title
+  - Training: "🎓 New training session" — the session title
+  - Updates / notices: "📢 HR Updates" — the post title; urgent posts: "⚠️ Urgent: Notices"
+- iPhone adds "from Hearts" under every title by itself, so "Hearts" is never used as the title.

@@ -833,7 +833,7 @@ function actionCreatePost_(req) {
 
   let pushed = false;
   if (row['Send Push'] && row['Status'] === 'Live') {
-    pushed = sendPush_(id, row);
+    pushed = sendPush_(id, row, { title: p.pushTitle, text: p.pushText });
     if (pushed) markPushSent_(id);
   }
   return { id: id, pushed: pushed };
@@ -862,7 +862,7 @@ function actionUpdatePost_(req) {
     const newStatus = fields['Status'] || existing['Status'];
     if (p.sendPush && newStatus === 'Live' && existing['Push Sent'] !== true) {
       const merged = Object.assign({}, existing, fields);
-      pushed = sendPush_(String(existing['Post ID']), merged);
+      pushed = sendPush_(String(existing['Post ID']), merged, { title: p.pushTitle, text: p.pushText });
       if (pushed) setCell_(t, i, 'Push Sent', true);
     }
     return { pushed: pushed, id: String(existing['Post ID']) };
@@ -1909,7 +1909,7 @@ function markPushSent_(postId) {
  * The app tags each device with property = DXBAI, DXBPI or ALL (cluster colleagues), and approved = 1.
  * Returns true if OneSignal accepted the notification; false if not configured or it failed.
  */
-function sendPush_(postId, row) {
+function sendPush_(postId, row, custom) {
   const props = PropertiesService.getScriptProperties();
   const appId = props.getProperty('ONESIGNAL_APP_ID');
   const apiKey = props.getProperty('ONESIGNAL_API_KEY');
@@ -1925,13 +1925,29 @@ function sendPush_(postId, row) {
       ]
     : [{ field: 'tag', key: 'approved', relation: '=', value: '1' }];
 
-  const cat = categories_().filter(function (c) { return c.id === row['Category']; })[0];
-  const heading = (row['Priority'] === 'Urgent' ? 'Urgent: ' : '') + (cat ? cat.label : 'Update');
+  const cat = categories_().filter(function (c) { return c.id === row['Category']; })[0] || {};
+  const clean = function (v) { return String(v == null ? '' : v).replace(/^'/, '').trim(); };
+  const label = cat.label || 'Update';
+  const title = clean(row['Title']);
+  // First line: the poster's own notification title, or a sensible one for the kind of post.
+  // (iPhone shows "from Hearts" under it by itself, so the app name is never used here.)
+  let heading = {
+    offer: '\uD83C\uDF7D\uFE0F ' + (clean(row['Outlet']) ? 'New at ' + clean(row['Outlet']) : 'New offer'),
+    people: '\uD83C\uDFC6 ' + label,
+    monthly: '\uD83D\uDCF0 ' + label,
+    training: '\uD83C\uDF93 New training session'
+  }[cat.type] || ('\uD83D\uDCE2 ' + label);
+  if (row['Priority'] === 'Urgent') heading = '\u26A0\uFE0F Urgent: ' + label;
+  let text = title;
+  if (cat.type === 'people') text = clean(row['Person Name']) ? clean(row['Person Name']) + (clean(row['Subtitle']) ? ' · ' + clean(row['Subtitle']) : '') : title;
+  if (cat.type === 'offer' && clean(row['Price (AED)'])) text = title + ' · AED ' + clean(row['Price (AED)']);
+  if (custom && clean(custom.title)) heading = clean(custom.title).slice(0, 60);
+  if (custom && clean(custom.text)) text = clean(custom.text).slice(0, 160);
 
   const body = {
     filters: filters,
     headings: { en: heading },
-    contents: { en: String(row['Title'] || '').replace(/^'/, '') }
+    contents: { en: text || label }
   };
   if (appUrl) body.web_url = appUrl.replace(/\/$/, '') + '/?post=' + encodeURIComponent(postId);
   return oneSignal_(body);
