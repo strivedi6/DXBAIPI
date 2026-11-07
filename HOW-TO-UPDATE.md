@@ -335,3 +335,8 @@ Front-end only; no Code.gs change.
   - Training: "🎓 New training session" — the session title
   - Updates / notices: "📢 HR Updates" — the post title; urgent posts: "⚠️ Urgent: Notices"
 - iPhone adds "from Hearts" under every title by itself, so "Hearts" is never used as the title.
+
+## Version 2.2.5
+Front-end only; no Code.gs change.
+- **Posting / editing on a computer:** the form stays in the space left of the live preview (it no longer runs underneath it). The preview uses the new look and no longer shows the Back and Edit buttons.
+- **Profile** and **App setup** show their groups in two columns side by side on a computer.

@@ -3064,6 +3064,7 @@
         </button>
       </div>
       <p class="set-note">Your photo, details, birthday and PIN.</p>
+      <div class="pf-cols"><div class="pf-col">
       <div class="set-group">
         ${setRow({ tag: 'label', icon: I.bell, color: '#E5484D', title: 'Notifications', sub: pushHint,
           right: `<span class="switch"><input type="checkbox" role="switch" aria-label="Notifications" data-change="pushToggle" ${Push.isOn() ? 'checked' : ''} ${pushDisabled ? 'disabled' : ''}><span></span></span>` })}
@@ -3076,10 +3077,12 @@
         ${!isStandalone() ? setRow({ attrs: 'data-act="addHome"', icon: I.addHome, color: '#2F6FDB', title: 'Add to Home Screen' }) : ''}
       </div>
       <p class="set-note">How the app looks, sounds and alerts you on this phone.</p>
+      </div><div class="pf-col">
       ${(() => { const tools = profileTools(); return tools ? tools + '<p class="set-note">Tools for posting and running the app, shown to the people who can use them.</p>' : ''; })()}
       <div class="set-group">
         ${setRow({ attrs: 'data-act="signOut"', icon: I.logout, color: '#9B2C2C', title: 'Sign out', danger: true, right: ' ' })}
       </div>
+      </div></div>
       <p class="small muted center">version ${esc(CONFIG.appVersion || '1.0.0')}</p>
     </div>${nav('profile')}</div>`;
   };
@@ -4070,10 +4073,13 @@
         <h2>App setup</h2>
         <p>Manage how the app looks and works for everyone at DXBAI and DXBPI: the logo, fonts and seasonal theme, the lists people choose from, and the post categories.</p>
       </div>
+      <div class="pf-cols"><div class="pf-col">
       <div class="set-group">${['logo', 'hotels', 'fonts', 'theme', 'signin'].map(row).join('')}</div>
+      </div><div class="pf-col">
       <div class="set-group">${['outlets', 'departments', 'categories'].map(row).join('')}</div>
       <div class="set-group">${setRow({ attrs: 'data-act="cleanupFiles"', icon: sv('<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/>', 18), color: '#6B717E', title: 'Clean up unused files', sub: 'Move photos and files no longer used in the app to Drive Trash', right: ' ' })}</div>
-      <div class="set-group">${row('reset')}</div>`;
+      <div class="set-group">${row('reset')}</div>
+      </div></div>`;
   }
 
   function setupSectionHtml(sec) {
@@ -7263,7 +7269,7 @@
       const theme = document.documentElement.getAttribute('data-theme') || 'light';
       const doc = this.frame.contentDocument;
       doc.open();
-      doc.write('<!doctype html><html data-theme="' + theme + '"><head><meta name="viewport" content="width=device-width,initial-scale=1"><base href="' + esc(location.href) + '"><link rel="stylesheet" href="styles.css"><style>html,body{margin:0;background:var(--cream)}.sticky-actions{display:none!important}</style></head><body></body></html>');
+      doc.write('<!doctype html><html data-theme="' + theme + '"><head><meta name="viewport" content="width=device-width,initial-scale=1"><base href="' + esc(location.href) + '"><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="glass.css"><style>html,body{margin:0;background:var(--cream)}body::after{content:none}.sticky-actions{display:none!important}.fh-bar,.detail-hero>.icon-btn,.topbar>.icon-btn,.topbar .row>.icon-btn,[data-act="back"],[data-act="editPost"]{display:none!important}.full-hero+.page,.detail-hero+.page.sheet{margin-top:-34px}</style></head><body></body></html>');
       doc.close();
       this.update();
       this.onEvt = () => this.schedule();

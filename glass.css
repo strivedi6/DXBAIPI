@@ -1291,3 +1291,15 @@ html[data-theme="dark"] .kd-n, html[data-theme="dark"] .kd-me svg, html[data-the
 /* ===== 2.2.4: notification wording in the post form ===== */
 .push-cap { display: flex; flex-direction: column; gap: 10px; padding: 4px 0 14px; border-top: 1px solid var(--hairline); }
 .card:has(input[name="sendPush"]:not(:checked)) .push-cap { display: none; }
+
+/* ===== 2.2.5 ===== */
+.pf-cols, .pf-col { display: flex; flex-direction: column; gap: 18px; }
+@media (min-width: 960px) {
+  .pf-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+  /* Editing with the live preview: the form keeps to the space left of the preview. */
+  .screen.det.cp-on > form.page { width: calc(100% - 480px) !important; max-width: none !important; margin: 0 !important;
+    --px: max(40px, calc((100vw - var(--sb) - 480px - 820px) / 2));
+    padding-left: var(--px) !important; padding-right: var(--px) !important; }
+  .screen.det.cp-on > form.page > .topbar.tb::before { left: 0; right: 0; }
+  .screen.det.cp-on > form.page > .sticky-actions { position: sticky; bottom: 0; }
+}
