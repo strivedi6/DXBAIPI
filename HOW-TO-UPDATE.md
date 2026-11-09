@@ -353,3 +353,6 @@ Front-end only; no Code.gs change.
 
 ## Version 2.2.8
 - **People tiles** have no fixed shape: their height follows the photo, award, name and job title. Tiles in the same row line up to the tallest one.
+
+## Version 2.2.9
+- **Special collections** are shorter, and when there's more than one they sit side by side in a swipeable row (like birthday tiles). A single collection still shows full width.

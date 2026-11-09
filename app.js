@@ -1622,7 +1622,7 @@
   function collectionTiles(list) {
     const colls = (list || state.collections).filter((c) => state.posts.some((p) => p.collection === c.id) || canCollect());
     if (!colls.length) return '';
-    return colls.map((c) => `
+    const tiles = colls.map((c) => `
       <button type="button" class="coll-tile" data-act="nav" data-to="collection" data-id="${esc(c.id)}" style="--bg:${esc(colorHex(c.color))}" ${c.animation !== 'none' ? `data-fx="${esc(c.animation)}"` : ''}>
         <span class="ct">
           <span class="ey">${I.sparkles} Special</span>
@@ -1630,6 +1630,8 @@
           <span class="ct-c">${state.posts.filter((p) => p.collection === c.id).length} inside · tap to explore</span>
         </span>
       </button>`).join('');
+    // More than one: a swipeable row, like birthday tiles.
+    return colls.length > 1 ? `<div class="hrow coll-row">${tiles}</div>` : tiles;
   }
 
   /* ---------------- Birthdays ---------------- */

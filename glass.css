@@ -1326,3 +1326,11 @@ html[data-theme="dark"] .kd-n, html[data-theme="dark"] .kd-me svg, html[data-the
 /* ===== 2.2.8: people tiles fit their content (no fixed ratio or height) ===== */
 .hc-person { aspect-ratio: auto; height: auto; padding-bottom: 18px; }
 .hrow .hc-person { align-self: stretch; }
+
+/* ===== 2.2.9: special collections — shorter, swipeable when more than one ===== */
+.coll-tile { min-height: 116px; padding: 16px 20px; }
+.coll-tile .nm { font-size: 19px; }
+.coll-tile .ey { font-size: 11px; }
+.coll-row .coll-tile { width: 300px; flex-shrink: 0; }
+@media (max-width: 420px) { .coll-row .coll-tile { width: 82vw; } }
+@media (min-width: 960px) { .coll-row .coll-tile { width: 360px; } }
