@@ -356,3 +356,7 @@ Front-end only; no Code.gs change.
 
 ## Version 2.2.9
 - **Special collections** are shorter, and when there's more than one they sit side by side in a swipeable row (like birthday tiles). A single collection still shows full width.
+
+## Version 2.3.0 — smooth background
+Front-end only; no Code.gs change.
+- The leaf shapes and the diagonal light line are gone. The background is now soft colour fields that melt into each other, like a blurred photo: warm amber top-left, sage top-right, rose on the left and deep indigo at the bottom. It's lighter and pastel in light mode, deeper in dark mode, still (no movement), and takes the Colour choice / seasonal theme.

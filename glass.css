@@ -1334,3 +1334,31 @@ html[data-theme="dark"] .kd-n, html[data-theme="dark"] .kd-me svg, html[data-the
 .coll-row .coll-tile { width: 300px; flex-shrink: 0; }
 @media (max-width: 420px) { .coll-row .coll-tile { width: 82vw; } }
 @media (min-width: 960px) { .coll-row .coll-tile { width: 360px; } }
+
+/* =====================================================================
+   2.3.0 — Smooth blurred background (no leaves, no light beam).
+   Big soft colour fields that melt into each other, like a blurred photo:
+   warm amber top-left, sage top-right, rose on the left, deep indigo below.
+   They take the current colour choice / season (--navy, --gold) so it always matches.
+   ===================================================================== */
+body::after { content: none !important; }
+:root {
+  --atmos:
+    radial-gradient(70% 45% at 12% 8%, color-mix(in srgb, var(--gold) 55%, #F3B867) 0%, transparent 72%),
+    radial-gradient(60% 45% at 100% 6%, color-mix(in srgb, var(--navy) 45%, #A9C7A0) 0%, transparent 70%),
+    radial-gradient(55% 40% at -5% 52%, color-mix(in srgb, #D98A92 70%, var(--gold)) 0%, transparent 72%),
+    radial-gradient(80% 50% at 70% 62%, color-mix(in srgb, var(--cream) 80%, #fff) 0%, transparent 75%),
+    radial-gradient(90% 55% at 40% 108%, color-mix(in srgb, var(--navy) 35%, #B7A9D6) 0%, transparent 72%),
+    linear-gradient(180deg, color-mix(in srgb, var(--cream) 60%, #FBEFD9) 0%, var(--cream) 55%, color-mix(in srgb, var(--cream) 80%, #8E85A8) 100%);
+}
+html[data-theme="dark"] {
+  --atmos:
+    radial-gradient(70% 42% at 10% 6%, color-mix(in srgb, var(--gold) 45%, #B9783A) 0%, transparent 70%),
+    radial-gradient(60% 42% at 100% 4%, color-mix(in srgb, var(--navy) 70%, #3E6B52) 0%, transparent 70%),
+    radial-gradient(55% 40% at -8% 50%, color-mix(in srgb, #8E3B55 75%, var(--navy)) 0%, transparent 72%),
+    radial-gradient(70% 45% at 85% 70%, color-mix(in srgb, var(--navy) 30%, #1F2E3A) 0%, transparent 72%),
+    radial-gradient(95% 55% at 35% 110%, color-mix(in srgb, var(--navy) 25%, #24164A) 0%, transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--cream) 70%, #3A2A1E) 0%, var(--cream) 50%, color-mix(in srgb, var(--cream) 55%, #120B2A) 100%);
+}
+/* Keep the colour fields perfectly smooth (no banding) and still while you scroll. */
+body::before { background: var(--atmos); filter: blur(0); transform: translateZ(0); }
